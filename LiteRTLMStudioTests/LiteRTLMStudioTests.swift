@@ -107,6 +107,16 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertEqual(r2.accum, 0, accuracy: 0.001)
     }
 
+    /// 높이 캐시 키·저장 (T-083): 동일 입력 동일 키, 스케일 바뀌면 다른 키.
+    func testHeightCache() {
+        let k1 = MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.0)
+        XCTAssertEqual(k1, MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.0))
+        XCTAssertNotEqual(k1, MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.5))
+        MarkdownPage.storeHeight(300, markdown: "hello", scheme: .dark, fontScale: 1.0)
+        XCTAssertEqual(MarkdownPage.cachedHeight(markdown: "hello", scheme: .dark, fontScale: 1.0), 300)
+        XCTAssertNil(MarkdownPage.cachedHeight(markdown: "other", scheme: .dark, fontScale: 1.0))
+    }
+
     /// 상대 시간 (T-077): 방금 전·초·분·시간·어제·일·날짜.
     func testChatRelativeTime() {
         let now = Date()

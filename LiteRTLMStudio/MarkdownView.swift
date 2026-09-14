@@ -44,6 +44,17 @@ struct MarkdownView: View, Equatable {
     var fontScale: CGFloat = 1.0 // T-070 채팅 폰트 줌
     @State private var height: CGFloat = 24
 
+    init(text: String, scheme: MarkdownScheme = .auto, isStreaming: Bool = false,
+         fontScale: CGFloat = 1.0) {
+        self.text = text
+        self.scheme = scheme
+        self.isStreaming = isStreaming
+        self.fontScale = fontScale
+        // T-083 높이 캐시: 진입 초기 프레임을 실측 근사치로 (24pt 플레이스홀더 충격 완화).
+        _height = State(initialValue: MarkdownPage.cachedHeight(markdown: text, scheme: scheme,
+                                                                fontScale: Double(fontScale)) ?? 24)
+    }
+
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.text == rhs.text && lhs.scheme == rhs.scheme && lhs.isStreaming == rhs.isStreaming
             && lhs.fontScale == rhs.fontScale
@@ -262,6 +273,9 @@ struct MarkdownWebView: NSViewRepresentable {
             }
             let h = MarkdownWebView.fittedHeight(raw)
             guard h > 0 else { return }
+            // T-083 높이 캐시 저장 (다음 진입 초기 프레임용).
+            MarkdownPage.storeHeight(h, markdown: appliedMarkdown, scheme: scheme,
+                                     fontScale: lastScale)
             DispatchQueue.main.async {
                 let cur = self.heightBinding?.wrappedValue ?? 0
                 if abs(h - cur) > 1 { self.heightBinding?.wrappedValue = h }
@@ -353,6 +367,32 @@ struct MarkdownWebView: NSViewRepresentable {
 /// 파싱 marked + 하이라이트 highlight.js + 커스텀 렌더러/CSS. 전부 번들 내장(오프라인).
 enum MarkdownPage {
     static var resourceCache: [String: String] = [:]
+    static var heightCache: [String: CGFloat] = [:] // T-083 실측 높이 캐시
+    static var heightOrder: [String] = [] // FIFO 퇴출용
+    static let heightCap = 500
+
+    /// 높이 캐시 키 (순수, 테스트 가능, T-083): 텍스트+외관+스케일.
+    nonisolated static func heightKey(markdown: String, scheme: MarkdownScheme,
+                                      fontScale: Double) -> String {
+        "\(markdown.hashValue)_\(themeName(for: scheme))_\(fontScale)"
+    }
+
+    nonisolated static func cachedHeight(markdown: String, scheme: MarkdownScheme,
+                                         fontScale: Double) -> CGFloat? {
+        heightCache[heightKey(markdown: markdown, scheme: scheme, fontScale: fontScale)]
+    }
+
+    nonisolated static func storeHeight(_ h: CGFloat, markdown: String, scheme: MarkdownScheme,
+                                        fontScale: Double) {
+        let key = heightKey(markdown: markdown, scheme: scheme, fontScale: fontScale)
+        if heightCache[key] == nil {
+            heightOrder.append(key)
+            if heightOrder.count > heightCap, !heightOrder.isEmpty {
+                heightCache.removeValue(forKey: heightOrder.removeFirst())
+            }
+        }
+        heightCache[key] = h
+    }
 
     /// data-theme 값 (순수, 테스트 가능): auto→system.
     nonisolated static func themeName(for scheme: MarkdownScheme) -> String {

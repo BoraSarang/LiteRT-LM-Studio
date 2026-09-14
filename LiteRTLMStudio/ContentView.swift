@@ -13,6 +13,7 @@ final class FollowGate: ObservableObject {
     var entrySince = Date.distantPast // T-078 진입 시작 시각 (휠 존중용)
     var wheelAccum: CGFloat = 0 // T-080 휠 누적 (미세 접촉 무시용)
     var lastDocHeights: [CGFloat] = [] // T-080 진입 수렴 안정 판정용
+    var kickDone = false // T-083 프록시 킥 1회 플래그
 }
 
 /// 상위 NSScrollView 탐색 (T-047): 절대좌표 점프용 AppKit 진입점. 렌더 없음(AIModelTalk 이식).
@@ -485,11 +486,12 @@ extension ContentView {
         followGate.entryWorks.removeAll()
         followGate.entrySince = Date()
         followGate.lastDocHeights = []
+        followGate.kickDone = false
         entryPoll(session: session, attempt: 0)
     }
 
-    /// 진입 폴링 1회 (T-080, T-081, T-082): 매회 프록시로 Lazy 강제 생성 후 절대점프,
-    /// 이후 상한까지 풀로 회전. 조기 종료는 수렴+안정+최소 회차 모두 만족 때만.
+    /// 진입 폴링 1회 (T-080, T-081, T-083): 킥은 레이아웃 증거 후 1회,
+    /// 이후 상한까지 절대점프 풀 회전. 조기 종료는 수렴+안정+최소 회차 모두 만족 때만.
     private func entryPoll(session: UUID?, attempt: Int) {
         let maxAttempts = 32 // 0.15초 간격 ≈ 5초 상한
         let minAttempts = 8 // T-081 버스트 전 고원(≈1.2초) 회피
@@ -499,8 +501,14 @@ extension ContentView {
             // 세션 교체·진입 후 휠이면 중단 (낡은 예약·읽기 우선). 핀은 실측으로 정정.
             guard session == nil || session == self.chat.currentSessionID,
                   gate.lastWheel < gate.entrySince else { self.reconcilePin(); return }
-            // T-082 Lazy 강제 생성 (매회): 0회차엔 앵커 미배치로 허공에 나갈 수 있어 재킥.
-            self.scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
+            // T-083 Lazy 강제 생성 1회: 플레이스홀더 합산 이상 자랐을 때만 (앵커 존재 증거).
+            // 0회차 허공 킥·매회 이중 구동이 떨림·폭풍의 원인이었음.
+            let expectMin = CGFloat(self.chat.messages.count) * 36.0 + 32.0
+            let docH0 = self.chatScrollView?.documentView?.bounds.height ?? 0
+            if !gate.kickDone, !self.chat.messages.isEmpty, docH0 >= expectMin {
+                gate.kickDone = true
+                self.scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
+            }
             self.jumpToBottom()
             let docH = self.chatScrollView?.documentView?.bounds.height ?? 0
             gate.lastDocHeights.append(docH)
