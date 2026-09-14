@@ -1,4 +1,5 @@
 import AppKit
+import Charts
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -469,35 +470,38 @@ struct ChatInputBar: View {
 }
 
 /// 하단 패널 본체: chatPane 하단·입력바 위 (T-039, 사이드바 제외).
+/// T-094 터미널 개편: 입력창 동일 박스+서버 로그 전용 행+시스템 가로 3칸+자동스크롤+복사/지우기+시각.
 struct BottomPanelView: View {
     @ObservedObject var daemon: DaemonManager
     @ObservedObject var monitor: SystemMonitor
     @Binding var logTab: Int
     var onClose: () -> Void
     var onTakeover: () -> Void
+    @State private var selection = Set<Int>()
+    @State private var copied = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
                 Picker("", selection: $logTab) {
                     Text("서버 로그").tag(0)
                     Text("시스템").tag(1)
-                }.pickerStyle(.segmented).frame(width: 200)
+                }.pickerStyle(.segmented).frame(width: 160)
                 Text(daemon.external ? "외부 데몬" : "앱 데몬")
                     .font(.system(size: 10)).foregroundStyle(.tertiary)
                 Spacer()
-                if logTab == 0, !daemon.external {
-                    Button("복사") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(daemon.logLines.joined(separator: "\n"), forType: .string)
-                    }.help("로그 전체 복사")
+                if logTab == 0, !daemon.external, !daemon.logLines.isEmpty {
+                    Button(copied ? "복사됨" : "선택 복사") { copyTargets(selectionOrAll) }
+                        .help("선택 행 복사 (선택 없으면 전체)")
+                    Button("전체 복사") { copyTargets(daemon.logLines) }
+                        .help("로그 전체 복사")
+                    Button("지우기") { daemon.clearLog(); selection.removeAll() }
+                        .help("로그 비우기")
                 }
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                 }.buttonStyle(.plain).help("패널 닫기 (⌘J)")
             }
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            Divider()
             if logTab == 0 {
                 if daemon.external {
                     // 외부 데몬 로그는 수집 불가 → 안내 + 인수.
@@ -519,21 +523,94 @@ struct BottomPanelView: View {
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    ScrollView {
-                        Text(daemon.logLines.joined(separator: "\n"))
-                            .font(.system(size: 11, design: .monospaced))
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(8)
+                    ScrollViewReader { proxy in
+                        List(selection: $selection) {
+                            ForEach(Array(daemon.logLines.enumerated()), id: \.offset) { idx, line in
+                                Text(line)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .lineLimit(1)
+                                    .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
+                            }
+                        }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                        .onAppear {
+                            guard !daemon.logLines.isEmpty else { return }
+                            proxy.scrollTo(daemon.logLines.count - 1, anchor: .bottom)
+                        }
+                        .onChange(of: daemon.logLines.count) { old, n in
+                            if n < old {
+                                selection.removeAll() // 상한 trim 시 오프셋 어긋남 방지
+                            } else if n > 0 {
+                                proxy.scrollTo(n - 1, anchor: .bottom)
+                            }
+                        }
                     }
                 }
             } else {
-                ScrollView {
-                    SystemMetersView(monitor: monitor).padding(8)
+                HStack(spacing: 8) {
+                    SystemCellView(title: "CPU",
+                                   value: String(format: "%.0f%%", monitor.cpu),
+                                   history: monitor.cpuHistory, color: .blue)
+                    SystemCellView(title: "RAM",
+                                   value: String(format: "%.0f%%", SystemMetersView.ramUsedPct(
+                                       usedGB: monitor.ramUsedGB, totalGB: monitor.ramTotalGB)),
+                                   history: monitor.ramHistory, color: .yellow)
+                    SystemCellView(title: "GPU",
+                                   value: monitor.gpu.map { String(format: "%.0f%%", $0) } ?? "–",
+                                   history: monitor.gpuHistory, color: .purple)
                 }
             }
         }
-        .frame(height: 180)
-        .background(Color(.windowBackgroundColor))
+        .padding(12)
+        .background(Color(.textBackgroundColor))
+        .clipShape(.rect(cornerRadius: 8))
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) }
+        .frame(height: 220)
+    }
+
+    private var selectionOrAll: [String] {
+        selection.isEmpty ? daemon.logLines : selection.sorted().compactMap {
+            $0 < daemon.logLines.count ? daemon.logLines[$0] : nil
+        }
+    }
+
+    private func copyTargets(_ lines: [String]) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
+    }
+}
+
+/// 시스템 미니 셀 (T-094 가로 3칸): 제목+값+미니 차트.
+struct SystemCellView: View {
+    let title: String
+    let value: String
+    let history: [Double]
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(title).font(.system(size: 12, weight: .medium))
+                Spacer(minLength: 4)
+                Text(value).font(.system(size: 11).monospacedDigit()).foregroundStyle(.secondary)
+            }
+            Chart {
+                ForEach(Array(history.enumerated()), id: \.offset) { idx, val in
+                    LineMark(x: .value("t", idx), y: .value("v", val))
+                        .foregroundStyle(color.opacity(0.9))
+                }
+            }
+            .chartXAxis(.hidden)
+            .chartYAxis(.hidden)
+            .chartYScale(domain: 0 ... 100)
+            .frame(height: 44)
+        }
+        .padding(8)
+        .background(Color(.controlBackgroundColor).opacity(0.5))
+        .clipShape(.rect(cornerRadius: 8))
+        .frame(maxWidth: .infinity)
     }
 }

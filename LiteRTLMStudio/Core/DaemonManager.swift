@@ -6,9 +6,27 @@ final class DaemonManager: ObservableObject {
     enum Status: String {
         case stopped = "중지", starting = "시작 중…", running = "실행 중", failed = "실패"
     }
-
     static let host = "127.0.0.1"
+
     static let port = 9379
+
+    /// 로그 시각 (T-094): HH:mm:ss.
+    nonisolated static func logTimeString(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ko_KR")
+        f.dateFormat = "HH:mm:ss"
+        return f.string(from: date)
+    }
+
+    /// 로그 행 타임스탬프 (순수, 테스트 가능, T-094).
+    nonisolated static func stampedLines(_ chunk: String, time: String) -> [String] {
+        chunk.split(separator: "\n").map { "[\(time)] \($0)" }
+    }
+
+    /// 로그 비우기 (T-094 터미널 지우기).
+    func clearLog() {
+        logLines.removeAll()
+    }
 
     @Published var status: Status = .stopped
     @Published var logLines: [String] = []
@@ -105,7 +123,8 @@ final class DaemonManager: ObservableObject {
             let line = String(data: h.availableData, encoding: .utf8) ?? ""
             guard !line.isEmpty else { return }
             Task { @MainActor in
-                self?.logLines.append(contentsOf: line.split(separator: "\n").map(String.init))
+                let stamp = Self.logTimeString(Date())
+                self?.logLines.append(contentsOf: Self.stampedLines(line, time: stamp))
                 if self?.logLines.count ?? 0 > 500 { self?.logLines.removeFirst(200) }
             }
         }

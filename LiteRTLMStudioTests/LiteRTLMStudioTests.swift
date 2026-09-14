@@ -134,6 +134,14 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertTrue(MarkdownWebView.widthChanged(old: 500, new: 480))
     }
 
+    /// 데몬 로그 타임스탬프 (T-094).
+    func testDaemonLogStamp() {
+        let lines = DaemonManager.stampedLines("a\nb", time: "12:00:01")
+        XCTAssertEqual(lines, ["[12:00:01] a", "[12:00:01] b"])
+        XCTAssertEqual(DaemonManager.stampedLines("", time: "12:00:01"), [])
+        XCTAssertTrue(DaemonManager.logTimeString(Date()).count == 8)
+    }
+
     /// 상대 시간 (T-077): 방금 전·초·분·시간·어제·일·날짜.
     func testChatRelativeTime() {
         let now = Date()

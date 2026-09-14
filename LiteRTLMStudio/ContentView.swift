@@ -356,15 +356,15 @@ struct ContentView: View {
                     }
                 }
             }
-            Divider()
             if logPanelVisible, daemon.status == .running {
                 bottomPanel
                     .frame(maxWidth: DS.chatMaxWidth) // T-093 터미널 로그 열폭 통일
-                Divider()
+                    .padding(.top, 8) // T-094 구분선 제거 대체 간격
             }
             ChatInputBar(chat: chat, daemon: daemon, input: $input,
                          attachedImage: $attachedImage, attachedName: $attachedName)
                 .frame(maxWidth: DS.chatMaxWidth) // T-093 입력창 열폭 통일
+                .padding(.top, 8) // T-094 구분선 제거 대체 간격
         }
         .onChange(of: chat.currentSessionID) { _, id in sessionJump(to: id) }
     }
