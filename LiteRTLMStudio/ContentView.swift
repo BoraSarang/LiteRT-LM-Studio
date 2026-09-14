@@ -348,8 +348,11 @@ struct ContentView: View {
                         }
                     }
                     .onChange(of: chat.streaming) { _, streaming in
-                        // 응답 완료: 높이 정착 수렴 (핀 ON일 때만, T-047).
-                        if !streaming, pinnedToBottom {
+                        if streaming {
+                            // 전송 시작: 명시 의사라 게이트 우회 즉시 점프 (T-076).
+                            sendJump()
+                        } else if pinnedToBottom {
+                            // 응답 완료: 높이 정착 수렴 (핀 ON일 때만, T-047).
                             scrollToFitBottom(cancelOnWheelSince: Date())
                         }
                     }
@@ -628,6 +631,18 @@ extension ContentView {
             NSEvent.removeMonitor(token)
             wheelMonitor = nil
         }
+    }
+
+    /// 전송 시작 점프 (T-076): 명시 의사라 T-044 게이트 우회. re-pin+수렴으로
+    /// 내 버블·준비중을 즉시 보이고 이후 추종을 재개 (읽는 중 토큰 추종은 그대로 차단).
+    private func sendJump() {
+        pinnedToBottom = true
+        lastFollow = .distantPast
+        followGate.lastWheel = .distantPast
+        followGate.lastContent = 0 // 다음 토큰 증가 감지 보장
+        pauseNotified = false
+        logger.info(feature: "스크롤", "전송 — 하단 이동")
+        scrollToFitBottom(cancelOnWheelSince: Date())
     }
 
     /// 세션 전환·첫 표시 하단 점프 (T-046): 명시 이동이라 T-044 게이트 우회.
