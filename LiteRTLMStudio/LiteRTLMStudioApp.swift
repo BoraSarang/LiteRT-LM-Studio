@@ -81,8 +81,11 @@ struct LiteRTLMStudioApp: App {
         Window("LiteRT-LM Studio", id: "main") {
             ContentView(daemon: services.daemon, monitor: services.monitor)
                 .frame(minWidth: 1000, minHeight: 640)
+                .background {
+                    WindowAccessor { $0?.setFrameAutosaveName("LiteRTLMStudioMain") }
+                }
         }
-        .defaultSize(width: 1100, height: 720)
+        .defaultSize(width: 1340, height: 800) // T-092 계산치: 사이드바 220+열 768+여백 32+인스펙터 320
         .windowToolbarStyle(.unified)
         // 디버그 별도 윈도우 (T-053): 시트 대신 독립 창.
         Window("디버그 패널", id: "debug") {
@@ -241,6 +244,31 @@ struct MenuBarView: View {
 }
 
 final class ChatHolder: ObservableObject {}
+
+/// NSWindow 포착 (T-092): 프레임 자동 저장용. 최초 1회만 적용.
+private struct WindowAccessor: NSViewRepresentable {
+    let onWindow: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        NSView()
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard !context.coordinator.done else { return }
+        let coordinator = context.coordinator
+        DispatchQueue.main.async { [weak nsView] in
+            guard let window = nsView?.window else { return }
+            window.setFrameAutosaveName("LiteRTLMStudioMain")
+            coordinator.done = true
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        var done = false
+    }
+}
 
 extension Notification.Name {
     static let newChat = Notification.Name("newChat")
