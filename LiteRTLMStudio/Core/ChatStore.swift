@@ -9,6 +9,7 @@ final class ChatStore: ObservableObject {
         var text: String
         var perf: String?
         var isError = false
+        var finishedAt: Date? // T-077 응답 완료 시각 (nil=완료 전·구 기록)
     }
 
     struct Session: Identifiable, Codable {
@@ -193,6 +194,7 @@ final class ChatStore: ObservableObject {
                 let elapsed = Date().timeIntervalSince(started)
                 let est = acc.count / max(1, Int(elapsed * 4))
                 messages[idx].perf = String(format: "%.1fs · 약 %d tok/s", elapsed, est)
+                messages[idx].finishedAt = Date() // T-077 완료 시각 기록
                 logger.perf(feature: "채팅전송", "완료 elapsed=\(String(format: "%.1f", elapsed))s chars=\(acc.count)")
             } catch is CancellationError {
                 logger.info(feature: "채팅중단", "사용자 중단")
@@ -200,6 +202,7 @@ final class ChatStore: ObservableObject {
                 lastError = "E-MAC-NET-0005"
                 messages[idx].text = "요청 실패: 서버 상태를 확인해 주세요. (E-MAC-NET-0005)"
                 messages[idx].isError = true
+                messages[idx].finishedAt = Date() // T-077 실패 시각도 기록
                 logger.error(code: "E-MAC-NET-0005", feature: "채팅전송", "\(error)")
             }
             preparing = false

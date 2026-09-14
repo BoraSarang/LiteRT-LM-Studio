@@ -85,6 +85,21 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertEqual(SystemMetersView.ramUsedPct(usedGB: 0, totalGB: 0), 0.0, accuracy: 0.001)
     }
 
+    /// 상대 시간 (T-077): 방금 전·초·분·시간·어제·일·날짜.
+    func testChatRelativeTime() {
+        let now = Date()
+        XCTAssertEqual(chatRelativeTime(from: now, now: now), "방금 전")
+        XCTAssertEqual(chatRelativeTime(from: now.addingTimeInterval(-25), now: now), "25초 전")
+        XCTAssertEqual(chatRelativeTime(from: now.addingTimeInterval(-180), now: now), "3분 전")
+        XCTAssertEqual(chatRelativeTime(from: now.addingTimeInterval(-7200), now: now), "2시간 전")
+        let cal = Calendar.current
+        let yesterdayNoon = cal.date(byAdding: .day, value: -1,
+                                     to: cal.startOfDay(for: now))!.addingTimeInterval(3600 * 12)
+        XCTAssertEqual(chatRelativeTime(from: yesterdayNoon, now: now), "어제")
+        XCTAssertEqual(chatRelativeTime(from: now.addingTimeInterval(-3 * 86400), now: now), "3일 전")
+        XCTAssertTrue(chatRelativeTime(from: now.addingTimeInterval(-10 * 86400), now: now).contains("월"))
+    }
+
     /// CPU 성분 분리: Δuser=50·Δnice=5·Δsys=20·Δidle=25 → 사용자 55%·시스템 20% (T-015 인덱스 회귀).
     func testCpuSplit() {
         let cur = SystemMonitor.CPUTicks(user: 150, sys: 120, nice: 105, idle: 125)

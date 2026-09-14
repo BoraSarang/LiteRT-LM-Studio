@@ -2,6 +2,38 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// 상대 시간 (순수, 테스트 가능, T-077): 방금 전·N초/분/시간 전·어제·N일 전·M월 d일.
+nonisolated func chatRelativeTime(from date: Date, now: Date = Date()) -> String {
+    let s = max(0, Int(now.timeIntervalSince(date)))
+    switch s {
+    case 0 ..< 10: return "방금 전"
+    case 0 ..< 60: return "\(s)초 전"
+    case 0 ..< 3600: return "\(s / 60)분 전"
+    case 0 ..< 86400: return "\(s / 3600)시간 전"
+    default: break
+    }
+    let cal = Calendar.current
+    if cal.isDateInYesterday(date) { return "어제" }
+    let days = cal.dateComponents([.day], from: cal.startOfDay(for: date),
+                                  to: cal.startOfDay(for: now)).day ?? 0
+    if days < 7 { return "\(days)일 전" }
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "ko_KR")
+    f.dateFormat = "M월 d일"
+    return f.string(from: date)
+}
+
+/// 완료 상대 시간 라벨 (T-077): 10초 주기 갱신, 라벨만 다시 그림.
+struct RelativeTimeText: View {
+    let date: Date
+
+    var body: some View {
+        TimelineView(.periodic(from: Date(), by: 10)) { ctx in
+            Text(chatRelativeTime(from: date, now: ctx.date))
+        }
+    }
+}
+
 /// 입력창 실측용 너비/높이 키 (T-034).
 private struct InputWidthKey: PreferenceKey {
     static var defaultValue: CGFloat = 400
@@ -268,19 +300,26 @@ struct AssistantBubbleView: View {
                             .font(.system(size: 11)).foregroundStyle(.secondary)
                     }
                 }
-                HStack(spacing: 8) {
-                    if let perf = message.perf {
-                        Text(perf).font(.system(size: 11).monospacedDigit()).foregroundStyle(.tertiary)
+                // 푸터는 응답 완료 후에만 (T-077): 스트리밍 중 복사·재시도 숨김.
+                if !isStreaming {
+                    HStack(spacing: 8) {
+                        if let perf = message.perf {
+                            Text(perf).font(.system(size: 11).monospacedDigit()).foregroundStyle(.tertiary)
+                        }
+                        if let finished = message.finishedAt {
+                            RelativeTimeText(date: finished)
+                                .font(.system(size: 11)).foregroundStyle(.tertiary)
+                        }
+                        Button(copied ? "복사됨" : "복사") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(message.text, forType: .string)
+                            copied = true
+                        }.buttonStyle(.plain)
+                        Button("재시도") { onRetry() }.buttonStyle(.plain)
+                            .help("마지막 요청 다시 보내기")
                     }
-                    Button(copied ? "복사됨" : "복사") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(message.text, forType: .string)
-                        copied = true
-                    }.buttonStyle(.plain)
-                    Button("재시도") { onRetry() }.buttonStyle(.plain)
-                        .help("마지막 요청 다시 보내기")
+                    .font(.system(size: 11)).foregroundStyle(.tertiary)
                 }
-                .font(.system(size: 11)).foregroundStyle(.tertiary)
         }
     }
 }
