@@ -97,31 +97,6 @@ struct ContentView: View {
         models.models.first(where: { $0.id == selectedModelID }) ?? models.models.first
     }
 
-    /// Sticky-Pin 판정 (순수, 테스트 가능): 하단 앵커가 뷰포트 안에 있으면 고정.
-    static func isPinnedToBottom(bottomMaxY: CGFloat, viewportHeight: CGFloat,
-                                 threshold: CGFloat = 60) -> Bool {
-        bottomMaxY <= viewportHeight + threshold
-    }
-
-    /// 추종 발사 판정 (순수, 테스트 가능, T-044):
-    /// 고정 상태라도 직전 발사 0.4s 이내거나 휠 제스처 0.8s 이내면 건너뜀 (사용자 읽기 우선).
-    nonisolated static func shouldFollow(pinned: Bool, now: Date, lastFollow: Date, lastWheel: Date,
-                                         followInterval: TimeInterval = 0.4,
-                                         wheelPause: TimeInterval = 0.8) -> Bool {
-        pinned
-            && now.timeIntervalSince(lastFollow) >= followInterval
-            && now.timeIntervalSince(lastWheel) >= wheelPause
-    }
-
-    /// 세션 전환 점프 대상 (순수, 테스트 가능, T-046).
-    /// 같은 세션 + 휠 없음 + 마지막 메시지 있음일 때만 대상 반환.
-    nonisolated static func switchJumpTarget(sessionID: UUID?, currentID: UUID?,
-                                             lastMessageID: UUID?,
-                                             wheeledSinceSwitch: Bool) -> UUID? {
-        guard !wheeledSinceSwitch, sessionID == currentID, let lastMessageID else { return nil }
-        return lastMessageID
-    }
-
     /// 현재 외관 (T-041, 재실행 유지).
     var appearanceMode: AppearanceMode { AppearanceMode(rawValue: appearanceRaw) ?? .system }
 
@@ -444,16 +419,6 @@ struct ContentView: View {
 
 // MARK: - 액션 (타입 본문 길이 관리용 분리)
 extension ContentView {
-    /// 폰트 줌 클램프 (순수, 테스트 가능, T-070): 0.7~2.0.
-    nonisolated static func clampedZoom(_ s: Double) -> Double {
-        min(2.0, max(0.7, s))
-    }
-
-    /// 폰트 줌 스텝 (순수, 테스트 가능, T-070): 소수점 먼지 방지 반올림.
-    nonisolated static func steppedZoom(_ s: Double, step: Double) -> Double {
-        clampedZoom((s * 10).rounded() / 10 + step)
-    }
-
     /// 폰트 줌 적용 (T-070): 리셋 또는 ±스텝, 재실행 유지(AppStorage).
     private func applyZoom(step: Double = 0, reset: Bool = false) {
         chatFontScale = reset ? 1.0 : Self.steppedZoom(chatFontScale, step: step)
@@ -487,7 +452,24 @@ extension ContentView {
         followGate.entrySince = Date()
         followGate.lastDocHeights = []
         followGate.kickDone = false
+        // T-084 진입 진단 (시작 1줄).
+        let docH0 = chatScrollView?.documentView?.bounds.height ?? -1
+        let off0 = chatScrollView.map { Int($0.contentView.bounds.origin.y) } ?? -1
+        logger.info(feature: "진입", "시작 메시지=\(chat.messages.count) 문서=\(Int(docH0)) 오프셋=\(off0)")
         entryPoll(session: session, attempt: 0)
+    }
+
+    /// 세션 전환·첫 표시 하단 점프 (T-046, T-084 확장 이전): 명시 이동이라 T-044 게이트 우회.
+    /// 수렴은 진입 전용 예약으로 분리: 스트리밍 탭과 취소 공유 안 함.
+    private func sessionJump(to session: UUID?) {
+        pinnedToBottom = true
+        lastFollow = .distantPast
+        followGate.lastWheel = .distantPast
+        followGate.wheelAccum = 0
+        followGate.lastContent = 0 // T-048 이전 세션 문서 높이 잔재 제거
+        pauseNotified = false
+        logger.info(feature: "스크롤", "채팅 전환 — 하단 이동")
+        scheduleEntryJump(session: session ?? chat.currentSessionID)
     }
 
     /// 진입 폴링 1회 (T-080, T-081, T-083): 킥은 레이아웃 증거 후 1회,
@@ -495,12 +477,21 @@ extension ContentView {
     private func entryPoll(session: UUID?, attempt: Int) {
         let maxAttempts = 32 // 0.15초 간격 ≈ 5초 상한
         let minAttempts = 8 // T-081 버스트 전 고원(≈1.2초) 회피
-        guard attempt < maxAttempts else { pendingSessionJump = false; reconcilePin(); return }
+        guard attempt < maxAttempts else {
+            pendingSessionJump = false
+            reconcilePin()
+            logger.info(feature: "진입", "종료: 상한")
+            return
+        }
         let work = DispatchWorkItem { [weak followGate] in
             guard let gate = followGate else { return }
             // 세션 교체·진입 후 휠이면 중단 (낡은 예약·읽기 우선). 핀은 실측으로 정정.
             guard session == nil || session == self.chat.currentSessionID,
-                  gate.lastWheel < gate.entrySince else { self.reconcilePin(); return }
+                  gate.lastWheel < gate.entrySince else {
+                self.reconcilePin()
+                self.logger.info(feature: "진입", "중단: 세션교체·휠")
+                return
+            }
             // T-083 Lazy 강제 생성 1회: 플레이스홀더 합산 이상 자랐을 때만 (앵커 존재 증거).
             // 0회차 허공 킥·매회 이중 구동이 떨림·폭풍의 원인이었음.
             let expectMin = CGFloat(self.chat.messages.count) * 36.0 + 32.0
@@ -516,11 +507,12 @@ extension ContentView {
             if let sv = self.chatScrollView, let doc = sv.documentView {
                 let clipH = sv.contentView.bounds.height
                 let maxY = max(0, doc.bounds.height - clipH)
-                if maxY <= 120, Self.docStable(gate.lastDocHeights) {
-                    // 스크롤 여지 없음 — 종료 (짧은 대화 no-op).
+                if attempt >= minAttempts, maxY <= 120, Self.docStable(gate.lastDocHeights) {
+                    // 스크롤 여지 없음 — 종료 (짧은 대화 no-op, T-084 최소 회차 게이트).
                     self.pendingSessionJump = false
                     gate.entryWorks.forEach { $0.cancel() }
                     gate.entryWorks.removeAll()
+                    self.logger.info(feature: "진입", "종료: 짧음")
                     return
                 }
                 if attempt >= minAttempts,
@@ -531,6 +523,7 @@ extension ContentView {
                     self.pendingSessionJump = false
                     gate.entryWorks.forEach { $0.cancel() }
                     gate.entryWorks.removeAll()
+                    self.logger.info(feature: "진입", "종료: 수렴")
                     return
                 }
             }
@@ -546,30 +539,6 @@ extension ContentView {
         pinnedToBottom = Self.isAtBottomOffset(offset: sv.contentView.bounds.origin.y,
                                                content: doc.bounds.height,
                                                container: sv.contentView.bounds.height)
-    }
-
-    /// 문서 높이 안정 판정 (순수, 테스트 가능, T-080): 최근 3회 1pt 이내.
-    nonisolated static func docStable(_ heights: [CGFloat], samples: Int = 3,
-                                      epsilon: CGFloat = 1) -> Bool {
-        guard heights.count >= samples else { return false }
-        let tail = heights.suffix(samples)
-        return (tail.max() ?? 0) - (tail.min() ?? 0) <= epsilon
-    }
-
-    /// 휠 누적 판정 (순수, 테스트 가능, T-080): 임계 초과 시에만 시각 기록.
-    nonisolated static func wheelStamp(accum: CGFloat, delta: CGFloat,
-                                       threshold: CGFloat = 8) -> (stamp: Bool, accum: CGFloat) {
-        let next = accum + abs(delta)
-        return next >= threshold ? (true, 0) : (false, next)
-    }
-
-    /// 진입 수렴 판정 (순수, 테스트 가능, T-079):
-    /// 스크롤 여지(120 초과)가 있고 하단에 닿았을 때만 성공.
-    nonisolated static func entryConverged(offsetY: CGFloat, docHeight: CGFloat,
-                                          clipHeight: CGFloat, minScrollable: CGFloat = 120,
-                                          threshold: CGFloat = 60) -> Bool {
-        let maxY = max(0, docHeight - clipHeight)
-        return maxY > minScrollable && offsetY >= maxY - threshold
     }
 
     /// 하단 중앙 점프 버튼 (T-064): 텍스트 대신 아래 화살표 원형.
@@ -753,25 +722,17 @@ extension ContentView {
         scrollToFitBottom(cancelOnWheelSince: Date())
     }
 
-    /// 세션 전환·첫 표시 하단 점프 (T-046): 명시 이동이라 T-044 게이트 우회.
-    /// 수렴은 진입 전용 예약으로 분리 (T-078): 스트리밍 탭과 취소 공유 안 함.
-    private func sessionJump(to session: UUID?) {
-        pinnedToBottom = true
-        lastFollow = .distantPast
-        followGate.lastWheel = .distantPast
-        followGate.wheelAccum = 0
-        followGate.lastContent = 0 // T-048 이전 세션 문서 높이 잔재 제거
-        pauseNotified = false
-        logger.info(feature: "스크롤", "채팅 전환 — 하단 이동")
-        scheduleEntryJump(session: session ?? chat.currentSessionID)
-    }
-
     /// 절대 하단 점프 (T-047): 문서 끝 오프셋으로 직접 이동. 같은 위치 재적용은 no-op이라 떨림 없음.
     /// 오버슛 방지 (T-054): 미확정 문서는 건너뛰고, 초과분은 클램프+지연 재확인으로 치유.
     private func jumpToBottom() {
         guard let scrollView = chatScrollView, let doc = scrollView.documentView else { return }
         let clip = scrollView.contentView
-        guard doc.bounds.height > 0 else { return } // 미확정 문서 점프 금지
+        if doc.bounds.height <= 0 {
+            // T-084 stale 오프셋 제거: 빈 문서는 0으로 (백지 방지).
+            clip.setBoundsOrigin(NSPoint(x: 0, y: 0))
+            scrollView.reflectScrolledClipView(clip)
+            return
+        }
         let targetY = Self.clampedTargetY(target: Self.bottomTargetY(docHeight: doc.bounds.height,
                                                                       clipHeight: clip.bounds.height),
                                           docHeight: doc.bounds.height,
@@ -792,12 +753,6 @@ extension ContentView {
         }
     }
 
-    /// 클램프 목표 (순수, 테스트 가능, T-054): [0, 최대] 구간으로 제한.
-    nonisolated static func clampedTargetY(target: CGFloat, docHeight: CGFloat,
-                                           clipHeight: CGFloat) -> CGFloat {
-        min(max(0, target), max(0, docHeight - clipHeight))
-    }
-
     /// 수렴 스크롤 (T-047): 4연타 + 새 요청 시 이전 취소 (웹뷰 비동기 높이 수렴용).
     private func scrollToFitBottom(cancelOnWheelSince since: Date? = nil) {
         pendingScrollWorks.forEach { $0.cancel() }
@@ -810,23 +765,6 @@ extension ContentView {
             pendingScrollWorks.append(work)
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
         }
-    }
-
-    /// 하단 목표 오프셋 (순수, 테스트 가능, T-047): 문서−클립, 음수 방지.
-    nonisolated static func bottomTargetY(docHeight: CGFloat, clipHeight: CGFloat) -> CGFloat {
-        max(0, docHeight - clipHeight)
-    }
-
-    /// AppKit 실측 하단 판정 (순수, 테스트 가능, T-047).
-    nonisolated static func isAtBottomOffset(offset: CGFloat, content: CGFloat, container: CGFloat,
-                                             threshold: CGFloat = 60) -> Bool {
-        offset >= max(0, content - container) - threshold
-    }
-
-    /// 내용 증가 판정 (순수, 테스트 가능, T-048): 0.5pt 초과 성장일 때만 추종.
-    nonisolated static func contentGrew(current: CGFloat, last: CGFloat,
-                                        threshold: CGFloat = 0.5) -> Bool {
-        current > last + threshold
     }
 
     /// 백엔드 적용: 저장 → 데몬 재시작. 외부 데몬은 확인 후 인수.
