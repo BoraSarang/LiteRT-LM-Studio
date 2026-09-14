@@ -58,8 +58,10 @@ struct MarkdownView: View, Equatable {
         self.isStreaming = isStreaming
         self.fontScale = fontScale
         // T-083 높이 캐시: 진입 초기 프레임을 실측 근사치로 (24pt 플레이스홀더 충격 완화).
+        // 너비 미확정이라 버킷 0 (미스 유도, 안전 방향, T-091).
         _height = State(initialValue: MarkdownPage.cachedHeight(markdown: text, scheme: scheme,
-                                                                fontScale: Double(fontScale)) ?? 24)
+                                                                fontScale: Double(fontScale),
+                                                                width: 0) ?? 24)
     }
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
@@ -109,6 +111,7 @@ struct MarkdownWebView: NSViewRepresentable {
         c.heightBinding = $height
         c.lastMarkdown = markdown
         c.lastScale = Double(fontScale)
+        if c.lastWidth == 0 { c.lastWidth = containerWidth } // T-091 최초 너비 기록
         // 너비 변경 → 여유 확보 후 디바운스 재측정 (T-090, 잘림 방지).
         if Self.widthChanged(old: c.lastWidth, new: containerWidth) {
             c.lastWidth = containerWidth
@@ -121,6 +124,10 @@ struct MarkdownWebView: NSViewRepresentable {
             c.widthWork?.cancel()
             let work = DispatchWorkItem { [weak web] in
                 web?.evaluateJavaScript("postHeight()", completionHandler: nil)
+                // T-091 정착 확인: 리플로우 완료 후 한 번 더 (stale 측정 굳음 방지).
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak web] in
+                    web?.evaluateJavaScript("postHeight()", completionHandler: nil)
+                }
             }
             c.widthWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
@@ -311,9 +318,9 @@ struct MarkdownWebView: NSViewRepresentable {
             }
             let h = MarkdownWebView.fittedHeight(raw)
             guard h > 0 else { return }
-            // T-083 높이 캐시 저장 (다음 진입 초기 프레임용).
+            // T-083 높이 캐시 저장 (다음 진입 초기 프레임용, 실측 너비 버킷).
             MarkdownPage.storeHeight(h, markdown: appliedMarkdown, scheme: scheme,
-                                     fontScale: lastScale)
+                                     fontScale: lastScale, width: lastWidth)
             DispatchQueue.main.async {
                 let cur = self.heightBinding?.wrappedValue ?? 0
                 if abs(h - cur) > 1 { self.heightBinding?.wrappedValue = h }
@@ -409,20 +416,26 @@ enum MarkdownPage {
     static var heightOrder: [String] = [] // FIFO 퇴출용
     static let heightCap = 500
 
-    /// 높이 캐시 키 (순수, 테스트 가능, T-083): 텍스트+외관+스케일.
+    /// 높이 캐시 키 (순수, 테스트 가능, T-083, T-091 너비 버킷): 텍스트+외관+스케일+너비.
+    /// 너비 미확정(0)은 버킷 0 (미스 유도, 안전 방향).
     nonisolated static func heightKey(markdown: String, scheme: MarkdownScheme,
-                                      fontScale: Double) -> String {
-        "\(markdown.hashValue)_\(themeName(for: scheme))_\(fontScale)"
+                                      fontScale: Double, width: CGFloat) -> String {
+        "\(markdown.hashValue)_\(themeName(for: scheme))_\(fontScale)_\(widthBucket(width))"
+    }
+
+    /// 너비 버킷 (순수, 테스트 가능, T-091): 100pt 단위.
+    nonisolated static func widthBucket(_ width: CGFloat) -> Int {
+        width > 0 ? Int(width / 100) : 0
     }
 
     nonisolated static func cachedHeight(markdown: String, scheme: MarkdownScheme,
-                                         fontScale: Double) -> CGFloat? {
-        heightCache[heightKey(markdown: markdown, scheme: scheme, fontScale: fontScale)]
+                                         fontScale: Double, width: CGFloat) -> CGFloat? {
+        heightCache[heightKey(markdown: markdown, scheme: scheme, fontScale: fontScale, width: width)]
     }
 
     nonisolated static func storeHeight(_ h: CGFloat, markdown: String, scheme: MarkdownScheme,
-                                        fontScale: Double) {
-        let key = heightKey(markdown: markdown, scheme: scheme, fontScale: fontScale)
+                                        fontScale: Double, width: CGFloat) {
+        let key = heightKey(markdown: markdown, scheme: scheme, fontScale: fontScale, width: width)
         if heightCache[key] == nil {
             heightOrder.append(key)
             if heightOrder.count > heightCap, !heightOrder.isEmpty {

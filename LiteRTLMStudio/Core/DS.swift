@@ -10,6 +10,7 @@ enum DS {
     static let bodyFont: Font = .system(size: 14)
     static let captionFont: Font = .system(size: 11)
     static let footnoteFont: Font = .system(size: 12)
+    static let chatMaxWidth: CGFloat = 768 // T-091 메시지 열 최대폭 (중앙 정렬)
 }
 
 /// 수동 외관 (T-041): 시스템 추종 기본 + 라이트/다크 강제.

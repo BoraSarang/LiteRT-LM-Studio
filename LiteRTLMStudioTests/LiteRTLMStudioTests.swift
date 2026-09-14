@@ -114,14 +114,17 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertTrue(ContentView.shouldJump(cur: 1020, target: 1000))
     }
 
-    /// 높이 캐시 키·저장 (T-083): 동일 입력 동일 키, 스케일 바뀌면 다른 키.
+    /// 높이 캐시 키·저장 (T-083, T-091 너비 버킷).
     func testHeightCache() {
-        let k1 = MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.0)
-        XCTAssertEqual(k1, MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.0))
-        XCTAssertNotEqual(k1, MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.5))
-        MarkdownPage.storeHeight(300, markdown: "hello", scheme: .dark, fontScale: 1.0)
-        XCTAssertEqual(MarkdownPage.cachedHeight(markdown: "hello", scheme: .dark, fontScale: 1.0), 300)
-        XCTAssertNil(MarkdownPage.cachedHeight(markdown: "other", scheme: .dark, fontScale: 1.0))
+        let k1 = MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.0, width: 500)
+        XCTAssertEqual(k1, MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.0, width: 520))
+        XCTAssertNotEqual(k1, MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.5, width: 500))
+        XCTAssertNotEqual(k1, MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.0, width: 700))
+        XCTAssertEqual(MarkdownPage.widthBucket(0), 0)
+        XCTAssertEqual(MarkdownPage.widthBucket(768), 7)
+        MarkdownPage.storeHeight(300, markdown: "hello", scheme: .dark, fontScale: 1.0, width: 500)
+        XCTAssertEqual(MarkdownPage.cachedHeight(markdown: "hello", scheme: .dark, fontScale: 1.0, width: 500), 300)
+        XCTAssertNil(MarkdownPage.cachedHeight(markdown: "other", scheme: .dark, fontScale: 1.0, width: 500))
     }
 
     /// 너비 변경 판정 (T-090): 첫 관측 제외·1pt 초과.

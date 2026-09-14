@@ -287,6 +287,8 @@ struct ContentView: View {
                                     }
                                 }
                     }.padding(16)
+                    .frame(maxWidth: DS.chatMaxWidth) // T-091 열 폭 고정
+                    .frame(maxWidth: .infinity) // 중앙 정렬
                     .background {
                         ScrollViewFinder { chatScrollView = $0 }
                             .frame(width: 0, height: 0)
