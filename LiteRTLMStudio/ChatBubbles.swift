@@ -566,7 +566,7 @@ struct BottomPanelView: View {
         .background(Color(.textBackgroundColor))
         .clipShape(.rect(cornerRadius: 8))
         .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) }
-        .frame(height: 220)
+        .frame(height: DS.bottomBoxHeight) // T-095 입력창 접힘 높이와 동일
     }
 
     private var selectionOrAll: [String] {

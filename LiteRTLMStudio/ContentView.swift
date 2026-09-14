@@ -366,6 +366,10 @@ struct ContentView: View {
                 .frame(maxWidth: DS.chatMaxWidth) // T-093 입력창 열폭 통일
                 .padding(.top, 8) // T-094 구분선 제거 대체 간격
         }
+        .padding(12) // T-095 바깥 카드 여백
+        .background(Color(nsColor: .controlBackgroundColor)) // T-095 카드 배경
+        .clipShape(.rect(cornerRadius: 12)) // T-095 모서리 클립
+        .overlay { RoundedRectangle(cornerRadius: 12).stroke(.separator) } // T-095 외곽선
         .onChange(of: chat.currentSessionID) { _, id in sessionJump(to: id) }
     }
 

@@ -11,6 +11,7 @@ enum DS {
     static let captionFont: Font = .system(size: 11)
     static let footnoteFont: Font = .system(size: 12)
     static let chatMaxWidth: CGFloat = 768 // T-091 메시지 열 최대폭 (중앙 정렬)
+    static let bottomBoxHeight: CGFloat = 112 // T-095 터미널 높이 = 입력창 접힘 높이
 }
 
 /// 수동 외관 (T-041): 시스템 추종 기본 + 라이트/다크 강제.
