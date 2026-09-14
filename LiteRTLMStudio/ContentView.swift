@@ -744,15 +744,17 @@ extension ContentView {
                                                                       clipHeight: clip.bounds.height),
                                           docHeight: doc.bounds.height,
                                           clipHeight: clip.bounds.height)
+        // 데드밴드 (T-087): 4pt 이내는 생략 (미세 출렁 방지).
+        guard Self.shouldJump(cur: clip.bounds.origin.y, target: targetY) else { return }
         clip.setBoundsOrigin(NSPoint(x: 0, y: targetY))
         scrollView.reflectScrolledClipView(clip)
-        // 지연 치유 (T-054): 레이아웃 안정 후 초과 여부 재확인. 정상 범위는 손대지 않음.
+        // 지연 치유 (T-054, T-087 8pt로 둔감화): 의미 있는 오버슛만 교정.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             guard let doc = scrollView.documentView else { return }
             let maxY = Self.bottomTargetY(docHeight: doc.bounds.height,
                                           clipHeight: scrollView.contentView.bounds.height)
             let cur = scrollView.contentView.bounds.origin.y
-            if cur > maxY + 1 {
+            if cur > maxY + 8 {
                 DebugLogger.shared.info(feature: "스크롤", "점프 보정: \(Int(cur))→\(Int(maxY))")
                 scrollView.contentView.setBoundsOrigin(NSPoint(x: 0, y: maxY))
                 scrollView.reflectScrolledClipView(scrollView.contentView)
@@ -760,11 +762,11 @@ extension ContentView {
         }
     }
 
-    /// 수렴 스크롤 (T-047): 4연타 + 새 요청 시 이전 취소 (웹뷰 비동기 높이 수렴용).
+    /// 수렴 스크롤 (T-047, T-087 1.4 추가): 5연타 + 새 요청 시 이전 취소 (웹뷰 비동기 높이 수렴용).
     private func scrollToFitBottom(cancelOnWheelSince since: Date? = nil) {
         pendingScrollWorks.forEach { $0.cancel() }
         pendingScrollWorks.removeAll()
-        for delay in [0.0, 0.15, 0.4, 0.9] {
+        for delay in [0.0, 0.15, 0.4, 0.9, 1.4] {
             let work = DispatchWorkItem {
                 if let since, self.followGate.lastWheel >= since { return }
                 self.jumpToBottom()

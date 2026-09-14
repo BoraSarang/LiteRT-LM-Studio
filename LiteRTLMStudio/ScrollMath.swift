@@ -78,6 +78,12 @@ extension ContentView {
         return (tail.max() ?? 0) - (tail.min() ?? 0) <= epsilon
     }
 
+    /// 점프 필요 판정 (순수, 테스트 가능, T-087): 4pt 이내면 생략.
+    nonisolated static func shouldJump(cur: CGFloat, target: CGFloat,
+                                       epsilon: CGFloat = 4) -> Bool {
+        abs(cur - target) > epsilon
+    }
+
     /// 휠 누적 판정 (순수, 테스트 가능, T-080): 임계 초과 시에만 시각 기록.
     nonisolated static func wheelStamp(accum: CGFloat, delta: CGFloat,
                                        threshold: CGFloat = 8) -> (stamp: Bool, accum: CGFloat) {

@@ -107,6 +107,13 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertEqual(r2.accum, 0, accuracy: 0.001)
     }
 
+    /// 점프 데드밴드 (T-087): 4pt 이내는 생략.
+    func testShouldJump() {
+        XCTAssertFalse(ContentView.shouldJump(cur: 1000, target: 1002))
+        XCTAssertTrue(ContentView.shouldJump(cur: 1000, target: 1020))
+        XCTAssertTrue(ContentView.shouldJump(cur: 1020, target: 1000))
+    }
+
     /// 높이 캐시 키·저장 (T-083): 동일 입력 동일 키, 스케일 바뀌면 다른 키.
     func testHeightCache() {
         let k1 = MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.0)
