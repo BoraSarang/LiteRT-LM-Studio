@@ -326,7 +326,7 @@ struct MarkdownWebView: NSViewRepresentable {
                 pendingMarkdown = nil
                 MarkdownWebView.apply(web: web, markdown: pending,
                                       streaming: lastIsStreaming, coordinator: self)
-                return
+                // 폴백 측정 병행 (T-080): 적용 후에도 직접 측정 (early-return 제거).
             }
             // 높이 push 유실 대비 폴백 1회 측정 (T-050).
             web.evaluateJavaScript("document.getElementById('content').scrollHeight") { value, _ in

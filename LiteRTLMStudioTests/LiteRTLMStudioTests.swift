@@ -95,6 +95,18 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertFalse(ContentView.entryConverged(offsetY: 0, docHeight: 0, clipHeight: 600))
     }
 
+    /// 문서 안정·휠 누적 판정 (T-080).
+    func testEntryStability() {
+        XCTAssertTrue(ContentView.docStable([100, 100.5, 100]))
+        XCTAssertFalse(ContentView.docStable([24, 300, 900]))
+        XCTAssertFalse(ContentView.docStable([100]))
+        let r1 = ContentView.wheelStamp(accum: 0, delta: 3)
+        XCTAssertFalse(r1.stamp)
+        let r2 = ContentView.wheelStamp(accum: r1.accum, delta: 6)
+        XCTAssertTrue(r2.stamp)
+        XCTAssertEqual(r2.accum, 0, accuracy: 0.001)
+    }
+
     /// 상대 시간 (T-077): 방금 전·초·분·시간·어제·일·날짜.
     func testChatRelativeTime() {
         let now = Date()

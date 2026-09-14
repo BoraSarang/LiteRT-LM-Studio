@@ -11,6 +11,8 @@ final class FollowGate: ObservableObject {
     var lastContent: CGFloat = 0 // T-048 마지막 관측 문서 높이 (증가 감지용)
     var entryWorks: [DispatchWorkItem] = [] // T-078 진입 점프 독립 예약
     var entrySince = Date.distantPast // T-078 진입 시작 시각 (휠 존중용)
+    var wheelAccum: CGFloat = 0 // T-080 휠 누적 (미세 접촉 무시용)
+    var lastDocHeights: [CGFloat] = [] // T-080 진입 수렴 안정 판정용
 }
 
 /// 상위 NSScrollView 탐색 (T-047): 절대좌표 점프용 AppKit 진입점. 렌더 없음(AIModelTalk 이식).
@@ -473,37 +475,67 @@ extension ContentView {
         }
     }
 
-    /// 진입 점프 수렴 (T-078): 6연타·2초 창·스트리밍 탭과 독립 예약.
-    /// 성공(하단 도달) 확인 후 남은 예약 취소+플래그 해제, 실패하면 다음 탭이 이어받음.
-    /// 성공 판정은 스크롤 여지가 있을 때만 (T-079): 미성장 문서의 자명한 성공으로 후속탭 차단 금지.
+    /// 진입 점프 수렴 (T-078, T-080 수렴 기반): 문서 높이 안정까지 연장(상한 5초),
+    /// 스트리밍 탭과 독립 예약. 성공 확인 후 남은 예약 취소+플래그 해제.
     private func scheduleEntryJump(session: UUID?) {
         followGate.entryWorks.forEach { $0.cancel() }
         followGate.entryWorks.removeAll()
         followGate.entrySince = Date()
-        let delays = [0.0, 0.15, 0.4, 0.9, 1.4, 2.0]
-        for (idx, delay) in delays.enumerated() {
-            let isLast = idx == delays.count - 1
-            let work = DispatchWorkItem { [weak followGate] in
-                guard let gate = followGate else { return }
-                // 세션 교체·진입 후 휠이면 중단 (낡은 예약·읽기 우선).
-                guard session == nil || session == self.chat.currentSessionID,
-                      gate.lastWheel < gate.entrySince else { return }
-                self.jumpToBottom()
-                if let sv = self.chatScrollView,
-                   let doc = sv.documentView,
-                   Self.entryConverged(offsetY: sv.contentView.bounds.origin.y,
-                                       docHeight: doc.bounds.height,
-                                       clipHeight: sv.contentView.bounds.height) {
+        followGate.lastDocHeights = []
+        entryPoll(session: session, attempt: 0)
+    }
+
+    /// 진입 폴링 1회 (T-080): 점프 후 문서 높이 기록, 안정·도달이면 종료, 아니면 다음 회차.
+    private func entryPoll(session: UUID?, attempt: Int) {
+        let maxAttempts = 32 // 0.15초 간격 ≈ 5초 상한
+        guard attempt < maxAttempts else { pendingSessionJump = false; return }
+        let work = DispatchWorkItem { [weak followGate] in
+            guard let gate = followGate else { return }
+            // 세션 교체·진입 후 휠이면 중단 (낡은 예약·읽기 우선).
+            guard session == nil || session == self.chat.currentSessionID,
+                  gate.lastWheel < gate.entrySince else { return }
+            self.jumpToBottom()
+            let docH = self.chatScrollView?.documentView?.bounds.height ?? 0
+            gate.lastDocHeights.append(docH)
+            if gate.lastDocHeights.count > 3 { gate.lastDocHeights.removeFirst() }
+            if let sv = self.chatScrollView, let doc = sv.documentView {
+                let clipH = sv.contentView.bounds.height
+                let maxY = max(0, doc.bounds.height - clipH)
+                if maxY <= 120, Self.docStable(gate.lastDocHeights) {
+                    // 스크롤 여지 없음 — 종료 (짧은 대화 no-op).
                     self.pendingSessionJump = false
                     gate.entryWorks.forEach { $0.cancel() }
                     gate.entryWorks.removeAll()
-                } else if isLast {
+                    return
+                }
+                if Self.entryConverged(offsetY: sv.contentView.bounds.origin.y,
+                                       docHeight: doc.bounds.height,
+                                       clipHeight: clipH) {
                     self.pendingSessionJump = false
+                    gate.entryWorks.forEach { $0.cancel() }
+                    gate.entryWorks.removeAll()
+                    return
                 }
             }
-            followGate.entryWorks.append(work)
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+            self.entryPoll(session: session, attempt: attempt + 1)
         }
+        followGate.entryWorks.append(work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 0.0 : 0.15), execute: work)
+    }
+
+    /// 문서 높이 안정 판정 (순수, 테스트 가능, T-080): 최근 3회 1pt 이내.
+    nonisolated static func docStable(_ heights: [CGFloat], samples: Int = 3,
+                                      epsilon: CGFloat = 1) -> Bool {
+        guard heights.count >= samples else { return false }
+        let tail = heights.suffix(samples)
+        return (tail.max() ?? 0) - (tail.min() ?? 0) <= epsilon
+    }
+
+    /// 휠 누적 판정 (순수, 테스트 가능, T-080): 임계 초과 시에만 시각 기록.
+    nonisolated static func wheelStamp(accum: CGFloat, delta: CGFloat,
+                                       threshold: CGFloat = 8) -> (stamp: Bool, accum: CGFloat) {
+        let next = accum + abs(delta)
+        return next >= threshold ? (true, 0) : (false, next)
     }
 
     /// 진입 수렴 판정 (순수, 테스트 가능, T-079):
@@ -517,13 +549,14 @@ extension ContentView {
 
     /// 하단 중앙 점프 버튼 (T-064): 텍스트 대신 아래 화살표 원형.
     private var scrollBottomButton: some View {
-        Button {
-            pinnedToBottom = true
-            followGate.lastWheel = .distantPast
-            lastFollow = .distantPast
-            logger.info(feature: "스크롤", "수동 하단 이동")
-            jumpToBottom()
-        } label: {
+            Button {
+                pinnedToBottom = true
+                followGate.lastWheel = .distantPast
+                followGate.wheelAccum = 0
+                lastFollow = .distantPast
+                logger.info(feature: "스크롤", "수동 하단 이동")
+                jumpToBottom()
+            } label: {
             Image(systemName: "arrow.down")
                 .font(.system(size: 14, weight: .semibold))
                 .frame(width: 32, height: 32)
@@ -661,11 +694,16 @@ extension ContentView {
         logPanelVisible.toggle()
     }
 
-    /// 채팅 스크롤 휠 감시 설치 (T-044): 호버 중에만 제스처 시각 기록, 이벤트는 그대로 통과.
+    /// 채팅 스크롤 휠 감시 설치 (T-044, T-080 누적 임계): 호버 중에만 제스처 시각 기록,
+    /// 8pt 미만 미세 접촉은 무시. 이벤트는 그대로 통과.
     private func installWheelMonitor() {
         guard wheelMonitor == nil else { return }
         wheelMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak followGate] event in
-            if followGate?.hover == true { followGate?.lastWheel = Date() }
+            if let gate = followGate, gate.hover {
+                let r = ContentView.wheelStamp(accum: gate.wheelAccum, delta: event.deltaY)
+                gate.wheelAccum = r.accum
+                if r.stamp { gate.lastWheel = Date() }
+            }
             return event
         }
     }
@@ -683,6 +721,7 @@ extension ContentView {
         pinnedToBottom = true
         lastFollow = .distantPast
         followGate.lastWheel = .distantPast
+        followGate.wheelAccum = 0
         followGate.lastContent = 0 // 다음 토큰 증가 감지 보장
         pauseNotified = false
         logger.info(feature: "스크롤", "전송 — 하단 이동")
@@ -695,6 +734,7 @@ extension ContentView {
         pinnedToBottom = true
         lastFollow = .distantPast
         followGate.lastWheel = .distantPast
+        followGate.wheelAccum = 0
         followGate.lastContent = 0 // T-048 이전 세션 문서 높이 잔재 제거
         pauseNotified = false
         logger.info(feature: "스크롤", "채팅 전환 — 하단 이동")
