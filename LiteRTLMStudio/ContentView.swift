@@ -488,7 +488,7 @@ extension ContentView {
         entryPoll(session: session, attempt: 0)
     }
 
-    /// 진입 폴링 1회 (T-080, T-081): 첫 발은 프록시로 Lazy 강제 생성 후 절대점프,
+    /// 진입 폴링 1회 (T-080, T-081, T-082): 매회 프록시로 Lazy 강제 생성 후 절대점프,
     /// 이후 상한까지 풀로 회전. 조기 종료는 수렴+안정+최소 회차 모두 만족 때만.
     private func entryPoll(session: UUID?, attempt: Int) {
         let maxAttempts = 32 // 0.15초 간격 ≈ 5초 상한
@@ -499,10 +499,8 @@ extension ContentView {
             // 세션 교체·진입 후 휠이면 중단 (낡은 예약·읽기 우선). 핀은 실측으로 정정.
             guard session == nil || session == self.chat.currentSessionID,
                   gate.lastWheel < gate.entrySince else { self.reconcilePin(); return }
-            if attempt == 0 {
-                // T-081 Lazy 강제 생성: 아래 셀을 만들게 한 뒤 절대점프가 정밀 보정.
-                self.scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
-            }
+            // T-082 Lazy 강제 생성 (매회): 0회차엔 앵커 미배치로 허공에 나갈 수 있어 재킥.
+            self.scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
             self.jumpToBottom()
             let docH = self.chatScrollView?.documentView?.bounds.height ?? 0
             gate.lastDocHeights.append(docH)
