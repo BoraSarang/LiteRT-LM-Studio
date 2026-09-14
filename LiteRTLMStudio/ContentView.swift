@@ -286,7 +286,7 @@ struct ContentView: View {
                                         }
                                     }
                                 }
-                    }.padding(16)
+                    }.padding(.vertical, 16) // T-096 가로 여백 통일 (열 cap과 일치)
                     .frame(maxWidth: DS.chatMaxWidth) // T-091 열 폭 고정
                     .frame(maxWidth: .infinity) // 중앙 정렬
                     .background {

@@ -243,7 +243,7 @@ struct UserBubbleView: View {
             VStack(alignment: .trailing, spacing: 4) {
                 Text(message.text)
                     .font(.system(size: 14 * fontScale)).textSelection(.enabled)
-                    .padding(12)
+                    .padding(.vertical, 12) // T-096 좌우 여백 제거 (푸터와 좌단 일치)
                     .background(Color.accentColor.opacity(0.12))
                     .clipShape(.rect(cornerRadius: 10))
                 HStack(spacing: 8) {
@@ -271,13 +271,13 @@ struct AssistantBubbleView: View {
     @State private var copied = false
 
     var body: some View {
-        // T-065: 어시스턴트는 기본 좌우 여백(스크롤 16+버블 12)만 남기고 전폭. 유저 버블은 유지.
+        // T-065: 어시스턴트는 기본 좌우 여백 없이 전폭. T-096 좌우 패딩 제거로 푸터와 좌단 일치.
         VStack(alignment: .leading, spacing: 4) {
                 if message.text.isEmpty {
                     Text(showCursor ? "▍" : "")
                         .font(.system(size: 14 * fontScale))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
+                        .padding(.vertical, 12) // T-096 좌우 여백 제거
                         .background(Color(.textBackgroundColor).opacity(0.5))
                         .clipShape(.rect(cornerRadius: 10))
                 } else {
@@ -285,7 +285,7 @@ struct AssistantBubbleView: View {
                                    fontScale: fontScale)
                         .equatable() // T-045: 스트리밍 중 구버블 갱신 차단
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
+                        .padding(.vertical, 12) // T-096 좌우 여백 제거 (푸터와 좌단 일치)
                         .background(Color(.textBackgroundColor).opacity(0.5))
                         .clipShape(.rect(cornerRadius: 10))
                         .overlay {
@@ -551,14 +551,26 @@ struct BottomPanelView: View {
                 HStack(spacing: 8) {
                     SystemCellView(title: "CPU",
                                    value: String(format: "%.0f%%", monitor.cpu),
-                                   history: monitor.cpuHistory, color: .blue)
+                                   history: monitor.cpuHistory, color: .blue,
+                                   popoverRows: SystemMetersView.cpuPopoverRows(
+                                       sys: monitor.cpuSystem, user: monitor.cpuUser)
+                                       .enumerated().map { i, r in
+                                           ([.red, .blue, .primary][i], r.label, r.value)
+                                       })
                     SystemCellView(title: "RAM",
                                    value: String(format: "%.0f%%", SystemMetersView.ramUsedPct(
                                        usedGB: monitor.ramUsedGB, totalGB: monitor.ramTotalGB)),
-                                   history: monitor.ramHistory, color: .yellow)
+                                   history: monitor.ramHistory, color: .yellow,
+                                   popoverRows: SystemMetersView.ramPopoverRows(
+                                       app: monitor.ramAppGB, wired: monitor.ramWiredGB,
+                                       comp: monitor.ramCompGB, cache: monitor.ramInactiveGB)
+                                       .enumerated().map { i, r in
+                                           ([.yellow, .red, .blue, .secondary][i], r.label, r.value)
+                                       })
                     SystemCellView(title: "GPU",
                                    value: monitor.gpu.map { String(format: "%.0f%%", $0) } ?? "–",
-                                   history: monitor.gpuHistory, color: .purple)
+                                   history: monitor.gpuHistory, color: .purple,
+                                   popoverRows: [])
                 }
             }
         }
@@ -583,12 +595,14 @@ struct BottomPanelView: View {
     }
 }
 
-/// 시스템 미니 셀 (T-094 가로 3칸): 제목+값+미니 차트.
+/// 시스템 미니 셀 (T-094 가로 3칸, T-096 호버 팝오버): 제목+값+미니 차트.
 struct SystemCellView: View {
     let title: String
     let value: String
     let history: [Double]
     let color: Color
+    let popoverRows: [(color: Color, label: String, value: String)]
+    @State private var hovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -612,5 +626,12 @@ struct SystemCellView: View {
         .background(Color(.controlBackgroundColor).opacity(0.5))
         .clipShape(.rect(cornerRadius: 8))
         .frame(maxWidth: .infinity)
+        .onHover { hovering = $0 }
+        .popover(isPresented: Binding(
+            get: { hovering && !popoverRows.isEmpty },
+            set: { hovering = $0 }
+        ), arrowEdge: .top) {
+            MeterPopover(rows: popoverRows)
+        }
     }
 }
