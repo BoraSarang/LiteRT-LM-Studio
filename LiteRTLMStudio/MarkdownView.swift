@@ -37,12 +37,19 @@ final class NoScrollWKWebView: WKWebView {
 /// - 템플릿 1회 로드 후 본문만 JS로 교체 (스트리밍 리로드 없음)
 /// - 스크롤 없음: 높이 push + 상위 ScrollView가 스크롤
 /// - Equatable (T-045): 본문·외관·스트리밍 동일하면 갱신 건너뜀
+/// 마크다운 너비 관측 키 (T-090, 입력바 미러 패턴): 리사이즈 재측정용.
+private struct MarkdownWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
 struct MarkdownView: View, Equatable {
     let text: String
     var scheme: MarkdownScheme = .auto
     var isStreaming: Bool = false
     var fontScale: CGFloat = 1.0 // T-070 채팅 폰트 줌
     @State private var height: CGFloat = 24
+    @State private var containerWidth: CGFloat = 0 // T-090 리사이즈 관측
 
     init(text: String, scheme: MarkdownScheme = .auto, isStreaming: Bool = false,
          fontScale: CGFloat = 1.0) {
@@ -62,8 +69,14 @@ struct MarkdownView: View, Equatable {
 
     var body: some View {
         MarkdownWebView(markdown: text, scheme: scheme, isStreaming: isStreaming,
-                        fontScale: fontScale, height: $height)
+                        fontScale: fontScale, containerWidth: containerWidth, height: $height)
             .frame(height: height)
+            .background {
+                GeometryReader { geo in
+                    Color.clear.preference(key: MarkdownWidthKey.self, value: geo.size.width)
+                }
+            }
+            .onPreferenceChange(MarkdownWidthKey.self) { containerWidth = $0 }
     }
 }
 
@@ -72,6 +85,7 @@ struct MarkdownWebView: NSViewRepresentable {
     let scheme: MarkdownScheme
     let isStreaming: Bool
     var fontScale: CGFloat = 1.0 // T-070 채팅 폰트 줌
+    var containerWidth: CGFloat = 0 // T-090 리사이즈 관측
     @Binding var height: CGFloat
 
     func makeNSView(context: Context) -> NoScrollWKWebView {
@@ -95,6 +109,22 @@ struct MarkdownWebView: NSViewRepresentable {
         c.heightBinding = $height
         c.lastMarkdown = markdown
         c.lastScale = Double(fontScale)
+        // 너비 변경 → 여유 확보 후 디바운스 재측정 (T-090, 잘림 방지).
+        if Self.widthChanged(old: c.lastWidth, new: containerWidth) {
+            c.lastWidth = containerWidth
+            if height > 0 {
+                // 뷰 갱신 중 변경 회피: 다음 런루프에 여유 확보.
+                let hb = $height
+                let cur = height
+                DispatchQueue.main.async { hb.wrappedValue = cur * 1.2 }
+            }
+            c.widthWork?.cancel()
+            let work = DispatchWorkItem { [weak web] in
+                web?.evaluateJavaScript("postHeight()", completionHandler: nil)
+            }
+            c.widthWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
+        }
         let streamingEnded = c.lastIsStreaming && !isStreaming
         switch Self.resolveAction(schemeChanged: c.scheme != scheme,
                                   streamingEnded: streamingEnded,
@@ -139,6 +169,12 @@ struct MarkdownWebView: NSViewRepresentable {
     /// 줌 스케일 → 기준 px (순수, 테스트 가능, T-070): 14px 기준 0.7~2.0 클램프.
     nonisolated static func fontPx(_ scale: Double) -> Double {
         14 * min(2.0, max(0.7, scale))
+    }
+
+    /// 너비 변경 판정 (순수, 테스트 가능, T-090): 첫 관측 제외, 1pt 초과.
+    nonisolated static func widthChanged(old: CGFloat, new: CGFloat,
+                                         epsilon: CGFloat = 1) -> Bool {
+        old > 0 && abs(new - old) > epsilon
     }
 
     /// 렌더 동작 (T-051).
@@ -224,6 +260,8 @@ struct MarkdownWebView: NSViewRepresentable {
         var streamingInit = false
         var appliedScale = 0.0 // T-070 웹뷰에 반영된 스케일
         var lastScale = 1.0 // T-070 최신 스케일
+        var lastWidth: CGFloat = 0 // T-090 최신 너비
+        var widthWork: DispatchWorkItem? // T-090 디바운스 재측정
         var heightBinding: Binding<CGFloat>?
         weak var webView: NoScrollWKWebView?
 

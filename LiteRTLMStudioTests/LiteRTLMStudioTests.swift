@@ -124,6 +124,13 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertNil(MarkdownPage.cachedHeight(markdown: "other", scheme: .dark, fontScale: 1.0))
     }
 
+    /// 너비 변경 판정 (T-090): 첫 관측 제외·1pt 초과.
+    func testWidthChanged() {
+        XCTAssertFalse(MarkdownWebView.widthChanged(old: 0, new: 500))
+        XCTAssertFalse(MarkdownWebView.widthChanged(old: 500, new: 500.5))
+        XCTAssertTrue(MarkdownWebView.widthChanged(old: 500, new: 480))
+    }
+
     /// 상대 시간 (T-077): 방금 전·초·분·시간·어제·일·날짜.
     func testChatRelativeTime() {
         let now = Date()
