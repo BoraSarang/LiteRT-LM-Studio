@@ -85,12 +85,14 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertEqual(SystemMetersView.ramUsedPct(usedGB: 0, totalGB: 0), 0.0, accuracy: 0.001)
     }
 
-    /// 진입 도달 판정 (T-078): 하단이면 성공, 위면 재시도.
-    func testEntryReached() {
-        XCTAssertTrue(ContentView.entryReached(offsetY: 900, docHeight: 1500, clipHeight: 600))
-        XCTAssertTrue(ContentView.entryReached(offsetY: 850, docHeight: 1500, clipHeight: 600))
-        XCTAssertFalse(ContentView.entryReached(offsetY: 100, docHeight: 1500, clipHeight: 600))
-        XCTAssertTrue(ContentView.entryReached(offsetY: 0, docHeight: 0, clipHeight: 600))
+    /// 진입 수렴 판정 (T-079): 스크롤 여지 있을 때만 성공, 미성장 문서는 재시도.
+    func testEntryConverged() {
+        XCTAssertTrue(ContentView.entryConverged(offsetY: 900, docHeight: 1500, clipHeight: 600))
+        XCTAssertTrue(ContentView.entryConverged(offsetY: 850, docHeight: 1500, clipHeight: 600))
+        XCTAssertFalse(ContentView.entryConverged(offsetY: 100, docHeight: 1500, clipHeight: 600))
+        // 미성장 문서: 맨 위도 성공 아님 (후속탭 차단 금지).
+        XCTAssertFalse(ContentView.entryConverged(offsetY: 0, docHeight: 300, clipHeight: 600))
+        XCTAssertFalse(ContentView.entryConverged(offsetY: 0, docHeight: 0, clipHeight: 600))
     }
 
     /// 상대 시간 (T-077): 방금 전·초·분·시간·어제·일·날짜.

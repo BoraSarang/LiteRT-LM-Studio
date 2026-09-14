@@ -475,11 +475,14 @@ extension ContentView {
 
     /// 진입 점프 수렴 (T-078): 6연타·2초 창·스트리밍 탭과 독립 예약.
     /// 성공(하단 도달) 확인 후 남은 예약 취소+플래그 해제, 실패하면 다음 탭이 이어받음.
+    /// 성공 판정은 스크롤 여지가 있을 때만 (T-079): 미성장 문서의 자명한 성공으로 후속탭 차단 금지.
     private func scheduleEntryJump(session: UUID?) {
         followGate.entryWorks.forEach { $0.cancel() }
         followGate.entryWorks.removeAll()
         followGate.entrySince = Date()
-        for delay in [0.0, 0.15, 0.4, 0.9, 1.4, 2.0] {
+        let delays = [0.0, 0.15, 0.4, 0.9, 1.4, 2.0]
+        for (idx, delay) in delays.enumerated() {
+            let isLast = idx == delays.count - 1
             let work = DispatchWorkItem { [weak followGate] in
                 guard let gate = followGate else { return }
                 // 세션 교체·진입 후 휠이면 중단 (낡은 예약·읽기 우선).
@@ -488,12 +491,14 @@ extension ContentView {
                 self.jumpToBottom()
                 if let sv = self.chatScrollView,
                    let doc = sv.documentView,
-                   Self.entryReached(offsetY: sv.contentView.bounds.origin.y,
-                                     docHeight: doc.bounds.height,
-                                     clipHeight: sv.contentView.bounds.height) {
+                   Self.entryConverged(offsetY: sv.contentView.bounds.origin.y,
+                                       docHeight: doc.bounds.height,
+                                       clipHeight: sv.contentView.bounds.height) {
                     self.pendingSessionJump = false
                     gate.entryWorks.forEach { $0.cancel() }
                     gate.entryWorks.removeAll()
+                } else if isLast {
+                    self.pendingSessionJump = false
                 }
             }
             followGate.entryWorks.append(work)
@@ -501,10 +506,13 @@ extension ContentView {
         }
     }
 
-    /// 하단 도달 확인 (순수, 테스트 가능, T-078).
-    nonisolated static func entryReached(offsetY: CGFloat, docHeight: CGFloat,
-                                        clipHeight: CGFloat, threshold: CGFloat = 60) -> Bool {
-        offsetY >= max(0, docHeight - clipHeight) - threshold
+    /// 진입 수렴 판정 (순수, 테스트 가능, T-079):
+    /// 스크롤 여지(120 초과)가 있고 하단에 닿았을 때만 성공.
+    nonisolated static func entryConverged(offsetY: CGFloat, docHeight: CGFloat,
+                                          clipHeight: CGFloat, minScrollable: CGFloat = 120,
+                                          threshold: CGFloat = 60) -> Bool {
+        let maxY = max(0, docHeight - clipHeight)
+        return maxY > minScrollable && offsetY >= maxY - threshold
     }
 
     /// 하단 중앙 점프 버튼 (T-064): 텍스트 대신 아래 화살표 원형.
