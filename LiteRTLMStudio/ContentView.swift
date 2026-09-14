@@ -9,6 +9,8 @@ final class FollowGate: ObservableObject {
     var hover = false
     var lastWheel = Date.distantPast
     var lastContent: CGFloat = 0 // T-048 마지막 관측 문서 높이 (증가 감지용)
+    var entryWorks: [DispatchWorkItem] = [] // T-078 진입 점프 독립 예약
+    var entrySince = Date.distantPast // T-078 진입 시작 시각 (휠 존중용)
 }
 
 /// 상위 NSScrollView 탐색 (T-047): 절대좌표 점프용 AppKit 진입점. 렌더 없음(AIModelTalk 이식).
@@ -471,6 +473,40 @@ extension ContentView {
         }
     }
 
+    /// 진입 점프 수렴 (T-078): 6연타·2초 창·스트리밍 탭과 독립 예약.
+    /// 성공(하단 도달) 확인 후 남은 예약 취소+플래그 해제, 실패하면 다음 탭이 이어받음.
+    private func scheduleEntryJump(session: UUID?) {
+        followGate.entryWorks.forEach { $0.cancel() }
+        followGate.entryWorks.removeAll()
+        followGate.entrySince = Date()
+        for delay in [0.0, 0.15, 0.4, 0.9, 1.4, 2.0] {
+            let work = DispatchWorkItem { [weak followGate] in
+                guard let gate = followGate else { return }
+                // 세션 교체·진입 후 휠이면 중단 (낡은 예약·읽기 우선).
+                guard session == nil || session == self.chat.currentSessionID,
+                      gate.lastWheel < gate.entrySince else { return }
+                self.jumpToBottom()
+                if let sv = self.chatScrollView,
+                   let doc = sv.documentView,
+                   Self.entryReached(offsetY: sv.contentView.bounds.origin.y,
+                                     docHeight: doc.bounds.height,
+                                     clipHeight: sv.contentView.bounds.height) {
+                    self.pendingSessionJump = false
+                    gate.entryWorks.forEach { $0.cancel() }
+                    gate.entryWorks.removeAll()
+                }
+            }
+            followGate.entryWorks.append(work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+        }
+    }
+
+    /// 하단 도달 확인 (순수, 테스트 가능, T-078).
+    nonisolated static func entryReached(offsetY: CGFloat, docHeight: CGFloat,
+                                        clipHeight: CGFloat, threshold: CGFloat = 60) -> Bool {
+        offsetY >= max(0, docHeight - clipHeight) - threshold
+    }
+
     /// 하단 중앙 점프 버튼 (T-064): 텍스트 대신 아래 화살표 원형.
     private var scrollBottomButton: some View {
         Button {
@@ -646,18 +682,15 @@ extension ContentView {
     }
 
     /// 세션 전환·첫 표시 하단 점프 (T-046): 명시 이동이라 T-044 게이트 우회.
+    /// 수렴은 진입 전용 예약으로 분리 (T-078): 스트리밍 탭과 취소 공유 안 함.
     private func sessionJump(to session: UUID?) {
         pinnedToBottom = true
         lastFollow = .distantPast
         followGate.lastWheel = .distantPast
         followGate.lastContent = 0 // T-048 이전 세션 문서 높이 잔재 제거
         pauseNotified = false
-        pendingSessionJump = false
-        guard Self.switchJumpTarget(sessionID: session, currentID: chat.currentSessionID,
-                                                 lastMessageID: chat.messages.last?.id,
-                                                 wheeledSinceSwitch: false) != nil else { return }
-            logger.info(feature: "스크롤", "채팅 전환 — 하단 이동")
-        scrollToFitBottom(cancelOnWheelSince: Date())
+        logger.info(feature: "스크롤", "채팅 전환 — 하단 이동")
+        scheduleEntryJump(session: session ?? chat.currentSessionID)
     }
 
     /// 절대 하단 점프 (T-047): 문서 끝 오프셋으로 직접 이동. 같은 위치 재적용은 no-op이라 떨림 없음.
