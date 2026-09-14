@@ -108,6 +108,8 @@ struct DebugPanelView: View {
                 HStack(spacing: 8) {
                     Button(copied ? "복사됨" : "선택 복사") { copySelection() }
                         .help("선택한 행 복사 (선택 없으면 표시 전체)")
+                    Button("전체 복사") { copyAll() }
+                        .help("필터·검색 무관 전체 로그 복사")
                     Spacer()
                     Button("지우기") { logger.clear(); selection.removeAll() }
                     Button("닫기") { dismiss() }.keyboardShortcut(.cancelAction)
@@ -217,6 +219,13 @@ struct DebugPanelView: View {
         let ids = selection
         let targets = ids.isEmpty ? rows : rows.filter { ids.contains($0.id) }
         copy(entries: targets)
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
+    }
+
+    /// 전체 복사 (T-086): 필터·검색 무관 저장 전체.
+    private func copyAll() {
+        copy(entries: logger.entries)
         copied = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
     }

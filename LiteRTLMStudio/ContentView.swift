@@ -14,6 +14,7 @@ final class FollowGate: ObservableObject {
     var wheelAccum: CGFloat = 0 // T-080 휠 누적 (미세 접촉 무시용)
     var lastDocHeights: [CGFloat] = [] // T-080 진입 수렴 안정 판정용
     var kickDone = false // T-083 프록시 킥 1회 플래그
+    var verifyKickDone = false // T-086 수렴 검증 킥 플래그
 }
 
 /// 상위 NSScrollView 탐색 (T-047): 절대좌표 점프용 AppKit 진입점. 렌더 없음(AIModelTalk 이식).
@@ -452,6 +453,7 @@ extension ContentView {
         followGate.entrySince = Date()
         followGate.lastDocHeights = []
         followGate.kickDone = false
+        followGate.verifyKickDone = false
         // T-084 진입 진단 (시작 1줄).
         let docH0 = chatScrollView?.documentView?.bounds.height ?? -1
         let off0 = chatScrollView.map { Int($0.contentView.bounds.origin.y) } ?? -1
@@ -507,24 +509,29 @@ extension ContentView {
             if let sv = self.chatScrollView, let doc = sv.documentView {
                 let clipH = sv.contentView.bounds.height
                 let maxY = max(0, doc.bounds.height - clipH)
+                var exitReason: String? = nil
                 if attempt >= minAttempts, maxY <= 120, Self.docStable(gate.lastDocHeights) {
-                    // 스크롤 여지 없음 — 종료 (짧은 대화 no-op, T-084 최소 회차 게이트).
-                    self.pendingSessionJump = false
-                    gate.entryWorks.forEach { $0.cancel() }
-                    gate.entryWorks.removeAll()
-                    self.logger.info(feature: "진입", "종료: 짧음")
-                    return
+                    exitReason = "짧음" // T-084 최소 회차 게이트
+                } else if attempt >= minAttempts,
+                          Self.docStable(gate.lastDocHeights),
+                          Self.entryConverged(offsetY: sv.contentView.bounds.origin.y,
+                                              docHeight: doc.bounds.height,
+                                              clipHeight: clipH) {
+                    exitReason = "수렴"
                 }
-                if attempt >= minAttempts,
-                   Self.docStable(gate.lastDocHeights),
-                   Self.entryConverged(offsetY: sv.contentView.bounds.origin.y,
-                                       docHeight: doc.bounds.height,
-                                       clipHeight: clipH) {
-                    self.pendingSessionJump = false
-                    gate.entryWorks.forEach { $0.cancel() }
-                    gate.entryWorks.removeAll()
-                    self.logger.info(feature: "진입", "종료: 수렴")
-                    return
+                if let reason = exitReason {
+                    // T-086 검증 킥: 거짓 수렴이면 문서가 자라서 다음 회차가 이어받음.
+                    if !gate.verifyKickDone {
+                        gate.verifyKickDone = true
+                        self.scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
+                        self.logger.info(feature: "진입", "검증 킥")
+                    } else {
+                        self.pendingSessionJump = false
+                        gate.entryWorks.forEach { $0.cancel() }
+                        gate.entryWorks.removeAll()
+                        self.logger.info(feature: "진입", "종료: \(reason)")
+                        return
+                    }
                 }
             }
             self.entryPoll(session: session, attempt: attempt + 1)
