@@ -1,0 +1,8 @@
+# swiftlint — LiteRT-LM Studio
+# SwiftUI 관용 짧은 클로저명(m/e 등)은 허용. 나머지는 기본 규칙 유지.
+disabled_rules:
+  - identifier_name
+  - type_name # 모듈명 규칙 제외 (레거시 표기 잔재 방지)
+line_length:
+  warning: 120
+  error: 150
