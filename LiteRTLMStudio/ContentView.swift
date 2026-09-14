@@ -88,6 +88,7 @@ struct ContentView: View {
     @State private var chatScrollView: NSScrollView? // T-047 절대좌표 점프용
     @State private var pendingScrollWorks: [DispatchWorkItem] = [] // T-047 수렴 예약
     @State private var pendingSessionJump = true // T-046 첫 표시 점프 (복원 기록 포함)
+    @State private var scrollProxy: ScrollViewProxy? // T-081 Lazy 강제 생성용 프록시 보관
     @StateObject private var bench = BenchmarkStore()
     @State private var showBench = false
 
@@ -282,7 +283,7 @@ struct ContentView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollViewReader { _ in
+                ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 12) {
                             ForEach(chat.messages) { m in
@@ -299,6 +300,7 @@ struct ContentView: View {
                         }
                             // 하단 앵커: 스택 안에서 측정해야 위치 정확 (T-036)
                             Color.clear.frame(height: 1)
+                                .id("chatBottom") // T-081 프록시 강제 생성용
                                 .background {
                                     GeometryReader { geo in
                                         Color.clear.onChange(of: geo.frame(in: .named("chatScroll")).maxY) { _, maxY in
@@ -312,6 +314,7 @@ struct ContentView: View {
                         ScrollViewFinder { chatScrollView = $0 }
                             .frame(width: 0, height: 0)
                     }
+                    .onAppear { scrollProxy = proxy } // T-081 body 평가 중 변경 회피
                     }
                     .coordinateSpace(name: "chatScroll")
                     .background {
@@ -485,15 +488,21 @@ extension ContentView {
         entryPoll(session: session, attempt: 0)
     }
 
-    /// 진입 폴링 1회 (T-080): 점프 후 문서 높이 기록, 안정·도달이면 종료, 아니면 다음 회차.
+    /// 진입 폴링 1회 (T-080, T-081): 첫 발은 프록시로 Lazy 강제 생성 후 절대점프,
+    /// 이후 상한까지 풀로 회전. 조기 종료는 수렴+안정+최소 회차 모두 만족 때만.
     private func entryPoll(session: UUID?, attempt: Int) {
         let maxAttempts = 32 // 0.15초 간격 ≈ 5초 상한
-        guard attempt < maxAttempts else { pendingSessionJump = false; return }
+        let minAttempts = 8 // T-081 버스트 전 고원(≈1.2초) 회피
+        guard attempt < maxAttempts else { pendingSessionJump = false; reconcilePin(); return }
         let work = DispatchWorkItem { [weak followGate] in
             guard let gate = followGate else { return }
-            // 세션 교체·진입 후 휠이면 중단 (낡은 예약·읽기 우선).
+            // 세션 교체·진입 후 휠이면 중단 (낡은 예약·읽기 우선). 핀은 실측으로 정정.
             guard session == nil || session == self.chat.currentSessionID,
-                  gate.lastWheel < gate.entrySince else { return }
+                  gate.lastWheel < gate.entrySince else { self.reconcilePin(); return }
+            if attempt == 0 {
+                // T-081 Lazy 강제 생성: 아래 셀을 만들게 한 뒤 절대점프가 정밀 보정.
+                self.scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
+            }
             self.jumpToBottom()
             let docH = self.chatScrollView?.documentView?.bounds.height ?? 0
             gate.lastDocHeights.append(docH)
@@ -508,7 +517,9 @@ extension ContentView {
                     gate.entryWorks.removeAll()
                     return
                 }
-                if Self.entryConverged(offsetY: sv.contentView.bounds.origin.y,
+                if attempt >= minAttempts,
+                   Self.docStable(gate.lastDocHeights),
+                   Self.entryConverged(offsetY: sv.contentView.bounds.origin.y,
                                        docHeight: doc.bounds.height,
                                        clipHeight: clipH) {
                     self.pendingSessionJump = false
@@ -521,6 +532,14 @@ extension ContentView {
         }
         followGate.entryWorks.append(work)
         DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 0.0 : 0.15), execute: work)
+    }
+
+    /// 핀 실측 정정 (T-081): 체인 종료·중단 시 실제 좌표로 버튼 노출 여부 복원.
+    private func reconcilePin() {
+        guard let sv = chatScrollView, let doc = sv.documentView else { return }
+        pinnedToBottom = Self.isAtBottomOffset(offset: sv.contentView.bounds.origin.y,
+                                               content: doc.bounds.height,
+                                               container: sv.contentView.bounds.height)
     }
 
     /// 문서 높이 안정 판정 (순수, 테스트 가능, T-080): 최근 3회 1pt 이내.
