@@ -44,48 +44,6 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(MenuStatus.dotKey(for: .stopped), "gray")
     }
 
-    /// 빈 렌더 재시도 판정: 보고+원문+미재시도일 때만 (T-056).
-    func testShouldRetryEmpty() {
-        XCTAssertTrue(MarkdownWebView.shouldRetryEmpty(reportedEmpty: true, markdownEmpty: false,
-                                                        alreadyRetried: false))
-        XCTAssertFalse(MarkdownWebView.shouldRetryEmpty(reportedEmpty: false, markdownEmpty: false,
-                                                         alreadyRetried: false))
-        XCTAssertFalse(MarkdownWebView.shouldRetryEmpty(reportedEmpty: true, markdownEmpty: true,
-                                                         alreadyRetried: false))
-        XCTAssertFalse(MarkdownWebView.shouldRetryEmpty(reportedEmpty: true, markdownEmpty: false,
-                                                         alreadyRetried: true))
-    }
-
-    /// 렌더 상태머신: 종료는 원문 확정, 빈 finalize 없음 (T-051).
-    func testResolveAction() {
-        typealias R = MarkdownWebView.RenderAction
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: true, streamingEnded: true,
-                                                     isStreaming: true, loaded: true,
-                                                     applied: "a", markdown: "b"), R.reload)
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: false, streamingEnded: true,
-                                                     isStreaming: false, loaded: true,
-                                                     applied: "a", markdown: "a"), R.finishFull)
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: false, streamingEnded: false,
-                                                     isStreaming: true, loaded: true,
-                                                     applied: "a", markdown: "ab"), R.append)
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: false, streamingEnded: false,
-                                                     isStreaming: false, loaded: true,
-                                                     applied: "a", markdown: "ab"), R.fullSet)
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: false, streamingEnded: false,
-                                                     isStreaming: false, loaded: true,
-                                                     applied: "a", markdown: "a"), R.wait)
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: false, streamingEnded: false,
-                                                     isStreaming: false, loaded: false,
-                                                     applied: "", markdown: "a"), R.wait)
-    }
-
-    /// 응답 사라짐 방지: 로드 전엔 적용 금지·로드 후 변경분만 적용 (T-038).
-    func testMarkdownNeedsFlush() {
-        XCTAssertFalse(MarkdownWebView.needsFlush(loaded: false, applied: "", html: "<p>a</p>"))
-        XCTAssertFalse(MarkdownWebView.needsFlush(loaded: true, applied: "<p>a</p>", html: "<p>a</p>"))
-        XCTAssertTrue(MarkdownWebView.needsFlush(loaded: true, applied: "<p>a</p>", html: "<p>b</p>"))
-    }
-
     /// 실효 scheme: 시스템 모드는 환경 다크 여부를 명시로 풂 (T-042).
     func testEffectiveScheme() {
         XCTAssertEqual(AppearanceMode.effectiveScheme(mode: .system, systemDark: true), .dark)
@@ -102,14 +60,6 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
                           MarkdownView(text: "a", scheme: .dark))
         XCTAssertNotEqual(MarkdownView(text: "a", isStreaming: true),
                           MarkdownView(text: "a", isStreaming: false))
-    }
-
-    /// 높이 피팅: 올림+2pt 여유, 0 이하는 0 (T-043/T-049).
-    func testFittedHeight() {
-        XCTAssertEqual(MarkdownWebView.fittedHeight(100), 102)
-        XCTAssertEqual(MarkdownWebView.fittedHeight(100.2), 103)
-        XCTAssertEqual(MarkdownWebView.fittedHeight(0), 0)
-        XCTAssertEqual(MarkdownWebView.fittedHeight(-5), 0)
     }
 
     /// 추종 게이트: 고정+간격+휠정지일 때만 발사 (T-044).

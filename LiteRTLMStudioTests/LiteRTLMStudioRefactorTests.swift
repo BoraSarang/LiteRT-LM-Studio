@@ -131,13 +131,6 @@ final class LiteRTLMStudioRefactorTests: XCTestCase {
         try? FileManager.default.removeItem(at: url)
     }
 
-    /// 높이 숫자 추출 (T-126): Double·NSNumber 양 대응, 그 외 nil.
-    func testHeightNumber() {
-        XCTAssertEqual(MarkdownWebView.Coordinator.heightNumber(42.5), 42.5)
-        XCTAssertEqual(MarkdownWebView.Coordinator.heightNumber(NSNumber(value: 7)), 7.0)
-        XCTAssertNil(MarkdownWebView.Coordinator.heightNumber("x"))
-    }
-
     /// PERF 뱃지 문구 (T-126).
     func testPerfLine() {
         XCTAssertEqual(ChatStore.perfLine(chars: 0, elapsed: 0), "0.0s · 약 0 tok/s")

@@ -86,7 +86,7 @@ struct AboutLibraryRow: View {
     }
 }
 
-/// 정보 창 라이브러리 데이터 (T-068): 번들 JS 벤더 2종, 버전 핀.
+/// 정보 창 라이브러리 데이터 (T-150): JS 벤더 제거로 빈 목록 유지.
 struct AboutLibrary {
     let name: String
     let version: String
@@ -94,10 +94,5 @@ struct AboutLibrary {
 }
 
 enum AboutLibraries {
-    nonisolated static let all = [
-        AboutLibrary(name: "marked", version: "v18.0.13",
-                     url: "https://github.com/markedjs/marked"),
-        AboutLibrary(name: "highlight.js", version: "v11.12.0",
-                     url: "https://github.com/highlightjs/highlight.js")
-    ]
+    nonisolated static let all: [AboutLibrary] = []
 }

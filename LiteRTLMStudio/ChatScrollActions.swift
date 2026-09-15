@@ -117,8 +117,8 @@ extension ContentView {
         if gate.lastDocHeights.count > 3 { gate.lastDocHeights.removeFirst() }
         guard let sv = self.chatScrollView, let doc = sv.documentView else { return true }
         let clipH = sv.contentView.bounds.height
-        // T-112 페인트 게이트: 이번 진입 중 보고 있어야 종료 (조기종료→지연 출렁 차단, 빈 방 면제).
-        let painted = self.chat.messages.isEmpty || MarkdownPage.lastPaintAt > gate.entrySince
+        // T-150 네이티브 동기 렌더: 페인트 대기 불필요, 항상 참.
+        let painted = true
         let snap = ContentView.EntrySnapshot(
             attempt: attempt,
             kickDone: gate.kickDone,

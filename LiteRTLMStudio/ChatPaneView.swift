@@ -35,7 +35,6 @@ extension ContentView {
         .clipShape(.rect(cornerRadius: 12)) // T-095 모서리 클립
         .overlay { RoundedRectangle(cornerRadius: 12).stroke(.separator) } // T-095 외곽선
         .padding(8) // T-098 바깥 여백 8 (플로팅 카드, 인스펙터 톤 통일)
-        .background { prewarmPane(fontScale: chatFontScale) } // T-112 콜드 렌더 예열
         .onChange(of: chat.currentSessionID) { _, id in
             // 드래프트 진입(nil)은 점프 스킵 (T-137): 빈 뷰 5초 공회전 방지.
             guard id != nil else { return }
@@ -190,11 +189,4 @@ extension ContentView {
             onRetry: { chat.retry() }
         )
     }
-}
-
-/// 콜드 렌더 예열 (T-112): 숨은 1px 행 웹뷰로 프로세스+JS 파싱 선행. 마운트 유지.
-private func prewarmPane(fontScale: CGFloat) -> some View {
-    MarkdownWebView(markdown: "·", scheme: .auto, isStreaming: false, fontScale: fontScale,
-                    containerWidth: 0, height: .constant(24), rendered: .constant(true))
-        .frame(width: 1, height: 1).opacity(0).allowsHitTesting(false)
 }

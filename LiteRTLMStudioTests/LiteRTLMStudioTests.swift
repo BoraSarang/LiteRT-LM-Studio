@@ -116,54 +116,6 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertTrue(ContentView.shouldJump(cur: 1020, target: 1000))
     }
 
-    /// 높이 캐시 키·저장 (T-083, T-091 너비 버킷).
-    func testHeightCache() {
-        let k1 = MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.0, width: 500)
-        XCTAssertEqual(k1, MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.0, width: 520))
-        XCTAssertNotEqual(k1, MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.5, width: 500))
-        XCTAssertNotEqual(k1, MarkdownPage.heightKey(markdown: "hello", scheme: .dark, fontScale: 1.0, width: 700))
-        XCTAssertEqual(MarkdownPage.widthBucket(0), 0)
-        XCTAssertEqual(MarkdownPage.widthBucket(768), 7)
-        MarkdownPage.storeHeight(300, markdown: "hello", scheme: .dark, fontScale: 1.0, width: 500)
-        XCTAssertEqual(MarkdownPage.cachedHeight(markdown: "hello", scheme: .dark, fontScale: 1.0, width: 500), 300)
-        XCTAssertNil(MarkdownPage.cachedHeight(markdown: "other", scheme: .dark, fontScale: 1.0, width: 500))
-    }
-
-    /// 너비 무관 높이 캐시: 실측 너비와 무관하게 진입 조회 적중 (T-107).
-    func testHeightCacheAgnostic() {
-        let k1 = MarkdownPage.heightKeyAgnostic(markdown: "agnostic", scheme: .light, fontScale: 1.0)
-        XCTAssertEqual(k1, MarkdownPage.heightKeyAgnostic(markdown: "agnostic", scheme: .light,
-                                                          fontScale: 1.0))
-        XCTAssertNotEqual(k1, MarkdownPage.heightKeyAgnostic(markdown: "agnostic", scheme: .dark,
-                                                             fontScale: 1.0))
-        MarkdownPage.storeHeightAgnostic(420, markdown: "agnostic", scheme: .light, fontScale: 1.0)
-        XCTAssertEqual(MarkdownPage.cachedHeightAgnostic(markdown: "agnostic", scheme: .light,
-                                                         fontScale: 1.0), 420)
-        XCTAssertNil(MarkdownPage.cachedHeightAgnostic(markdown: "agnostic", scheme: .dark,
-                                                       fontScale: 1.0))
-    }
-
-    /// 안정 해시·영속 (T-108): 실행 무관 고정 키 + UserDefaults round-trip.
-    func testStableHeightCachePersist() {
-        // SHA256("abc") 기지 벡터 앞 16자: hashValue 난수화 회귀 방지.
-        XCTAssertEqual(MarkdownPage.stableHashPrefix("abc"), "ba7816bf8f01cfea")
-        XCTAssertEqual(MarkdownPage.stableHashPrefix("abc"), MarkdownPage.stableHashPrefix("abc"))
-        MarkdownPage.storeHeightAgnostic(555, markdown: "persist-me", scheme: .light, fontScale: 1.0)
-        let plain = UserDefaults.standard.dictionary(forKey: MarkdownPage.agnosticPersistKey)
-            as? [String: Double]
-        let key = MarkdownPage.heightKeyAgnostic(markdown: "persist-me", scheme: .light,
-                                                 fontScale: 1.0)
-        XCTAssertEqual(plain?[key], 555)
-        XCTAssertEqual(MarkdownPage.loadPersistedAgnostic()[key], 555)
-    }
-
-    /// 너비 변경 판정 (T-090): 첫 관측 제외·1pt 초과.
-    func testWidthChanged() {
-        XCTAssertFalse(MarkdownWebView.widthChanged(old: 0, new: 500))
-        XCTAssertFalse(MarkdownWebView.widthChanged(old: 500, new: 500.5))
-        XCTAssertTrue(MarkdownWebView.widthChanged(old: 500, new: 480))
-    }
-
     /// 데몬 로그 타임스탬프 (T-094).
     func testDaemonLogStamp() {
         let lines = DaemonManager.stampedLines("a\nb", time: "12:00:01")
