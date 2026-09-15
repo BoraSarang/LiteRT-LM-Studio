@@ -30,6 +30,14 @@ final class LiteRTLMStudioViewTests: XCTestCase {
                        [.table(rows: [["a"], ["1"]], header: true)])
     }
 
+    /// 호버 팁 표시 판정 (T-171): 정지 유지 0.6초 이상이면 표시.
+    func testHoverTipVisible() {
+        XCTAssertTrue(hoverTipVisible(hovering: true, elapsed: 0.6))
+        XCTAssertTrue(hoverTipVisible(hovering: true, elapsed: 1.2))
+        XCTAssertFalse(hoverTipVisible(hovering: true, elapsed: 0.3))
+        XCTAssertFalse(hoverTipVisible(hovering: false, elapsed: 5.0))
+    }
+
     /// 빈줄 수렴+언어 태그 (T-155/T-156).
     func testBlankCollapseAndLangTag() {
         XCTAssertEqual(NativeMarkdown.parseProse("a\n\n\nb"),

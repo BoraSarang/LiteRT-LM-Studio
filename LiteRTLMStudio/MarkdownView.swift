@@ -164,6 +164,7 @@ struct CodeBlockView: View {
                 }
                 .buttonStyle(.plain)
                 .font(DS.captionFont).foregroundStyle(.secondary)
+                .help("코드 복사").hoverTip("코드 복사")
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)

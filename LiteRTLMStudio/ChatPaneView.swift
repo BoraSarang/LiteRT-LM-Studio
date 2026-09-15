@@ -94,6 +94,7 @@ extension ContentView {
                             }
                         }
                 }.padding(.vertical, 16) // T-096 가로 여백 통일 (열 cap과 일치)
+                .padding(.horizontal, 4) // T-172 대화 열 inset (입력창과 구분)
                 .frame(maxWidth: DS.chatMaxWidth) // T-091 열 폭 고정
                 .frame(maxWidth: .infinity) // 중앙 정렬
                 .background {

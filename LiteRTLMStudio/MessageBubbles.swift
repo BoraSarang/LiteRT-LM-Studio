@@ -86,12 +86,12 @@ struct UserBubbleView: View {
                             Image(systemName: copyFlag.copied ? "checkmark" : "square.on.square")
                                 .frame(minWidth: 20, minHeight: 20) // T-168 응답 푸터와 동일 아이콘
                                 .contentShape(Rectangle())
-                        }.buttonStyle(.plain).help("질문 복사")
+                        }.buttonStyle(.plain).help("질문 복사").hoverTip("질문 복사")
                         Button { onEdit(message) } label: {
                             Image(systemName: "pencil")
                                 .frame(minWidth: 20, minHeight: 20) // T-168 수정 의미 구분
                                 .contentShape(Rectangle())
-                        }.buttonStyle(.plain).help("수정해서 다시 요청")
+                        }.buttonStyle(.plain).help("수정해서 다시 요청").hoverTip("수정해서 다시 요청")
                     }
                     .font(DS.captionFont).foregroundStyle(.tertiary)
                     .frame(height: 20) // T-165 공간 예약 (숨김 때도 자리 유지)
@@ -187,12 +187,12 @@ struct AssistantBubbleView: View {
                             Image(systemName: copyFlag.copied ? "checkmark" : "square.on.square")
                                 .frame(minWidth: 20, minHeight: 20) // T-162 본문 직하 단일행
                                 .contentShape(Rectangle())
-                        }.buttonStyle(.plain).help("응답 복사")
+                        }.buttonStyle(.plain).help("응답 복사").hoverTip("응답 복사")
                         Button { onRetry() } label: {
                             Image(systemName: "arrow.counterclockwise")
                                 .frame(minWidth: 20, minHeight: 20) // T-162 본문 직하 단일행
                                 .contentShape(Rectangle())
-                        }.buttonStyle(.plain).help("응답 재시도")
+                        }.buttonStyle(.plain).help("응답 재시도").hoverTip("응답 재시도")
                     }
                     .font(DS.captionFont).foregroundStyle(.tertiary)
                     .frame(height: 20) // T-162 공간 예약 (숨김 때도 자리 유지)

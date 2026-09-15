@@ -35,6 +35,61 @@ final class CopyFlag: ObservableObject {
     }
 }
 
+/// 호버 팁 표시 판정 (순수, 테스트 가능, T-171): 정지 유지 시간이 임계 이상이면 표시.
+nonisolated func hoverTipVisible(hovering: Bool, elapsed: TimeInterval,
+                                 delay: TimeInterval = 0.6) -> Bool {
+    hovering && elapsed >= delay
+}
+
+/// 호버 팁 (T-171): `.help` 무관 자체 말풍선 (활성화 정책·OS 무관 노출).
+/// 아이콘 버튼에 부착, 0.6초 정지 후 상단에 표시.
+struct HoverTipBox<Inner: View>: View {
+    let text: String
+    let content: Inner
+    @State private var show = false
+    @State private var work: DispatchWorkItem?
+
+    var body: some View {
+        content
+            .onHover { inside in
+                work?.cancel()
+                if inside {
+                    let since = Date()
+                    let pending = DispatchWorkItem {
+                        show = hoverTipVisible(hovering: true,
+                                               elapsed: Date().timeIntervalSince(since))
+                    }
+                    work = pending
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: pending)
+                } else {
+                    work = nil
+                    show = false
+                }
+            }
+            .overlay(alignment: .top) {
+                if show {
+                    Text(text)
+                        .font(DS.captionFont)
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        .clipShape(.rect(cornerRadius: 6))
+                        .overlay { RoundedRectangle(cornerRadius: 6).stroke(.separator) }
+                        .shadow(radius: 3)
+                        .offset(y: -30)
+                }
+            }
+    }
+}
+
+extension View {
+    /// 호버 팁 부착 (T-171).
+    func hoverTip(_ text: String) -> some View {
+        HoverTipBox(text: text, content: self)
+    }
+}
+
 /// 단일 시계열 미니 차트 (T-125): SystemCell·GPU 공용. X는 인덱스, Y 0~yMax.
 struct HistoryLineChart: View {
     let history: [Double]

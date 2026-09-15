@@ -175,6 +175,7 @@ extension ContentView {
         .buttonStyle(.plain)
         .padding(.bottom, 12)
         .help("최신 메시지로 이동")
+        .hoverTip("최신 메시지로 이동")
         .accessibilityLabel("최신 메시지로 이동")
     }
     /// 켜진 섹션이 하나라도 있는지 (순수, 테스트 가능).
