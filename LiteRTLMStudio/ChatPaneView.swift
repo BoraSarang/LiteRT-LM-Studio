@@ -186,7 +186,13 @@ extension ContentView {
                 mode: appearanceMode, systemDark: colorScheme == .dark),
             isStreaming: chat.streaming && m.id == chat.messages.last?.id,
             fontScale: chatFontScale,
-            onRetry: { chat.retry() }
+            onRetry: { chat.retry() },
+            onEdit: { msg in
+                // T-165 다시 요청: 질문을 입력창에 채우고 이후 내역 제거.
+                guard let text = chat.editMessage(msg.id) else { return }
+                input = text
+                focusChatInput()
+            }
         )
     }
 }

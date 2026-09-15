@@ -112,6 +112,30 @@ final class LiteRTLMStudioSessionTests: XCTestCase {
                                                   lastAt: now, now: now.addingTimeInterval(1.1)))
     }
 
+    /// 질문 다시 요청 잘라내기 (T-165): 해당 user+이후 제거·원문 반환·영속.
+    @MainActor
+    func testEditMessage() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-edit-\(UUID().uuidString).json")
+        let store = ChatStore(storageURL: url)
+        _ = store.ensureSessionForSend()
+        let q1 = ChatStore.Message(role: "user", text: "첫 질문")
+        let a1 = ChatStore.Message(role: "assistant", text: "첫 답변")
+        let q2 = ChatStore.Message(role: "user", text: "둘째 질문")
+        let a2 = ChatStore.Message(role: "assistant", text: "둘째 답변")
+        store.messages = [q1, a1, q2, a2]
+        store.persistCurrent()
+        XCTAssertEqual(store.editMessage(q1.id), "첫 질문")
+        XCTAssertEqual(store.messages.count, 0)
+        XCTAssertEqual(store.transcripts()[store.currentSessionID!]!.count, 0)
+        store.messages = [q1, a1, q2, a2]
+        XCTAssertNil(store.editMessage(a1.id))
+        XCTAssertEqual(store.messages.count, 4)
+        XCTAssertEqual(store.editMessage(q2.id), "둘째 질문")
+        XCTAssertEqual(store.messages.map(\.id), [q1.id, a1.id])
+        try? FileManager.default.removeItem(at: url)
+    }
+
     /// 복원 대상 (T-134): 생성순 선두가 아닌 최근 사용 세션.
     func testMostRecentSessionID() {
         typealias S = ChatStore.Session

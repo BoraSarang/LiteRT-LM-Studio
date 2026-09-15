@@ -42,10 +42,12 @@ struct MessageBubbleView: View {
     var isStreaming: Bool = false
     var fontScale: CGFloat = 1.0 // T-070 채팅 폰트 줌
     let onRetry: () -> Void
+    var onEdit: (ChatStore.Message) -> Void = { _ in }
 
     var body: some View {
         if message.role == "user" {
-            UserBubbleView(message: message, fontScale: fontScale)
+            UserBubbleView(message: message, fontScale: fontScale,
+                           isStreaming: isStreaming, onEdit: onEdit)
         } else {
             AssistantBubbleView(message: message, showCursor: showCursor,
                                 preparing: preparing, scheme: scheme,
@@ -54,28 +56,50 @@ struct MessageBubbleView: View {
     }
 }
 
-/// 유저 버블: 우측 정렬 + 엑센트 틴트 + 복사.
+/// 유저 버블: 우측 정렬 + 엑센트 틴트 + 복사·다시 요청 (T-165, 응답 푸터와 동일 패턴).
 struct UserBubbleView: View {
     let message: ChatStore.Message
     var fontScale: CGFloat = 1.0 // T-070 채팅 폰트 줌
+    var isStreaming = false
+    var onEdit: (ChatStore.Message) -> Void = { _ in }
     @StateObject private var copyFlag = CopyFlag()
+    @State private var hovering = false // T-165 완료 푸터 호버 공개
+    @State private var hoverHideWork: DispatchWorkItem? // T-105 해제 지연 (경계 깜빡임 방지)
 
     var body: some View {
         HStack {
             Spacer(minLength: 60)
-            VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: .trailing, spacing: 2) {
                 Text(message.text)
                     .font(.system(size: 14 * fontScale)).textSelection(.enabled)
                     .padding(12) // T-099 유저 버블 좌우 숨쉬기 복원 (어시스턴트는 그대로)
                     .background(Color.accentColor.opacity(0.12))
                     .clipShape(.rect(cornerRadius: 10))
-                HStack(spacing: 8) {
-                    Button(copyFlag.copied ? "복사됨" : "복사") {
-                        PasteboardUtil.copy(message.text)
-                        copyFlag.mark()
-                    }.buttonStyle(.plain)
+                if !isStreaming {
+                    HStack(spacing: 4) {
+                        Button(copyFlag.copied ? "복사됨" : "복사") {
+                            PasteboardUtil.copy(message.text)
+                            copyFlag.mark()
+                        }.buttonStyle(.plain)
+                        Button("다시 요청") { onEdit(message) }.buttonStyle(.plain)
+                    }
+                    .font(DS.captionFont).foregroundStyle(.tertiary)
+                    .frame(height: 20) // T-165 공간 예약 (숨김 때도 자리 유지)
+                    .opacity(hovering ? 1 : 0)
+                    .accessibilityHidden(!hovering)
                 }
-                .font(DS.captionFont).foregroundStyle(.tertiary)
+            }
+        }
+        .onHover { inside in // T-165 해제 지연 (바 경계 깜빡임 방지, 재진입 시 취소)
+            if inside {
+                hoverHideWork?.cancel()
+                hoverHideWork = nil
+                hovering = true
+            } else {
+                let work = DispatchWorkItem { hovering = false }
+                hoverHideWork?.cancel()
+                hoverHideWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
             }
         }
     }

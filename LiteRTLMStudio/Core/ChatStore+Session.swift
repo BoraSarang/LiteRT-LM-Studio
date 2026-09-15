@@ -57,6 +57,20 @@ import Foundation
         logger.info(feature: "채팅기록", "채팅 전환")
     }
 
+    /// 질문 다시 요청용 잘라내기 (순수 조회+적용, 테스트 가능, T-165):
+    /// 해당 user 메시지와 이후 내역을 세션에서 지우고 질문 원문 반환.
+    /// user 메시지 아니거나 스트리밍 중이면 nil (호출 측에서 비활성화).
+    func editMessage(_ id: UUID) -> String? {
+        guard !streaming,
+              let idx = messages.firstIndex(where: { $0.id == id }),
+              messages[idx].role == "user" else { return nil }
+        let text = messages[idx].text
+        messages = Array(messages.prefix(upTo: idx))
+        persistCurrent()
+        logger.info(feature: "채팅기록", "질문 다시 요청 (잔여 \(messages.count)개)")
+        return text
+    }
+
     /// 고정 토글 (T-058).
     func togglePin(_ id: UUID) {
         guard let idx = sessions.firstIndex(where: { $0.id == id }) else { return }
