@@ -93,4 +93,37 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         XCTAssertFalse(ContentView.columnShown(columnOn: true, sections: false, false, false))
         XCTAssertFalse(ContentView.columnShown(columnOn: false, sections: true, true, true))
     }
+
+    // MARK: - T-150 스파이크: 네이티브(AttributedString) 동등성 4종 (의존성 추가 없음)
+
+    /// 표 파싱: GFM 표가 throw 없이 변환되고 셀 텍스트 보존.
+    func testNativeSpikeTable() throws {
+        let md = "| 이름 | 값 |\n|---|---|\n| 가 | 1 |"
+        let attr = try AttributedString(markdown: md)
+        let plain = String(attr.characters)
+        XCTAssertTrue(plain.contains("이름") && plain.contains("가"))
+    }
+
+    /// 코드 파싱: 펜스·인라인 코드가 throw 없이 변환되고 내용 보존.
+    func testNativeSpikeCode() throws {
+        let md = "```swift\nlet a = 1\n```\n인라인 `code` 확인"
+        let attr = try AttributedString(markdown: md)
+        let plain = String(attr.characters)
+        XCTAssertTrue(plain.contains("let a = 1") && plain.contains("code"))
+    }
+
+    /// 한글 볼드 파싱 (T-066 케이스): 조사 직결·안쪽 공백이 throw 없이 변환되고 본문 보존.
+    func testNativeSpikeKoreanBold() throws {
+        for md in ["**\"강조\"**이며 계속", "** ㅌㅌㅌ ** 확인"] {
+            let attr = try AttributedString(markdown: md)
+            XCTAssertFalse(String(attr.characters).isEmpty)
+        }
+    }
+
+    /// 스트리밍 미완성 + 줌: 닫히지 않은 볼드도 throw 없이 처리, px 매핑은 기존 헬퍼와 일치.
+    func testNativeSpikeStreamingAndZoom() throws {
+        let partial = try? AttributedString(markdown: "**미완성 볼드")
+        XCTAssertNotNil(partial)
+        XCTAssertEqual(MarkdownWebView.fontPx(1.5), 21.0, accuracy: 0.0001)
+    }
 }
