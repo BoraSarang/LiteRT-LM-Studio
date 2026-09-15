@@ -65,47 +65,35 @@ enum NativeMarkdown {
         var out = AttributedString()
         let segOptions = AttributedString.MarkdownParsingOptions(
             interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        // T-195: 코드 구간 분리 후 처리, 이후 볼드 처리.
         for seg in splitStrong(normalizeStrong(s)) {
-            var part = (try? AttributedString(markdown: seg.text, options: segOptions))
-                ?? AttributedString(seg.text)
-            for run in part.runs {
-                var f = Font.system(size: size, weight: weight, design: .default)
-                var v = run.inlinePresentationIntent ?? InlinePresentationIntent()
-                if seg.bold { v.insert(.stronglyEmphasized) }
-                if v.contains(.stronglyEmphasized) { f = f.bold() }
-                if v.contains(.emphasized) { f = f.italic() }
-                if v.contains(.code) {
-                    f = Font.system(size: size, weight: weight, design: .monospaced)
-                    part[run.range].foregroundColor = .pink // T-169 인라인 코드 분홍 (구 T-069 복원)
+            // T-195: 코드 구간은 파서 우회 (Apple 파서의 `<...>` 삼킴 회피).
+            for span in splitCodeRuns(seg.text) {
+                var part: AttributedString
+                if span.code {
+                    part = AttributedString(span.text)
+                } else {
+                    part = (try? AttributedString(markdown: span.text, options: segOptions))
+                        ?? AttributedString(span.text)
                 }
-                part[run.range].inlinePresentationIntent = v
-                part[run.range].font = f
+                for run in part.runs {
+                    var f = Font.system(size: size, weight: weight, design: .default)
+                    var v = run.inlinePresentationIntent ?? InlinePresentationIntent()
+                    if span.code { v.insert(.code) }
+                    if seg.bold { v.insert(.stronglyEmphasized) }
+                    if v.contains(.stronglyEmphasized) { f = f.bold() }
+                    if v.contains(.emphasized) { f = f.italic() }
+                    if v.contains(.code) {
+                        f = Font.system(size: size, weight: weight, design: .monospaced)
+                        part[run.range].foregroundColor = .pink // T-169 인라인 코드 분홍 (구 T-069 복원)
+                    }
+                    part[run.range].inlinePresentationIntent = v
+                    part[run.range].font = f
+                }
+                out.append(part)
             }
-            out.append(part)
         }
         return out
-    }
-
-    /// `**` 수동 분할 (순수, 테스트 가능, T-154): `***` 오인식 방지 가드 포함.
-    nonisolated static func splitStrong(_ s: String) -> [StrongSeg] {
-        guard let re = try? NSRegularExpression(pattern: #"(?<!\*)\*\*(?!\*)"#) else {
-            return [StrongSeg(text: s, bold: false)]
-        }
-        let ns = s as NSString
-        let marks = re.matches(in: s, range: NSRange(location: 0, length: ns.length))
-        guard marks.count.isMultiple(of: 2), !marks.isEmpty else {
-            return [StrongSeg(text: s, bold: false)]
-        }
-        var segs: [StrongSeg] = []
-        var pos = 0
-        for (i, m) in marks.enumerated() {
-            let len = m.range.location - pos
-            segs.append(StrongSeg(text: ns.substring(with: NSRange(location: pos, length: len)),
-                                  bold: !i.isMultiple(of: 2)))
-            pos = m.range.location + m.range.length
-        }
-        segs.append(StrongSeg(text: ns.substring(from: pos), bold: false))
-        return segs
     }
 
     /// 줄 분류 누적기 (T-156, 함수 길이 관리용).
@@ -312,6 +300,77 @@ extension NativeMarkdown {
     /// 코드는 제외 (호출부에서 코드 경로에 미적용).
     nonisolated static func tracking(for size: CGFloat) -> CGFloat {
         size * 0.015
+    }
+
+    /// 코드 스팬 분리 (순수, 테스트 가능, T-195): 백틱 구간과 일반 구간 분리.
+    /// 코드 구간은 파서를 우회 (Apple 파서가 `<...>`를 HTML 태그로 삼키는 문제 회피).
+    nonisolated static func splitCodeRuns(_ s: String) -> [(text: String, code: Bool)] {
+        guard let re = try? NSRegularExpression(pattern: "(`+)([^`]*?)\\1") else {
+            return [(text: s, code: false)]
+        }
+        let ns = s as NSString
+        var out: [(text: String, code: Bool)] = []
+        var pos = 0
+        for m in re.matches(in: s, range: NSRange(location: 0, length: ns.length)) {
+            if m.range.location > pos {
+                out.append((text: ns.substring(with: NSRange(location: pos,
+                                                             length: m.range.location - pos)),
+                            code: false))
+            }
+            out.append((text: decodeCodeEntities(ns.substring(with: m.range(at: 2))), code: true))
+            pos = m.range.location + m.range.length
+        }
+        if pos < ns.length {
+            out.append((text: ns.substring(from: pos), code: false))
+        }
+        return out
+    }
+
+    /// 코드 내 엔티티 디코드 (순수, 테스트 가능, T-195): 파서 우회분도 `&amp;` 등은 풀어줌.
+    nonisolated static func decodeCodeEntities(_ s: String) -> String {
+        var r = s
+        r = r.replacingOccurrences(of: "&lt;", with: "<")
+        r = r.replacingOccurrences(of: "&gt;", with: ">")
+        r = r.replacingOccurrences(of: "&quot;", with: "\"")
+        r = r.replacingOccurrences(of: "&#39;", with: "'")
+        r = r.replacingOccurrences(of: "&amp;", with: "&")
+        return r
+    }
+
+    /// `**` 수동 분할 (순수, 테스트 가능, T-154): `***` 오인식 방지 가드 포함.
+    nonisolated static func splitStrong(_ s: String) -> [StrongSeg] {
+        guard let re = try? NSRegularExpression(pattern: #"(?<!\*)\*\*(?!\*)"#) else {
+            return [StrongSeg(text: s, bold: false)]
+        }
+        let ns = s as NSString
+        let marks = re.matches(in: s, range: NSRange(location: 0, length: ns.length))
+        guard marks.count.isMultiple(of: 2), !marks.isEmpty else {
+            return [StrongSeg(text: s, bold: false)]
+        }
+        var segs: [StrongSeg] = []
+        var pos = 0
+        for (i, m) in marks.enumerated() {
+            let len = m.range.location - pos
+            segs.append(StrongSeg(text: ns.substring(with: NSRange(location: pos, length: len)),
+                                  bold: !i.isMultiple(of: 2)))
+            pos = m.range.location + m.range.length
+        }
+        segs.append(StrongSeg(text: ns.substring(from: pos), bold: false))
+        return segs
+    }
+
+    /// 스트리밍 미완성 볼드 숨김 (순수, 테스트 가능, T-194): 홀수 `**`면 마지막
+    /// 마커만 표시 제외 (내용은 평문 유지). 짝수·없음·`***`은 원문 그대로.
+    nonisolated static func hidePendingStrong(_ s: String) -> String {
+        guard let re = try? NSRegularExpression(pattern: #"(?<!\*)\*\*(?!\*)"#) else {
+            return s
+        }
+        let ns = s as NSString
+        let marks = re.matches(in: s, range: NSRange(location: 0, length: ns.length))
+        guard !marks.isEmpty, !marks.count.isMultiple(of: 2), let last = marks.last else {
+            return s
+        }
+        return ns.replacingCharacters(in: last.range, with: "")
     }
 
     /// 줌 스케일 → 기준 px (순수, 테스트 가능, T-070, 기존 MarkdownWebView.fontPx 이관).

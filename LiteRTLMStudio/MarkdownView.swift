@@ -43,9 +43,12 @@ struct MarkdownView: View, Equatable {
     }
 
     /// 문단 렌더: 줄 블록별 표시 (T-151/T-152).
+    /// T-194: 스트리밍 중 미완성 `**` 마커는 표시 제외 (깜빡임 방지, 코드 제외).
     func proseBody(_ p: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(NativeMarkdown.parseProse(p).enumerated()), id: \.offset) { _, b in
+            // T-194: 스트리밍 중 미완성 `**` 마커는 표시 제외 (깜빡임 방지).
+            let prose = isStreaming ? NativeMarkdown.hidePendingStrong(p) : p
+            return ForEach(Array(NativeMarkdown.parseProse(prose).enumerated()), id: \.offset) { _, b in
                 switch b {
                 case .heading(let level, let t):
                     bodyText(t, size: (22 - CGFloat(level) * 2) * fontScale, weight: .bold)
@@ -135,7 +138,8 @@ struct MarkdownView: View, Equatable {
     func codeBody(_ c: String) -> some View {
         let part = NativeMarkdown.splitCode(c)
         return CodeBlockView(code: part.body, lang: part.lang,
-                             dark: scheme != .light, fontSize: 13 * fontScale)
+                             dark: scheme != .light, fontSize: 13 * fontScale,
+                             isStreaming: isStreaming)
     }
 
     /// 인라인 서식 텍스트: 실패 시 원문 폴백 (빈 화면 방지).
@@ -147,15 +151,24 @@ struct MarkdownView: View, Equatable {
     }
 }
 
-/// 코드 블록 뷰 (T-160): 언어 헤더+복사 버튼 (구 렌더러 동등).
+/// 코드 블록 뷰 (T-160/T-196): 언어 헤더+복사 버튼 (구 렌더러 동등).
 /// 첫 페인트는 단색 등폭으로 즉시 그리고, 하이라이트는 직렬 큐에서 비동기 승격.
+/// T-196: 스트리밍 중엔 작업 키 고정 → flush마다 JS 하이라이트가 쌓여
+/// CPU 100%·자동 추종 기아를 내던 문제 해소. 완료 후 최종 코드로 1회만 승격.
 struct CodeBlockView: View {
     let code: String
     let lang: String?
     let dark: Bool
     let fontSize: CGFloat
+    let isStreaming: Bool
     @StateObject private var copyFlag = CopyFlag()
     @State private var highlighted: AttributedString?
+    @State private var highlightedCode: String?
+
+    /// 하이라이트 작업 키 (순수, 테스트 가능, T-196).
+    nonisolated static func highlightTaskID(code: String, isStreaming: Bool) -> String {
+        isStreaming ? "streaming" : code
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -188,13 +201,14 @@ struct CodeBlockView: View {
         .background(Color(.textBackgroundColor))
         .clipShape(.rect(cornerRadius: 8))
         .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) } // T-159 코드 상자 경계
-        .task(id: code) {
-            guard highlighted == nil else { return }
+        .task(id: Self.highlightTaskID(code: code, isStreaming: isStreaming)) {
+            guard highlightedCode != code else { return }
             let snapshot = code
             if let attr = await CodeHighlighter.highlightAsync(code: code, lang: lang,
                                                                dark: dark, fontSize: fontSize),
-               !Task.isCancelled, snapshot == code {
+                !Task.isCancelled, snapshot == code {
                 highlighted = attr
+                highlightedCode = snapshot
             }
         }
     }

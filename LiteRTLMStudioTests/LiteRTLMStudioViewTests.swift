@@ -126,6 +126,35 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         XCTAssertTrue(parenBold)
     }
 
+    /// 코드 스팬 꺾쇠 보존 (T-195): `` `<iostream>` ``이 HTML 태그로 삼켜지면 안 됨.
+    func testCodeSpanAngleBrackets() {
+        let s = String(NativeMarkdown.styled("헤더 `<iostream>` 사용", size: 14).characters)
+        XCTAssertTrue(s.contains("<iostream>"), "실제: \(s)")
+        let runs = NativeMarkdown.splitCodeRuns("a `<b>` c")
+        XCTAssertEqual(runs.map(\.code), [false, true, false])
+        XCTAssertEqual(runs[1].text, "<b>")
+        let plain = NativeMarkdown.splitCodeRuns("plain")
+        XCTAssertEqual(plain.count, 1)
+        XCTAssertEqual(plain[0].text, "plain")
+        XCTAssertFalse(plain[0].code)
+        XCTAssertEqual(NativeMarkdown.decodeCodeEntities("a &amp; b"), "a & b")
+    }
+
+    /// 스트리밍 미완성 볼드 숨김 (T-194): 홀수 `**`면 마지막 마커만 제외.
+    func testHidePendingStrong() {
+        XCTAssertEqual(NativeMarkdown.hidePendingStrong("a **b"), "a b")
+        XCTAssertEqual(NativeMarkdown.hidePendingStrong("**a** b **c"), "**a** b c")
+        XCTAssertEqual(NativeMarkdown.hidePendingStrong("**a** b"), "**a** b")
+        XCTAssertEqual(NativeMarkdown.hidePendingStrong("plain"), "plain")
+        XCTAssertEqual(NativeMarkdown.hidePendingStrong("a ***b"), "a ***b")
+    }
+
+    /// 하이라이트 작업 키 (T-196): 스트리밍 중 고정, 완료 후 최종 코드로 1회.
+    func testHighlightTaskID() {
+        XCTAssertEqual(CodeBlockView.highlightTaskID(code: "abc", isStreaming: true), "streaming")
+        XCTAssertEqual(CodeBlockView.highlightTaskID(code: "abc", isStreaming: false), "abc")
+    }
+
     /// 정보 창 라이브러리 목록 무결성 (T-150): JS 벤더 제거로 빈 목록.
     func testAboutLibraries() {
         XCTAssertTrue(AboutLibraries.all.isEmpty)
