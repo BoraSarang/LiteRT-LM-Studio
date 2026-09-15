@@ -3,6 +3,8 @@
 disabled_rules:
   - identifier_name
   - type_name # 모듈명 규칙 제외 (레거시 표기 잔재 방지)
+excluded:
+  - LiteRTLMStudio/Core/LiteRTLM # Google 벤더 소스 (T-010, 수정 시 업그레이드 드리프트)
 line_length:
   warning: 120
   error: 150

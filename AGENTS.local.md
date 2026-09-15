@@ -13,3 +13,4 @@
 * 빌드: `xcodebuild`만 사용 (`swift build/test` 금지). 결과물 `~/Applications/LiteRT-LM Studio.app` (번들명=DisplayName 규칙, 기존 있으면 rm 후 복사 — 본 프로젝트 결과물에 한함).
 * 상주형: 메뉴바(MenuBarExtra) 기본, Dock은 설정 토글. 창 닫기≠종료. 종료(⌘Q·메뉴바) 시 앱 소유 데몬 함께 종료, 외부 데몬은 유지.
 * App.init에서 NSApp 호출 금지 (테스트 부트스트랩 크래시 전례). 정책·활성화는 화면 표시 이후.
+* 다운로드 대행 금지: 필요 파일(URL+용도+저장 경로)만 사용자에게 요청, 직접 다운로드 금지.
