@@ -48,7 +48,7 @@ struct MarkdownView: View, Equatable {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 case .bullet(let t, let indent):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("•")
+                        Text("•").foregroundStyle(.secondary)
                         Text(NativeMarkdown.styled(t, size: 14 * fontScale))
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -56,7 +56,7 @@ struct MarkdownView: View, Equatable {
                     .padding(.leading, 12 + CGFloat(indent) * 14) // T-164 최상위도 기본 인덴트
                 case .ordered(let n, let t, let indent):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("\(n).")
+                        Text("\(n).").foregroundStyle(.secondary)
                         Text(NativeMarkdown.styled(t, size: 14 * fontScale))
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -66,6 +66,16 @@ struct MarkdownView: View, Equatable {
                     tableBody(rows: rows, header: header)
                 case .hr:
                     Divider()
+                case .quote(let t): // T-169 인용: 좌측 바 + secondary 본문
+                    HStack(alignment: .top, spacing: 8) {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(.secondary)
+                            .frame(width: 3)
+                        Text(NativeMarkdown.styled(t, size: 14 * fontScale))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 case .blank:
                     Spacer().frame(height: 6)
                 case .paragraph(let t):

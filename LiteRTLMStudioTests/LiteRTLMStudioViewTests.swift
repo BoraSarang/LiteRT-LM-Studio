@@ -67,6 +67,25 @@ final class LiteRTLMStudioViewTests: XCTestCase {
                        CodeHighlighter.cacheKey(code: "a", lang: "cpp", dark: true, fontSize: 13))
         XCTAssertNotEqual(CodeHighlighter.cacheKey(code: "a", lang: "cpp", dark: true, fontSize: 13),
                           CodeHighlighter.cacheKey(code: "b", lang: "cpp", dark: true, fontSize: 13))
+    }
+
+    /// 인용·인라인코드 색 (T-169).
+    func testQuoteAndCodeColor() {
+        XCTAssertEqual(NativeMarkdown.parseProse("> 인용문"),
+                       [.quote(text: "인용문")])
+        XCTAssertEqual(NativeMarkdown.parseProse(">> 중첩"), [.quote(text: "중첩")])
+        let coded = NativeMarkdown.styled("보기 `let a = 1` 끝", size: 14)
+        var foundPink = false
+        for run in coded.runs {
+            if run.inlinePresentationIntent?.contains(.code) == true,
+               run.foregroundColor == .pink {
+                foundPink = true
+            }
+        }
+        XCTAssertTrue(foundPink)
+    }
+    /// 기존 서식 회귀 묶음 (T-152/T-154).
+    func testLegacyMarkdownFormatting() {
         // T-152 서식 완성: 구분선·한글볼드 정규화·서식 내장.
         XCTAssertEqual(NativeMarkdown.parseProse("위\n---\n아래"),
                        [.paragraph(text: "위"), .hr, .paragraph(text: "아래")])

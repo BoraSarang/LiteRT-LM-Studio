@@ -9,7 +9,7 @@ enum NativeMarkdown {
         case code(String)
     }
 
-    /// 문단 내 줄 블록 (순수, 테스트 가능, T-151/T-152/T-155).
+    /// 문단 내 줄 블록 (순수, 테스트 가능, T-151/T-152/T-155/T-169).
     enum ProseBlock: Equatable {
         case heading(level: Int, text: String)
         case bullet(text: String, indent: Int)
@@ -17,6 +17,7 @@ enum NativeMarkdown {
         case table(rows: [[String]], header: Bool)
         case hr
         case blank
+        case quote(text: String)
         case paragraph(text: String)
     }
 
@@ -72,6 +73,7 @@ enum NativeMarkdown {
                 if v.contains(.emphasized) { f = f.italic() }
                 if v.contains(.code) {
                     f = Font.system(size: size, weight: weight, design: .monospaced)
+                    part[run.range].foregroundColor = .pink // T-169 인라인 코드 분홍 (구 T-069 복원)
                 }
                 part[run.range].inlinePresentationIntent = v
                 part[run.range].font = f
@@ -146,13 +148,17 @@ enum NativeMarkdown {
         acc.blankRun = false
     }
 
-    /// 단일 줄 분류·누적 (T-156 분리).
+    /// 단일 줄 분류·누적 (T-156 분리, T-169 인용 추가).
     nonisolated static func appendParsedLine(_ line: String, to acc: inout ProseAccumulator) {
         let t = line.trimmingCharacters(in: .whitespaces)
         if t.isEmpty {
             flushPara(acc: &acc)
             flushTable(acc: &acc)
             acc.blankRun = true
+            return
+        }
+        if let q = quoteOf(t) {
+            emit(q, to: &acc)
             return
         }
         if isHR(t) {
@@ -194,6 +200,15 @@ enum NativeMarkdown {
         } else {
             rows.append(tableCells(t))
         }
+    }
+
+    /// 인용 판정 `>` (순수, 테스트 가능, T-169): 중첩 `>>`은 1단계로 평탄화.
+    nonisolated static func quoteOf(_ t: String) -> ProseBlock? {
+        var body = t
+        guard body.hasPrefix(">") else { return nil }
+        while body.hasPrefix(">") { body = String(body.dropFirst()) }
+        body = body.trimmingCharacters(in: .whitespaces)
+        return body.isEmpty ? nil : .quote(text: body)
     }
 
     /// 구분선 `---`/`***`/`___` 3개 이상 (순수, 테스트 가능, T-152).
