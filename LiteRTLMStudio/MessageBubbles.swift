@@ -144,6 +144,7 @@ struct AssistantBubbleView: View {
                                    fontScale: fontScale)
                         .equatable() // T-045: 스트리밍 중 구버블 갱신 차단
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true) // T-173 제안 폭에 줄바꿈 (우측 잘림 방지)
                         .padding(.top, 12) // T-096 좌우 여백 제거 (푸터와 좌단 일치)
                         .padding(.bottom, 8) // T-170 푸터 밀착 (입력 측과 동일 조건)
                         .padding(.horizontal, message.isError ? 12 : 0) // T-102 에러만 안쪽 여백 (박스 그대로)
