@@ -28,7 +28,18 @@ final class LiteRTLMStudioViewTests: XCTestCase {
                        [.bullet(text: "nested", indent: 2)])
         XCTAssertEqual(NativeMarkdown.parseProse("| a |\n|---|\n| 1 |"),
                        [.table(rows: [["a"], ["1"]], header: true)])
-        // T-155 빈줄 수렴: 연속 빈줄은 blank 1개, 선행/후행은 무시.
+    }
+
+    /// 표 구분선 다열 회귀 (T-157, 구구단 원문 71~76행).
+    func testTableDelimiterMultiline() {
+        XCTAssertTrue(NativeMarkdown.isTableDelimiter("| :--- | :--- | :--- |"))
+        XCTAssertTrue(NativeMarkdown.isTableDelimiter("|---|---|"))
+        XCTAssertFalse(NativeMarkdown.isTableDelimiter("| a | b |"))
+        XCTAssertFalse(NativeMarkdown.isTableDelimiter("| ::: | --- |"))
+        XCTAssertEqual(
+            NativeMarkdown.parseProse("| 특징 | C 언어 | C++ |\n| :--- | :--- | :--- |\n| **헤더** | `<stdio.h>` | x |"),
+            [.table(rows: [["특징", "C 언어", "C++"],
+                           ["**헤더**", "`<stdio.h>`", "x"]], header: true)])
         XCTAssertEqual(NativeMarkdown.parseProse("a\n\n\nb"),
                        [.paragraph(text: "a"), .blank, .paragraph(text: "b")])
         XCTAssertEqual(NativeMarkdown.parseProse("\n\na"), [.paragraph(text: "a")])

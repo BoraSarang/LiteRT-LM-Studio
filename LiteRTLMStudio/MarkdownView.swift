@@ -249,11 +249,19 @@ enum NativeMarkdown {
         return nil
     }
 
-    /// 표 구분선 `|---|---|` 판정 (순수, T-151).
+    /// 표 구분선 판정 (순수, 테스트 가능, T-151/T-157): `|`로 셀 분리 후 셀별 판정.
+    /// 셀 안쪽 `|`를 검사에 포함시키던 버그 수정 (다열 구분선 오판).
     nonisolated static func isTableDelimiter(_ t: String) -> Bool {
-        let inner = t.trimmingCharacters(in: CharacterSet(charactersIn: "| "))
-        guard !inner.isEmpty else { return false }
-        return inner.allSatisfy { $0 == "-" || $0 == ":" || $0 == " " }
+        let cells = t.split(separator: "|", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        guard !cells.isEmpty else { return false }
+        return cells.allSatisfy { isDelimiterCell($0) }
+    }
+
+    /// 구분선 셀 `:---`/`---:`/`:---:`/`---` (순수, T-157): 1자 이상, `-` 포함.
+    nonisolated static func isDelimiterCell(_ c: String) -> Bool {
+        guard !c.isEmpty, c.contains("-") else { return false }
+        return c.allSatisfy { $0 == "-" || $0 == ":" }
     }
 
     /// 표 행 셀 분리 (순수, T-151).
