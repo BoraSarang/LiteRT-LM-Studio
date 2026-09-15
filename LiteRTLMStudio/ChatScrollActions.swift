@@ -99,21 +99,16 @@ extension ContentView {
         DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 0.0 : 0.15), execute: work)
     }
 
-    /// 진입 1회 적용 (T-126 분리): 관측+판정+효과 수행. 계속 폴링이면 true.
+    /// 진입 1회 적용 (T-126 분리, T-167 절대점프 일원화): 관측+판정+효과 수행.
+    /// 프록시 scrollTo는 추정 레이아웃에 오버슛(빈 화면)하므로 사용 금지.
+    /// jumpToBottom은 클램프+4pt 데드밴드라 수렴 시 무동작 — 출렁 없음.
     func applyEntryStep(gate: FollowGate, attempt: Int, minAttempts: Int) -> Bool {
-        // T-083 Lazy 강제 생성 1회: 플레이스홀더 합산 이상 자랐을 때만 (앵커 존재 증거).
-        // 프록시 킥이라 AppKit 뷰 발견 전에도 수행. 0회차 허공 킥·매회 이중 구동이 떨림·폭풍의 원인이었음.
         let docH = self.chatScrollView?.documentView?.bounds.height ?? 0
-        let kickSnap = ContentView.EntrySnapshot(
-            attempt: attempt,
-            kickDone: gate.kickDone,
-            emptyMessages: self.chat.messages.isEmpty,
-            docH0: docH,
-            expectMin: CGFloat(self.chat.messages.count) * 36.0 + 32.0
-        )
-        if Self.decideEntry(kickSnap, minAttempts: minAttempts).kick {
+        // T-167 진입 킥도 절대 점프 (프록시 오버슛 제거). 미착지는 데드밴드로 무시.
+        if !gate.kickDone, !self.chat.messages.isEmpty,
+           docH >= CGFloat(self.chat.messages.count) * 36.0 + 32.0 {
             gate.kickDone = true
-            self.scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
+            self.jumpToBottom()
         }
         // T-104 정착 전 점프 없음: 높이만 관측 (출렁 원인 제거).
         gate.lastDocHeights.append(docH)
@@ -142,11 +137,8 @@ extension ContentView {
             // T-104 정착됐는데 하단이 아니면 확정 점프 1회 (수렴 확인은 다음 회차).
             self.jumpToBottom()
         case .finish(let reason):
-            // T-156 수렴이면 무동작 종료 (재점프·검증킥이 1초 후 출렁의 원인).
-            // 짧음(내용 < 화면)만 확정 점프 1회.
-            if reason != "수렴" {
-                self.jumpToBottom()
-            }
+            // T-167 종료 시 클램프 점프 확정 (데드밴드로 수렴 시 무동작, 미수렴만 교정).
+            self.jumpToBottom()
             self.pendingSessionJump = false
             gate.entryWorks.forEach { $0.cancel() }
             gate.entryWorks.removeAll()
