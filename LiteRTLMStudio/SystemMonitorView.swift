@@ -18,31 +18,57 @@ struct SystemMetersView: View {
     @State private var cpuHover = false
     @State private var ramHover = false
 
+    /// 네이티브 모드 데몬 캡션 (순수, 테스트 가능, T-146): pid 없으면 없음, 있으면 대기 표기.
+    nonisolated static func nativeDaemonCaption(cpu: Double, rssGB: Double, pidCount: Int) -> String {
+        guard pidCount > 0 else { return "데몬 없음" }
+        return String(format: "데몬 대기 중 · CPU %.0f%% · %.2fGB", cpu, rssGB)
+    }
+
     var body: some View {
         HStack(spacing: 4) {
             Circle().fill(monitor.live ? .green : .gray).frame(width: 7, height: 7)
             Text(monitor.live ? "LIVE · 1초 갱신" : "중지됨")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .font(DS.captionFont).foregroundStyle(.secondary)
             Spacer()
             Text("GPU는 순간 추정치")
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
                 .help("IOKit busy 추정치. powermetrics급 정밀도가 아닙니다.")
         }
         // 데몬 히어로: 이 화면의 주인공 (pid 0개면 측정 없음 표시, 0% 오해 방지)
+        // T-146: 네이티브 모드는 프로세스 내 추론이라 앱 상주가 주인공, 데몬은 대기 표기.
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Label("데몬", systemImage: "server.rack")
-                    .font(.system(size: 12, weight: .semibold))
-                    .help(":9379 리스너 + 자식 합산 (단일코어 기준 %, footprint 합산)")
-                Spacer()
-                if monitor.daemonPidCount == 0 {
-                    Text("측정 대상 없음")
-                        .font(.system(size: 11)).foregroundStyle(.tertiary)
-                        .help("서버 중지 상태이거나 측정 실패 (E-MAC-NET-0010 로그 확인)")
-                } else {
-                    Text(String(format: "CPU %.0f%% · %.2fGB", monitor.daemonCPU, monitor.daemonRSSGB))
+            if EngineMode.current() == .native {
+                HStack {
+                    Label("네이티브 (프로세스 내)", systemImage: "cpu")
+                        .font(.system(size: 12, weight: .semibold))
+                        .help("프로세스 내 직접 추론. 데몬 CPU 0이 정상입니다.")
+                    Spacer()
+                    Text(String(format: "앱 상주 %.2fGB", monitor.appRSSGB))
                         .font(.system(size: 11, weight: .semibold).monospacedDigit())
                         .foregroundStyle(.primary)
+                }
+                HStack {
+                    Text(Self.nativeDaemonCaption(cpu: monitor.daemonCPU, rssGB: monitor.daemonRSSGB,
+                                             pidCount: monitor.daemonPidCount))
+                        .font(DS.captionFont).foregroundStyle(.tertiary)
+                        .help(":9379 리스너 + 자식 합산. 네이티브 모드에서는 유휴가 정상입니다.")
+                    Spacer()
+                }
+            } else {
+                HStack {
+                    Label("데몬", systemImage: "server.rack")
+                        .font(.system(size: 12, weight: .semibold))
+                        .help(":9379 리스너 + 자식 합산 (단일코어 기준 %, footprint 합산)")
+                    Spacer()
+                    if monitor.daemonPidCount == 0 {
+                        Text("측정 대상 없음")
+                            .font(DS.captionFont).foregroundStyle(.tertiary)
+                            .help("서버 중지 상태이거나 측정 실패 (E-MAC-NET-0010 로그 확인)")
+                    } else {
+                        Text(String(format: "CPU %.0f%% · %.2fGB", monitor.daemonCPU, monitor.daemonRSSGB))
+                            .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(.primary)
+                    }
                 }
             }
             daemonChart
@@ -99,17 +125,17 @@ struct SystemMetersView: View {
          ("캐시", String(format: "%.1fGB", cache))]
     }
 
-    private func cpuRows() -> [(color: Color, label: String, value: String)] {
+    private func cpuRows() -> [MeterRow] {
         let base = Self.cpuPopoverRows(sys: monitor.cpuSystem, user: monitor.cpuUser)
         let colors: [Color] = [.red, .blue, .primary]
-        return zip(colors, base).map { ($0, $1.label, $1.value) }
+        return zip(colors, base).map { MeterRow(color: $0, label: $1.label, value: $1.value) }
     }
 
-    private func ramRows() -> [(color: Color, label: String, value: String)] {
+    private func ramRows() -> [MeterRow] {
         let base = Self.ramPopoverRows(app: monitor.ramAppGB, wired: monitor.ramWiredGB,
                                        comp: monitor.ramCompGB, cache: monitor.ramInactiveGB)
         let colors: [Color] = [.yellow, .red, .blue, .secondary]
-        return zip(colors, base).map { ($0, $1.label, $1.value) }
+        return zip(colors, base).map { MeterRow(color: $0, label: $1.label, value: $1.value) }
     }
 
     private func meterTitle(label: String, value: String, help: String) -> some View {
@@ -217,22 +243,20 @@ struct SystemMetersView: View {
     }
 
     private func miniChart(_ history: [Double], color: Color, height: CGFloat = 28) -> some View {
-        Chart {
-            ForEach(Array(history.enumerated()), id: \.offset) { idx, val in
-                LineMark(x: .value("t", idx), y: .value("v", val))
-                    .foregroundStyle(color.opacity(0.9))
-            }
-        }
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartYScale(domain: 0 ... 100)
-        .frame(height: height)
+        HistoryLineChart(history: history, color: color, height: height)
     }
+}
+
+/// 팝오버 1행 (T-127): 3-튜플 대신 명명 구조체 (large_tuple 해소).
+struct MeterRow {
+    let color: Color
+    let label: String
+    let value: String
 }
 
 /// 호버 팝오버 카드 (T-073, 활성 상태 보기식): 라벨 좌·색상값 우.
 struct MeterPopover: View {
-    let rows: [(color: Color, label: String, value: String)]
+    let rows: [MeterRow]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

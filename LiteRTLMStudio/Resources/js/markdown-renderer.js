@@ -1,12 +1,18 @@
 // marked v14+ — 점진적 마크다운 렌더러
 
+// T-111 2단계 페인트: true 구간은 하이라이트 생략(escape만) 후 별도 적용.
+// 전체 렌더(방 전환·확정) 첫 페인트를 막는 동기 highlightAuto 비용 분리용.
+var deferHighlight = false;
+
 const highlightExtension = {
   renderer: {
     code({ text, lang }) {
       const code = (text || '').replace(/\n$/, '');
       const langStr = lang || '';
       let highlighted;
-      if (langStr && hljs.getLanguage(langStr)) {
+      if (deferHighlight) {
+        highlighted = escapeHtml(code);
+      } else if (langStr && hljs.getLanguage(langStr)) {
         try {
           highlighted = hljs.highlight(code, { language: langStr }).value;
         } catch (e) {
@@ -140,7 +146,9 @@ function enhanceBareCodeBlocks(tmp) {
     });
     var source = codeEl.textContent.replace(/\n$/, '');
     var html;
-    try {
+    if (deferHighlight) {
+      html = escapeHtml(source);
+    } else try {
       html = (lang && hljs.getLanguage(lang))
         ? hljs.highlight(source, { language: lang }).value
         : hljs.highlightAuto(source).value;
@@ -198,6 +206,55 @@ function renderMarkdown(markdown) {
   var tmp = document.createElement('div');
   tmp.innerHTML = marked.parse(markdown);
   return decorateDOM(tmp);
+}
+
+// T-111 2단계 전체 렌더: 1단계 즉시 표시+높이, 2단계 양보 후 하이라이트+높이 재보고.
+// 스트리밍 append 경로는 손대지 않음 (전체 렌더=방 전환·확정만).
+var paintGen = 0;
+function highlightNow(root) {
+  var scope = root || document.getElementById('content');
+  if (!scope) return false;
+  var did = false;
+  scope.querySelectorAll('pre > code').forEach(function(codeEl) {
+    if (codeEl.dataset.highlighted) return;
+    var lang = '';
+    (codeEl.className || '').split(/\s+/).forEach(function(cls) {
+      if (cls.indexOf('language-') === 0) lang = cls.substring(9);
+    });
+    var source = codeEl.textContent.replace(/\n$/, '');
+    var html;
+    try {
+      html = (lang && hljs.getLanguage(lang))
+        ? hljs.highlight(source, { language: lang }).value
+        : hljs.highlightAuto(source).value;
+    } catch (e) {
+      html = escapeHtml(source);
+    }
+    codeEl.innerHTML = html;
+    codeEl.classList.add('hljs');
+    codeEl.dataset.highlighted = 'yes';
+    did = true;
+  });
+  return did;
+}
+function renderFullTwoPhase(md) {
+  var gen = ++paintGen;
+  deferHighlight = true;
+  var html;
+  try {
+    html = renderMarkdown(md);
+  } finally {
+    deferHighlight = false;
+  }
+  var el = document.getElementById('content');
+  el.innerHTML = html;
+  setTimeout(function() {
+    if (gen !== paintGen) return; // 뒤 렌더가 있으면 stale 하이라이트 취소
+    if (!el.isConnected) return;
+    highlightNow(el);
+    // hljs 스팬은 동일 폰트라 높이 불변, 안전망으로 재보고.
+    reportHeight();
+  }, 0);
 }
 
 var streamingState = {
@@ -258,7 +315,7 @@ function appendChunk(fullMarkdown) {
 function finalizeMarkdown() {
   if (!streamingState.container) return;
   var content = streamingState.container.getAttribute('data-full-markdown') || streamingState.container.textContent;
-  streamingState.container.innerHTML = renderMarkdown(content);
+  renderFullTwoPhase(content);
   reportHeight();
   scrollToBottom();
 }

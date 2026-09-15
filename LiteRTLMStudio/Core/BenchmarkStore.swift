@@ -35,7 +35,7 @@ final class BenchmarkStore: ObservableObject {
                 ("입력 처리 초당 \(fmt(prefillSpeed))토큰",
                  "긴 문서·이미지를 함께 보낼 때의 준비 속도입니다."),
                 ("엔진 준비 \(fmt(initTime))초",
-                 "첫 실행 한 번만 드는 비용입니다. 데몬이 떠 있으면 다시 안 들어요."),
+                 "첫 실행 한 번만 드는 비용입니다. 데몬이 떠 있으면 다시 안 들어요.")
             ]
         }
 
@@ -50,17 +50,69 @@ final class BenchmarkStore: ObservableObject {
     @Published var running = false
 
     private var process: Process?
+    private var nativeTask: Task<Void, Never>?
     private let logger = DebugLogger.shared
+
+    /// 네이티브 측정 제공자 (T-132, ContentView가 nativeEngine으로 연결).
+    var nativeBenchmark: ((String) async throws -> EngineBenchmark)?
 
     func run(modelID: String) {
         guard !running else { return }
         logger.info(feature: "벤치마크", "\(modelID) benchmark 시작 (기본 토큰)")
+        reset()
+        if EngineMode.current() == .native, let measure = nativeBenchmark {
+            runNative(modelID: modelID, measure: measure)
+            return
+        }
+        runCLI(modelID: modelID)
+    }
+
+    /// 상태 초기화 (CLI·네이티브 공용).
+    private func reset() {
         stage = .initEngine
         currentIter = 0
         totalIter = 1
         logLines = []
         metrics = nil
         running = true
+    }
+
+    /// 네이티브 측정 (T-132): 고정 프롬프트 1턴 → Metrics 매핑.
+    func runNative(modelID: String, measure: @escaping (String) async throws -> EngineBenchmark) {
+        nativeTask?.cancel()
+        nativeTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                self.stage = .measure
+                self.currentIter = 1
+                let info = try await measure(modelID)
+                self.stage = .summarize
+                let met = Metrics(backend: "네이티브 GPU",
+                                  prefillTokens: info.prefillTokens,
+                                  decodeTokens: info.decodeTokens,
+                                  runs: 1,
+                                  prefillSpeed: info.prefillSpeed,
+                                  decodeSpeed: info.decodeSpeed,
+                                  initTime: info.initTime,
+                                  ttft: info.ttft)
+                self.metrics = met
+                self.stage = .done
+                self.running = false
+                logger.perf(feature: "벤치마크",
+                            "네이티브 완료 prefill=\(met.prefillSpeed) decode=\(met.decodeSpeed)")
+            } catch is CancellationError {
+                self.running = false
+                logger.info(feature: "벤치마크", "사용자 중단")
+            } catch {
+                self.running = false
+                self.stage = .initEngine
+                logger.error(code: "E-MAC-ENG-0002", feature: "벤치마크", "\(error)")
+            }
+        }
+    }
+
+    /// CLI 측정 (기존 경로): `litert-lm benchmark` 프로세스+파싱.
+    private func runCLI(modelID: String) {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: UvManager.litertBin)
         proc.arguments = ["benchmark", modelID]
@@ -89,9 +141,25 @@ final class BenchmarkStore: ObservableObject {
     }
 
     func cancel() {
+        nativeTask?.cancel()
+        nativeTask = nil
         process?.terminate()
         logger.info(feature: "벤치마크", "사용자 중단")
     }
+
+    /// 실수 지표 테이블 (T-126): prefix → Metrics 필드.
+    private static let doubleFields: [(String, WritableKeyPath<Metrics, Double>)] = [
+        ("Prefill speed:", \.prefillSpeed),
+        ("Decode speed:", \.decodeSpeed),
+        ("Init time:", \.initTime),
+        ("Time to first token:", \.ttft)
+    ]
+
+    /// 정수 지표 테이블 (T-126): prefix → Metrics 필드.
+    private static let intFields: [(String, WritableKeyPath<Metrics, Int>)] = [
+        ("Number of tokens in prefill:", \.prefillTokens),
+        ("Number of tokens in decode:", \.decodeTokens)
+    ]
 
     private func ingest(_ text: String) {
         let lines = text.split(separator: "\n").map(String.init)
@@ -99,24 +167,31 @@ final class BenchmarkStore: ObservableObject {
         if logLines.count > 300 { logLines.removeFirst(100) }
         var met = metrics ?? Metrics()
         for line in lines {
-            if line.contains("Benchmarking model:") { stage = .initEngine }
-            if let (cur, tot) = Self.match(line, "Running iteration (\\d+) of (\\d+)") {
-                stage = .measure
-                currentIter = cur
-                totalIter = tot
-            }
-            if line.contains("Results") { stage = .summarize }
-            if let val = Self.value(line, "Prefill speed:") { met.prefillSpeed = val }
-            if let val = Self.value(line, "Decode speed:") { met.decodeSpeed = val }
-            if let val = Self.value(line, "Init time:") { met.initTime = val }
-            if let val = Self.value(line, "Time to first token:") { met.ttft = val }
-            if let val = Self.int(line, "Number of tokens in prefill:") { met.prefillTokens = val }
-            if let val = Self.int(line, "Number of tokens in decode:") { met.decodeTokens = val }
-            if line.hasPrefix("Backend") {
-                met.backend = line.split(separator: ":").last.map { $0.trimmingCharacters(in: .whitespaces) } ?? met.backend
-            }
+            ingestLine(line, into: &met)
         }
         metrics = met
+    }
+
+    /// 한 줄 반영 (T-126 분리): 단계 전이 + 테이블 지표.
+    private func ingestLine(_ line: String, into met: inout Metrics) {
+        if line.contains("Benchmarking model:") { stage = .initEngine }
+        if let (cur, tot) = Self.match(line, "Running iteration (\\d+) of (\\d+)") {
+            stage = .measure
+            currentIter = cur
+            totalIter = tot
+        }
+        if line.contains("Results") { stage = .summarize }
+        for (prefix, path) in Self.doubleFields {
+            if let val = Self.value(line, prefix) { met[keyPath: path] = val }
+        }
+        for (prefix, path) in Self.intFields {
+            if let val = Self.int(line, prefix) { met[keyPath: path] = val }
+        }
+        if line.hasPrefix("Backend") {
+            let tail = line.split(separator: ":").last
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            met.backend = tail ?? met.backend
+        }
     }
 
     private func finish(code: Int32) {

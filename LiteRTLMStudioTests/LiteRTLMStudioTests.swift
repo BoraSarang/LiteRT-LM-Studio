@@ -16,6 +16,8 @@ final class LiteRTLMStudioTests: XCTestCase {
         let dict = try JSONSerialization.jsonObject(with: data) as? [String: String]
         XCTAssertNotNil(dict?["E-MAC-VALID-0001"])
         XCTAssertNotNil(dict?["E-MAC-NET-0002"])
+        XCTAssertNotNil(dict?["E-MAC-ENG-0001"])
+        XCTAssertNotNil(dict?["E-MAC-ENG-0002"])
     }
 
     func testDaemonDefaults() {
@@ -127,6 +129,34 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertNil(MarkdownPage.cachedHeight(markdown: "other", scheme: .dark, fontScale: 1.0, width: 500))
     }
 
+    /// 너비 무관 높이 캐시: 실측 너비와 무관하게 진입 조회 적중 (T-107).
+    func testHeightCacheAgnostic() {
+        let k1 = MarkdownPage.heightKeyAgnostic(markdown: "agnostic", scheme: .light, fontScale: 1.0)
+        XCTAssertEqual(k1, MarkdownPage.heightKeyAgnostic(markdown: "agnostic", scheme: .light,
+                                                          fontScale: 1.0))
+        XCTAssertNotEqual(k1, MarkdownPage.heightKeyAgnostic(markdown: "agnostic", scheme: .dark,
+                                                             fontScale: 1.0))
+        MarkdownPage.storeHeightAgnostic(420, markdown: "agnostic", scheme: .light, fontScale: 1.0)
+        XCTAssertEqual(MarkdownPage.cachedHeightAgnostic(markdown: "agnostic", scheme: .light,
+                                                         fontScale: 1.0), 420)
+        XCTAssertNil(MarkdownPage.cachedHeightAgnostic(markdown: "agnostic", scheme: .dark,
+                                                       fontScale: 1.0))
+    }
+
+    /// 안정 해시·영속 (T-108): 실행 무관 고정 키 + UserDefaults round-trip.
+    func testStableHeightCachePersist() {
+        // SHA256("abc") 기지 벡터 앞 16자: hashValue 난수화 회귀 방지.
+        XCTAssertEqual(MarkdownPage.stableHashPrefix("abc"), "ba7816bf8f01cfea")
+        XCTAssertEqual(MarkdownPage.stableHashPrefix("abc"), MarkdownPage.stableHashPrefix("abc"))
+        MarkdownPage.storeHeightAgnostic(555, markdown: "persist-me", scheme: .light, fontScale: 1.0)
+        let plain = UserDefaults.standard.dictionary(forKey: MarkdownPage.agnosticPersistKey)
+            as? [String: Double]
+        let key = MarkdownPage.heightKeyAgnostic(markdown: "persist-me", scheme: .light,
+                                                 fontScale: 1.0)
+        XCTAssertEqual(plain?[key], 555)
+        XCTAssertEqual(MarkdownPage.loadPersistedAgnostic()[key], 555)
+    }
+
     /// 너비 변경 판정 (T-090): 첫 관측 제외·1pt 초과.
     func testWidthChanged() {
         XCTAssertFalse(MarkdownWebView.widthChanged(old: 0, new: 500))
@@ -150,9 +180,10 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertEqual(chatRelativeTime(from: now.addingTimeInterval(-180), now: now), "3분 전")
         XCTAssertEqual(chatRelativeTime(from: now.addingTimeInterval(-7200), now: now), "2시간 전")
         let cal = Calendar.current
-        let yesterdayNoon = cal.date(byAdding: .day, value: -1,
-                                     to: cal.startOfDay(for: now))!.addingTimeInterval(3600 * 12)
-        XCTAssertEqual(chatRelativeTime(from: yesterdayNoon, now: now), "어제")
+        // 자정 경계 플레이크 방지 (T-127): `now`을 오늘 15시로 고정하면 어제 정오는 항상 27시간 전.
+        let today3pm = cal.date(bySettingHour: 15, minute: 0, second: 0, of: now)!
+        let yesterdayNoon = today3pm.addingTimeInterval(-27 * 3600)
+        XCTAssertEqual(chatRelativeTime(from: yesterdayNoon, now: today3pm), "어제")
         XCTAssertEqual(chatRelativeTime(from: now.addingTimeInterval(-3 * 86400), now: now), "3일 전")
         XCTAssertTrue(chatRelativeTime(from: now.addingTimeInterval(-10 * 86400), now: now).contains("월"))
     }
@@ -212,19 +243,6 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertNotNil(NSImage(named: "MenuBarChip"), "MenuBarChip 에셋 확인")
     }
 
-    /// 채팅 재시도 조회: 마지막 user 프롬프트 반환, 없으면 nil (T-028).
-    @MainActor
-    func testLastUserPrompt() throws {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chat-prompt-\(UUID().uuidString).json")
-        let store = ChatStore(storageURL: url)
-        XCTAssertNil(store.lastUserPrompt())
-        store.messages.append(ChatStore.Message(role: "user", text: "안녕"))
-        store.messages.append(ChatStore.Message(role: "assistant", text: "반가워"))
-        XCTAssertEqual(store.lastUserPrompt(), "안녕")
-        try? FileManager.default.removeItem(at: url)
-    }
-
     /// 종료 정리 판정: 설정ON+앱소유+실행중일 때만 중지 (T-035).
     func testShouldStopDaemon() {
         typealias S = DaemonManager.Status
@@ -246,81 +264,6 @@ final class LiteRTLMStudioTests: XCTestCase {
                               ChatInputBar.editorHeight(rows: 2, lineHeight: 17))
     }
 
-    /// 세션 생명주기: 생성·전환·삭제 + 영속 왕복 (T-032).
-    @MainActor
-    func testChatSessions() throws {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chat-test-\(UUID().uuidString).json")
-        let store = ChatStore(storageURL: url)
-        XCTAssertEqual(store.sessions.count, 1)
-        store.messages.append(ChatStore.Message(role: "user", text: "첫 질문입니다"))
-        store.refreshTitle()
-        XCTAssertEqual(store.sessions.first?.title, "첫 질문입니다")
-        let firstID = store.currentSessionID!
-        store.newSession()
-        XCTAssertEqual(store.sessions.count, 2)
-        XCTAssertTrue(store.messages.isEmpty)
-        store.selectSession(firstID)
-        XCTAssertEqual(store.messages.count, 1)
-        let reloaded = ChatStore(storageURL: url)
-        XCTAssertEqual(reloaded.sessions.count, 2)
-        reloaded.selectSession(firstID)
-        XCTAssertEqual(reloaded.messages.first?.text, "첫 질문입니다")
-        reloaded.deleteSession(firstID)
-        XCTAssertEqual(reloaded.sessions.count, 1)
-        try? FileManager.default.removeItem(at: url)
-    }
-
-    /// 채팅 정렬: 핀 우선 + 최근/이름/생성 (T-058).
-    func testSortedSessions() {
-        typealias S = ChatStore.Session
-        let old = S(title: "b", updatedAt: Date(timeIntervalSince1970: 100),
-                    createdAt: Date(timeIntervalSince1970: 100))
-        let new = S(title: "a", updatedAt: Date(timeIntervalSince1970: 200),
-                    createdAt: Date(timeIntervalSince1970: 200))
-        var pinned = S(title: "z", updatedAt: Date(timeIntervalSince1970: 50),
-                       createdAt: Date(timeIntervalSince1970: 50), pinned: true)
-        XCTAssertEqual(ChatStore.sortedSessions([old, new], by: .recent).first?.title, "a")
-        XCTAssertEqual(ChatStore.sortedSessions([old, new], by: .name).first?.title, "a")
-        XCTAssertEqual(ChatStore.sortedSessions([old, new], by: .created).first?.title, "a")
-        XCTAssertEqual(ChatStore.sortedSessions([new, pinned], by: .recent).first?.title, "z")
-        pinned.pinned = false
-        XCTAssertEqual(ChatStore.sortedSessions([old, pinned], by: .recent).first?.title, "b")
-    }
-
-    /// 구 JSON 호환: 신필드 없으면 기본값 (T-058).
-    func testSessionMigration() throws {
-        let id = UUID()
-        let json = "{\"id\":\"\(id.uuidString)\",\"title\":\"구대화\",\"updatedAt\":1789000000.0}"
-        let s = try JSONDecoder().decode(ChatStore.Session.self, from: Data(json.utf8))
-        XCTAssertEqual(s.id, id)
-        XCTAssertEqual(s.title, "구대화")
-        XCTAssertFalse(s.pinned)
-        XCTAssertNil(s.customTitle)
-        XCTAssertEqual(s.displayTitle, "구대화")
-    }
-
-    /// 이름 변경·고정·자동제목 보호 (T-058).
-    @MainActor
-    func testRenamePin() throws {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chat-rename-\(UUID().uuidString).json")
-        let store = ChatStore(storageURL: url)
-        let id = store.sessions.first!.id
-        store.renameSession(id, title: "   ")
-        XCTAssertNil(store.sessions.first!.customTitle)
-        store.renameSession(id, title: "  회의  ")
-        XCTAssertEqual(store.sessions.first!.displayTitle, "회의")
-        store.messages.append(ChatStore.Message(role: "user", text: "바뀌면 안됨"))
-        store.refreshTitle()
-        XCTAssertEqual(store.sessions.first!.displayTitle, "회의")
-        store.togglePin(id)
-        XCTAssertTrue(store.sessions.first!.pinned)
-        store.togglePin(id)
-        XCTAssertFalse(store.sessions.first!.pinned)
-        try? FileManager.default.removeItem(at: url)
-    }
-
     /// 회귀: 채팅 목록 SF Symbol 실렌더 가능 (T-058).
     func testSessionSymbolsResolve() {
         for name in ["plus", "circle", "pin", "pin.fill", "pin.slash",
@@ -328,318 +271,11 @@ final class LiteRTLMStudioTests: XCTestCase {
             XCTAssertNotNil(NSImage(systemSymbolName: name, accessibilityDescription: nil), "\(name) 확인")
         }
     }
-}
 
-/// 뷰·표시 테스트군 (T-060 파일 분리).
-final class LiteRTLMStudioViewTests: XCTestCase {
-    /// Sticky-Pin 판정: 앵커가 뷰포트 안이면 고정 (T-031).
-    func testPinnedToBottom() {
-        XCTAssertTrue(ContentView.isPinnedToBottom(bottomMaxY: 600, viewportHeight: 600))
-        XCTAssertTrue(ContentView.isPinnedToBottom(bottomMaxY: 650, viewportHeight: 600))
-        XCTAssertFalse(ContentView.isPinnedToBottom(bottomMaxY: 700, viewportHeight: 600))
-    }
-
-    /// 마크다운 엔진 부트스트랩: marked+hljs+렌더러+CSS 내장, 외관 매핑 (T-050).
-    /// 빈 화면 방지: try/catch 폴백+에러 보고 고리 (T-052).
-    func testMarkdownEngineBootstrap() {
-        let dark = MarkdownPage.template(scheme: .dark)
-        XCTAssertTrue(dark.contains("renderMarkdown"))
-        XCTAssertTrue(dark.contains("marked"))
-        XCTAssertTrue(dark.contains("copyCode"))
-        XCTAssertTrue(dark.contains(".markdown-body"))
-        XCTAssertTrue(dark.contains("data-theme=\"dark\""))
-        XCTAssertTrue(dark.contains("try {"))
-        XCTAssertTrue(dark.contains("window.onerror"))
-        XCTAssertTrue(dark.contains("jsError"))
-        XCTAssertTrue(dark.contains("verifyRender"))
-        XCTAssertTrue(dark.contains("renderState"))
-        XCTAssertTrue(dark.contains("koreanStrong")) // T-066 한글 볼드 확장
-        XCTAssertTrue(dark.contains("v18.0.13")) // T-067 marked 핀
-        XCTAssertTrue(dark.contains("v11.12.0")) // T-067 highlight.js 핀
-        XCTAssertTrue(dark.contains(".hljs-keyword")) // T-069 토큰 팔레트
-        XCTAssertTrue(dark.contains("--hl-base")) // T-069 테마 변수
-        XCTAssertTrue(dark.contains("letter-spacing: 0.015em")) // T-075 본문 자간
-        XCTAssertTrue(MarkdownPage.template(scheme: .light).contains("data-theme=\"light\""))
-        XCTAssertTrue(MarkdownPage.template(scheme: .auto).contains("data-theme=\"system\""))
-        XCTAssertEqual(MarkdownPage.themeName(for: .auto), "system")
-    }
-
-    /// JS 문자열 리터럴: 따옴표 포함·내부 이스케이프 (T-050).
-    func testJsLiteral() {
-        XCTAssertEqual(MarkdownWebView.jsLiteral("a\"b"), "\"a\\\"b\"")
-        XCTAssertTrue(MarkdownWebView.jsLiteral("줄\n바꿈")!.contains("\\n"))
-    }
-
-    /// 정보 창 라이브러리 목록 무결성 (T-068): 번들 벤더와 버전 핀 일치.
-    func testAboutLibraries() {
-        XCTAssertEqual(AboutLibraries.all.count, 2)
-        let marked = AboutLibraries.all[0]
-        XCTAssertEqual(marked.name, "marked")
-        XCTAssertEqual(marked.version, "v18.0.13")
-        XCTAssertEqual(URL(string: marked.url)?.host, "github.com")
-        let hljs = AboutLibraries.all[1]
-        XCTAssertEqual(hljs.name, "highlight.js")
-        XCTAssertEqual(hljs.version, "v11.12.0")
-        XCTAssertEqual(URL(string: hljs.url)?.host, "github.com")
-    }
-
-    /// 폰트 줌 스텝·px 매핑 (T-070): 0.7~2.0 클램프, 14px 기준.
-    func testChatZoom() {
-        XCTAssertEqual(ContentView.steppedZoom(1.0, step: 0.1), 1.1, accuracy: 0.0001)
-        XCTAssertEqual(ContentView.steppedZoom(2.0, step: 0.1), 2.0, accuracy: 0.0001)
-        XCTAssertEqual(ContentView.steppedZoom(0.7, step: -0.1), 0.7, accuracy: 0.0001)
-        XCTAssertEqual(ContentView.steppedZoom(1.0, step: -0.5), 0.7, accuracy: 0.0001)
-        XCTAssertEqual(MarkdownWebView.fontPx(1.0), 14.0, accuracy: 0.0001)
-        XCTAssertEqual(MarkdownWebView.fontPx(3.0), 28.0, accuracy: 0.0001)
-        XCTAssertEqual(MarkdownWebView.fontPx(0.1), 9.8, accuracy: 0.0001)
-    }
-
-    /// 인스펙터 섹션 타이틀 (T-072): 3종 고정, 중복 없음.
-    func testInspectorTitles() {
-        XCTAssertEqual(InspectorTitle.all, ["시스템 현황", "실행 설정", "생성 설정"])
-        XCTAssertEqual(Set(InspectorTitle.all).count, 3)
-    }
-
-    /// 회귀: 툴바 SF Symbol 실렌더 가능 (외부 link.badge.minus 링 현상 방지).
-    func testToolbarSymbolsResolve() {
-        for name in ["play.fill", "stop.fill", "terminal", "command", "sidebar.right",
-                     "gauge", "server.rack", "wand.and.stars"] {
-            XCTAssertNotNil(NSImage(systemSymbolName: name, accessibilityDescription: nil), "\(name) 확인")
-        }
-    }
-
-    /// 인스펙터 섹션 가시성: 하나라도 켜지면 컬럼 표시, 전체 off면 2분할.
-    func testAnySectionVisible() {
-        XCTAssertTrue(ContentView.anyVisible(true, false, false))
-        XCTAssertTrue(ContentView.anyVisible(false, false, true))
-        XCTAssertFalse(ContentView.anyVisible(false, false, false))
-    }
-
-    /// 컬럼 표시 결정: 마스터 off면 섹션과 무관하게 숨김.
-    func testInspectorColumnShown() {
-        XCTAssertTrue(ContentView.columnShown(columnOn: true, sections: true, false, false))
-        XCTAssertFalse(ContentView.columnShown(columnOn: true, sections: false, false, false))
-        XCTAssertFalse(ContentView.columnShown(columnOn: false, sections: true, true, true))
-    }
-}
-
-/// 로직 테스트군 (T-060 파일 분리).
-final class LiteRTLMStudioLogicTests: XCTestCase {
-    /// 별칭: 자동 예쁘게 + 사용자 별칭 우선 + 빈 값은 해제.
-    func testModelAlias() {
-        XCTAssertEqual(ModelAlias.pretty(id: "gemma4-12b"), "Gemma 4 · 12B")
-        XCTAssertEqual(ModelAlias.pretty(id: "odd_name"), "odd_name")
-        ModelAlias.setAlias(id: "test-model-x", name: "내 모델")
-        XCTAssertEqual(ModelAlias.display(id: "test-model-x"), "내 모델")
-        ModelAlias.setAlias(id: "test-model-x", name: "   ")
-        XCTAssertEqual(ModelAlias.display(id: "test-model-x"), ModelAlias.pretty(id: "test-model-x"))
-    }
-
-    /// 초안/적용/취소: 임시 경로로 실제 디스크 왕복 (실제 config 불변).
-    @MainActor
-    func testConfigDraftApplyRevert() async throws {
-        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("litert-test-\(UUID().uuidString).json")
-        let store = ConfigStore(configURL: tmp)
-        XCTAssertFalse(store.hasChanges)
-        store.draftBackend = "cpu"
-        XCTAssertTrue(store.hasChanges)
-        XCTAssertTrue(store.diffSummary.contains("cpu"))
-        XCTAssertTrue(store.apply(modelID: "m1"))
-        XCTAssertFalse(store.hasChanges)
-        XCTAssertEqual(store.appliedBackend, "cpu")
-        let reloaded = ConfigStore(configURL: tmp)
-        reloaded.load(modelID: "m1")
-        XCTAssertEqual(reloaded.appliedBackend, "cpu")
-        store.draftVision = "cpu"
-        store.revert()
-        XCTAssertFalse(store.hasChanges)
-        XCTAssertEqual(store.draftVision, "gpu")
-        try? FileManager.default.removeItem(at: tmp)
-    }
-
-    /// 메뉴바 상태 색 매핑.
-    func testMenuStatusKeys() {
-        XCTAssertEqual(MenuStatus.dotKey(for: .running), "green")
-        XCTAssertEqual(MenuStatus.dotKey(for: .starting), "orange")
-        XCTAssertEqual(MenuStatus.dotKey(for: .failed), "red")
-        XCTAssertEqual(MenuStatus.dotKey(for: .stopped), "gray")
-    }
-
-    /// 빈 렌더 재시도 판정: 보고+원문+미재시도일 때만 (T-056).
-    func testShouldRetryEmpty() {
-        XCTAssertTrue(MarkdownWebView.shouldRetryEmpty(reportedEmpty: true, markdownEmpty: false,
-                                                        alreadyRetried: false))
-        XCTAssertFalse(MarkdownWebView.shouldRetryEmpty(reportedEmpty: false, markdownEmpty: false,
-                                                         alreadyRetried: false))
-        XCTAssertFalse(MarkdownWebView.shouldRetryEmpty(reportedEmpty: true, markdownEmpty: true,
-                                                         alreadyRetried: false))
-        XCTAssertFalse(MarkdownWebView.shouldRetryEmpty(reportedEmpty: true, markdownEmpty: false,
-                                                         alreadyRetried: true))
-    }
-
-    /// 렌더 상태머신: 종료는 원문 확정, 빈 finalize 없음 (T-051).
-    func testResolveAction() {
-        typealias R = MarkdownWebView.RenderAction
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: true, streamingEnded: true,
-                                                     isStreaming: true, loaded: true,
-                                                     applied: "a", markdown: "b"), R.reload)
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: false, streamingEnded: true,
-                                                     isStreaming: false, loaded: true,
-                                                     applied: "a", markdown: "a"), R.finishFull)
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: false, streamingEnded: false,
-                                                     isStreaming: true, loaded: true,
-                                                     applied: "a", markdown: "ab"), R.append)
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: false, streamingEnded: false,
-                                                     isStreaming: false, loaded: true,
-                                                     applied: "a", markdown: "ab"), R.fullSet)
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: false, streamingEnded: false,
-                                                     isStreaming: false, loaded: true,
-                                                     applied: "a", markdown: "a"), R.wait)
-        XCTAssertEqual(MarkdownWebView.resolveAction(schemeChanged: false, streamingEnded: false,
-                                                     isStreaming: false, loaded: false,
-                                                     applied: "", markdown: "a"), R.wait)
-    }
-
-    /// 응답 사라짐 방지: 로드 전엔 적용 금지·로드 후 변경분만 적용 (T-038).
-    func testMarkdownNeedsFlush() {
-        XCTAssertFalse(MarkdownWebView.needsFlush(loaded: false, applied: "", html: "<p>a</p>"))
-        XCTAssertFalse(MarkdownWebView.needsFlush(loaded: true, applied: "<p>a</p>", html: "<p>a</p>"))
-        XCTAssertTrue(MarkdownWebView.needsFlush(loaded: true, applied: "<p>a</p>", html: "<p>b</p>"))
-    }
-
-    /// 실효 scheme: 시스템 모드는 환경 다크 여부를 명시로 풂 (T-042).
-    func testEffectiveScheme() {
-        XCTAssertEqual(AppearanceMode.effectiveScheme(mode: .system, systemDark: true), .dark)
-        XCTAssertEqual(AppearanceMode.effectiveScheme(mode: .system, systemDark: false), .light)
-        XCTAssertEqual(AppearanceMode.effectiveScheme(mode: .light, systemDark: true), .light)
-        XCTAssertEqual(AppearanceMode.effectiveScheme(mode: .dark, systemDark: false), .dark)
-    }
-
-    /// 스트리밍 전환 동등성: 종료 시 텍스트 같아도 갱신 (finalize용, T-050).
-    func testMarkdownEquatable() {
-        XCTAssertEqual(MarkdownView(text: "a"), MarkdownView(text: "a"))
-        XCTAssertNotEqual(MarkdownView(text: "a"), MarkdownView(text: "b"))
-        XCTAssertNotEqual(MarkdownView(text: "a", scheme: .light),
-                          MarkdownView(text: "a", scheme: .dark))
-        XCTAssertNotEqual(MarkdownView(text: "a", isStreaming: true),
-                          MarkdownView(text: "a", isStreaming: false))
-    }
-
-    /// 높이 피팅: 올림+2pt 여유, 0 이하는 0 (T-043/T-049).
-    func testFittedHeight() {
-        XCTAssertEqual(MarkdownWebView.fittedHeight(100), 102)
-        XCTAssertEqual(MarkdownWebView.fittedHeight(100.2), 103)
-        XCTAssertEqual(MarkdownWebView.fittedHeight(0), 0)
-        XCTAssertEqual(MarkdownWebView.fittedHeight(-5), 0)
-    }
-
-    /// 추종 게이트: 고정+간격+휠정지일 때만 발사 (T-044).
-    func testShouldFollow() {
-        let now = Date()
-        XCTAssertTrue(ContentView.shouldFollow(pinned: true, now: now,
-                                               lastFollow: now.addingTimeInterval(-1),
-                                               lastWheel: now.addingTimeInterval(-1)))
-        XCTAssertFalse(ContentView.shouldFollow(pinned: false, now: now,
-                                                lastFollow: .distantPast,
-                                                lastWheel: .distantPast))
-        XCTAssertFalse(ContentView.shouldFollow(pinned: true, now: now,
-                                                lastFollow: now.addingTimeInterval(-0.1),
-                                                lastWheel: .distantPast))
-        XCTAssertFalse(ContentView.shouldFollow(pinned: true, now: now,
-                                                lastFollow: .distantPast,
-                                                lastWheel: now.addingTimeInterval(-0.1)))
-    }
-
-    /// 내용 증가 판정: 0.5pt 초과 성장일 때만 (T-048).
-    func testContentGrew() {
-        XCTAssertTrue(ContentView.contentGrew(current: 101, last: 100))
-        XCTAssertFalse(ContentView.contentGrew(current: 100.4, last: 100))
-        XCTAssertFalse(ContentView.contentGrew(current: 90, last: 100))
-        XCTAssertFalse(ContentView.contentGrew(current: 0, last: 0))
-    }
-
-    /// 클램프 목표: [0, 최대] 구간 제한 (T-054).
-    func testClampedTargetY() {
-        XCTAssertEqual(ContentView.clampedTargetY(target: 400, docHeight: 1000, clipHeight: 600), 400)
-        XCTAssertEqual(ContentView.clampedTargetY(target: 900, docHeight: 1000, clipHeight: 600), 400)
-        XCTAssertEqual(ContentView.clampedTargetY(target: -50, docHeight: 1000, clipHeight: 600), 0)
-        XCTAssertEqual(ContentView.clampedTargetY(target: 100, docHeight: 400, clipHeight: 600), 0)
-    }
-
-    /// 절대 점프 목표·하단 판정 (T-047).
-    func testBottomJumpMath() {
-        XCTAssertEqual(ContentView.bottomTargetY(docHeight: 1000, clipHeight: 600), 400)
-        XCTAssertEqual(ContentView.bottomTargetY(docHeight: 400, clipHeight: 600), 0)
-        XCTAssertTrue(ContentView.isAtBottomOffset(offset: 400, content: 1000, container: 600))
-        XCTAssertTrue(ContentView.isAtBottomOffset(offset: 350, content: 1000, container: 600))
-        XCTAssertFalse(ContentView.isAtBottomOffset(offset: 300, content: 1000, container: 600))
-        XCTAssertTrue(ContentView.isAtBottomOffset(offset: 0, content: 400, container: 600))
-    }
-
-    /// 세션 전환 점프 대상: 같은 세션+휠 없음+마지막 있음일 때만 (T-046).
-    func testSwitchJumpTarget() {
-        let a = UUID(), b = UUID(), m = UUID()
-        XCTAssertEqual(ContentView.switchJumpTarget(sessionID: a, currentID: a,
-                                                    lastMessageID: m, wheeledSinceSwitch: false), m)
-        XCTAssertNil(ContentView.switchJumpTarget(sessionID: a, currentID: b,
-                                                  lastMessageID: m, wheeledSinceSwitch: false))
-        XCTAssertNil(ContentView.switchJumpTarget(sessionID: a, currentID: a,
-                                                  lastMessageID: m, wheeledSinceSwitch: true))
-        XCTAssertNil(ContentView.switchJumpTarget(sessionID: a, currentID: a,
-                                                  lastMessageID: nil, wheeledSinceSwitch: false))
-    }
-
-    /// 디버그 패널 빈 상태 구분 (T-055).
-    func testDebugPanelEmptyKind() {
-        XCTAssertEqual(DebugPanelView.emptyKind(entryCount: 5, rowCount: 3), .none)
-        XCTAssertEqual(DebugPanelView.emptyKind(entryCount: 0, rowCount: 0), .noLogs)
-        XCTAssertEqual(DebugPanelView.emptyKind(entryCount: 5, rowCount: 0), .noMatch)
-    }
-
-    /// 디버그 패널 검색·시간 (T-053/T-057): 밀리초 형식+일치+레벨AND검색.
-    func testDebugPanelSearch() {
-        XCTAssertEqual(DebugPanelView.timeString(Date(timeIntervalSince1970: 0)).count, 12)
-        let err = DebugLogger.Entry(level: .error, feature: "마크다운", message: "렌더 실패")
-        let info = DebugLogger.Entry(level: .info, feature: "앱시작", message: "상태 복원 완료")
-        XCTAssertTrue(DebugPanelView.matches(err, query: ""))
-        XCTAssertTrue(DebugPanelView.matches(err, query: "렌더"))
-        XCTAssertTrue(DebugPanelView.matches(err, query: "ERROR"))
-        XCTAssertTrue(DebugPanelView.matches(err, query: "마크다운"))
-        XCTAssertFalse(DebugPanelView.matches(info, query: "렌더"))
-        let rows = DebugPanelView.filteredRows([err, info], level: .error, query: "렌더")
-        XCTAssertEqual(rows.count, 1)
-        XCTAssertEqual(rows.first?.level, .error)
-        XCTAssertEqual(DebugPanelView.filteredRows([err, info], level: nil, query: "").count, 2)
-    }
-
-    /// 수동 외관 매핑: scheme+NSAppearance (T-041).
-    func testAppearanceMapping() {
-        XCTAssertEqual(AppearanceMode.system.markdownScheme, .auto)
-        XCTAssertEqual(AppearanceMode.light.markdownScheme, .light)
-        XCTAssertEqual(AppearanceMode.dark.markdownScheme, .dark)
-        XCTAssertNil(AppearanceMode.system.nsAppearance)
-        XCTAssertNotNil(AppearanceMode.light.nsAppearance)
-        XCTAssertNotNil(AppearanceMode.dark.nsAppearance)
-    }
-
-    /// 데몬 상태 전이표.
-    func testDaemonTransition() {        typealias T = DaemonManager
-        // 외부 기동 감지 → 연결
-        var next = T.transition(status: .stopped, external: false, muted: false, healthy: true, streak: 0)
-        XCTAssertEqual(next.status, .running)
-        XCTAssertTrue(next.external)
-        // mute면 재연결 억제
-        next = T.transition(status: .stopped, external: false, muted: true, healthy: true, streak: 0)
-        XCTAssertEqual(next.status, .stopped)
-        // 시작 중은 폴러가 건드리지 않음
-        next = T.transition(status: .starting, external: false, muted: false, healthy: true, streak: 0)
-        XCTAssertEqual(next.status, .starting)
-        // 3회 연속 불량 → 실패 확정
-        next = T.transition(status: .running, external: true, muted: false, healthy: false, streak: 0)
-        XCTAssertEqual(next.status, .running)
-        XCTAssertEqual(next.streak, 1)
-        next = T.transition(status: .running, external: true, muted: false, healthy: false, streak: 2)
-        XCTAssertEqual(next.status, .failed)
-        XCTAssertFalse(next.external)
+    /// 자가 footprint (T-133): GB 변환 + 테스트 호스트에서 0 초과.
+    func testAppFootprint() {
+        XCTAssertEqual(SystemMonitor.bytesToGB(1073741824), 1.0, accuracy: 0.0001)
+        XCTAssertEqual(SystemMonitor.bytesToGB(0), 0.0, accuracy: 0.0001)
+        XCTAssertGreaterThan(SystemMonitor.appFootprintBytes(), 0)
     }
 }

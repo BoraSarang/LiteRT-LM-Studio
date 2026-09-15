@@ -1,0 +1,160 @@
+import AppKit
+import SwiftUI
+import UniformTypeIdentifiers
+
+/// 입력창 실측용 너비/높이 키 (T-034).
+private struct InputWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 400
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+private struct InputHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat?
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
+        value = nextValue() ?? value
+    }
+}
+
+/// 입력바: 첨부 행 + 멀티라인 TextEditor + 전송/중단 (PLAN_v3 T-030).
+struct ChatInputBar: View {
+    @ObservedObject var chat: ChatStore
+    @ObservedObject var daemon: DaemonManager
+    @Binding var input: String
+    var focusNonce: Int = 0 // T-137 드래프트 시작 신호 (선언 순서=호출 순서)
+    @FocusState private var editorFocused: Bool
+    @Binding var attachedImage: ChatStore.ChatImage?
+    @Binding var attachedName: String?
+    @State private var containerWidth: CGFloat = 400
+    @State private var mirrorHeight: CGFloat = Self.lineHeight
+    private let logger = DebugLogger.shared
+
+    /// 14pt 한 줄 높이 (실측 기준, NSFont에서 계산).
+    static var lineHeight: CGFloat {
+        let font = NSFont.systemFont(ofSize: 14)
+        return font.ascender - font.descender + font.leading
+    }
+
+    /// 실측 높이 → 줄수 2~8 클램프 (순수, 테스트 가능).
+    static func rowsFor(mirrorHeight: CGFloat, lineHeight: CGFloat) -> Int {
+        min(8, max(2, Int((mirrorHeight / lineHeight).rounded(.up))))
+    }
+
+    /// 줄수 → 편집기 명시 높이 (내부 여백 상수 포함).
+    static func editorHeight(rows: Int, lineHeight: CGFloat) -> CGFloat {
+        CGFloat(rows) * lineHeight + 24
+    }
+
+    /// 전송 가능 (T-146): 스트리밍 중 제외, 데몬 실행 중 또는 네이티브 준비.
+    var canSend: Bool {
+        ChatStore.sendAllowed(streaming: chat.streaming,
+                              daemonRunning: daemon.status == .running,
+                              nativeReady: chat.usesNative())
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if let name = attachedName {
+                HStack {
+                    Image(systemName: "photo").foregroundStyle(.secondary)
+                    Text(name).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
+                    Button { attachedImage = nil } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    }.buttonStyle(.plain).help("첨부 제거")
+                    Spacer()
+                }.padding(.horizontal, 12).padding(.top, 8)
+            }
+            VStack(spacing: 8) {
+                TextEditor(text: $input)
+                    .font(.system(size: 14))
+                    .focused($editorFocused)
+                    .onChange(of: focusNonce) { _, _ in editorFocused = true }
+                    // 실측식 높이: 숨은 Text가 잰 줄수로 명시 지정 (T-034)
+                    .frame(height: Self.editorHeight(
+                        rows: Self.rowsFor(mirrorHeight: mirrorHeight, lineHeight: Self.lineHeight),
+                        lineHeight: Self.lineHeight))
+                    .scrollContentBackground(.hidden)
+                    .padding(6)
+                    .background(Color.clear) // T-097 테두리는 바깥 박스로 이동 (터미널과 동일 뼈대)
+                    .overlay(alignment: .topLeading) {
+                        if input.isEmpty {
+                            Text("메시지 입력… (Return 전송·Shift 줄바꿈)")
+                                .font(.system(size: 14)).foregroundStyle(.secondary) // T-071 진하게
+                                // T-144: TextEditor 내부 여백과 동일값으로 입력 시작점 일치
+                                // T-145: 가로 10 (세로 8 유지, 최종)
+                                .padding(.top, 8).padding(.leading, 10)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .onKeyPress(.return) {
+                        // Shift+Return=줄바꿈, Return=전송
+                        if NSEvent.modifierFlags.contains(.shift) { return .ignored }
+                        submit()
+                        return .handled
+                    }
+                    .disabled(!canSend)
+                HStack(spacing: 8) {
+                    Button { pickImage() } label: {
+                        Image(systemName: "paperclip").font(.system(size: 15, weight: .semibold))
+                    }.buttonStyle(.plain).help("이미지 첨부 (Vision 지원 모델)")
+                        .disabled(!canSend)
+                    Spacer()
+                    if chat.streaming {
+                        Button("중지") { chat.stop() }.keyboardShortcut(".", modifiers: .command)
+                    } else {
+                        Button("전송") { submit() }.keyboardShortcut(.return, modifiers: .command)
+                            .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                || !canSend)
+                    }
+                }
+            }.cardBox() // T-097 터미널과 동일 뼈대 (바깥 박스)
+                .background {
+                    GeometryReader { geo in
+                        Color.clear.preference(key: InputWidthKey.self, value: geo.size.width)
+                    }
+                }
+                .background {
+                    // 숨은 실측용: 같은 글자·같은 너비로 실제 줄 높이 측정
+                    Text(input.isEmpty ? " " : input)
+                        .font(.system(size: 14))
+                        .frame(width: max(50, containerWidth - 46), alignment: .leading)
+                        .background {
+                            GeometryReader { geo in
+                                Color.clear.preference(key: InputHeightKey.self, value: geo.size.height)
+                            }
+                        }
+                        .hidden()
+                }
+                .onPreferenceChange(InputWidthKey.self) { containerWidth = $0 }
+                .onPreferenceChange(InputHeightKey.self) { if let h = $0 { mirrorHeight = h } }
+        }
+    }
+
+    private func submit() {
+        let txt = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !txt.isEmpty else { return }
+        input = ""
+        let image = attachedImage
+        attachedImage = nil
+        attachedName = nil
+        chat.send(txt, image: image)
+    }
+
+    private func pickImage() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.png, .jpeg]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url,
+              let data = try? Data(contentsOf: url) else { return }
+        // 큰 스크린샷은 Vision 토큰·시간 폭증 → 최대 768px JPEG으로 축소 (속도 최적화)
+        if let small = ImageUtil.downscaledJPEG(data) {
+            attachedImage = ChatStore.ChatImage(data: small.data, mime: small.mime)
+            attachedName = "\(url.lastPathComponent) (\(small.note))"
+            let sizes = "\(data.count)->\(small.data.count) bytes \(small.note)"
+            logger.info(feature: "첨부선택", "\(url.lastPathComponent) \(sizes)")
+        } else {
+            attachedImage = ChatStore.ChatImage(data: data, mime: "image/jpeg")
+            attachedName = "\(url.lastPathComponent) (원본)"
+            logger.info(feature: "첨부선택", "\(url.lastPathComponent) \(data.count) bytes 원본")
+        }
+    }
+}

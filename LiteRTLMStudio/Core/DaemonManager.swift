@@ -12,10 +12,7 @@ final class DaemonManager: ObservableObject {
 
     /// 로그 시각 (T-094): HH:mm:ss.
     nonisolated static func logTimeString(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "ko_KR")
-        f.dateFormat = "HH:mm:ss"
-        return f.string(from: date)
+        TimeFormat.logTime(date)
     }
 
     /// 로그 행 타임스탬프 (순수, 테스트 가능, T-094).
@@ -189,17 +186,13 @@ final class DaemonManager: ObservableObject {
     }
 
     func isHealthy() async -> Bool {
-        let url = baseURL.appendingPathComponent("v1/models")
+        var req = URLRequest(url: baseURL.appendingPathComponent("v1/models"))
+        req.timeoutInterval = 5 // T-119 폴러(3s) 적체 방지: 실패는 빨리 확정
         do {
-            let (_, resp) = try await URLSession.shared.data(from: url)
+            let (_, resp) = try await URLSession.shared.data(for: req)
             return (resp as? HTTPURLResponse)?.statusCode == 200
         } catch {
             return false
         }
-    }
-
-    func checkPortInUse() async -> Bool {
-        let (out, _) = await uv.run("/usr/sbin/lsof", args: ["-i", ":\(Self.port)"])
-        return !out.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

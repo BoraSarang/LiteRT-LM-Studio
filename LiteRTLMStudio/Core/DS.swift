@@ -2,14 +2,9 @@ import AppKit
 import SwiftUI
 
 /// 디자인 토큰 (T-041, LiteRTLM 규모 경량): 간격·radius·폰트 중앙화.
-/// AIModelTalk 통째 이식 대신 현재 사용값만 고정.
+/// T-125 정리: 실제 사용분만 유지 (chatMaxWidth·bottomBoxHeight·captionFont).
 enum DS {
-    static let gap: CGFloat = 12
-    static let bubbleRadius: CGFloat = 10
-    static let cardRadius: CGFloat = 10
-    static let bodyFont: Font = .system(size: 14)
     static let captionFont: Font = .system(size: 11)
-    static let footnoteFont: Font = .system(size: 12)
     static let chatMaxWidth: CGFloat = 768 // T-091 메시지 열 최대폭 (중앙 정렬)
     static let bottomBoxHeight: CGFloat = 144 // T-096 터미널=시스템 높이 (3셀 수납)
 }

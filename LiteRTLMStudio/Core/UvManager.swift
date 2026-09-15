@@ -31,16 +31,18 @@ final class UvManager: ObservableObject {
         }
     }
 
-    func upgradeLitertLM() async -> Bool {
-        logger.info(feature: "업그레이드", "uv tool upgrade litert-lm 시작")
-        let (out, code) = await run(UvManager.uvPath, args: ["tool", "upgrade", "litert-lm"])
-        logger.info(feature: "업그레이드", out.prefix(500).description)
-        await refresh()
-        return code == 0
+    /// 종료 코드와 합친 출력을 반환하는 작은 Process 래퍼.
+    /// 타임아웃 시 프로세스 종료 후 124 반환 (T-127, hang 무한대기 방지).
+    func run(_ path: String, args: [String], timeout: TimeInterval = 30) async -> (String, Int32) {
+        await Self.runProcess(path, args: args, timeout: timeout)
     }
 
-    /// 종료 코드와 합친 출력을 반환하는 작은 Process 래퍼.
-    func run(_ path: String, args: [String]) async -> (String, Int32) {
+    /// 인스턴스 상태 비의존 실행기 (T-127): TaskGroup 병렬 호출용 nonisolated.
+    nonisolated static func runProcess(
+        _ path: String,
+        args: [String],
+        timeout: TimeInterval = 30
+    ) async -> (String, Int32) {
         await withCheckedContinuation { cont in
             DispatchQueue.global().async {
                 let p = Process()
@@ -49,15 +51,37 @@ final class UvManager: ObservableObject {
                 let pipe = Pipe()
                 p.standardOutput = pipe
                 p.standardError = pipe
+                let state = TimeoutState()
                 do {
                     try p.run()
+                    DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+                        if p.isRunning {
+                            state.timedOut = true
+                            p.terminate()
+                        }
+                    }
                     p.waitUntilExit()
                     let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    cont.resume(returning: (String(data: data, encoding: .utf8) ?? "", p.terminationStatus))
+                    if state.timedOut {
+                        cont.resume(returning: ("timeout after \(Int(timeout))s: \(path)", 124))
+                    } else {
+                        cont.resume(returning: (String(data: data, encoding: .utf8) ?? "",
+                                               p.terminationStatus))
+                    }
                 } catch {
                     cont.resume(returning: ("\(error)", 127))
                 }
             }
         }
+    }
+}
+
+/// 타임아웃 플래그 (T-127): 워치독·대기 스레드 공유.
+private final class TimeoutState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var flag = false
+    var timedOut: Bool {
+        get { lock.withLock { flag } }
+        set { lock.withLock { flag = newValue } }
     }
 }

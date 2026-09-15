@@ -98,6 +98,6 @@ enum AboutLibraries {
         AboutLibrary(name: "marked", version: "v18.0.13",
                      url: "https://github.com/markedjs/marked"),
         AboutLibrary(name: "highlight.js", version: "v11.12.0",
-                     url: "https://github.com/highlightjs/highlight.js"),
+                     url: "https://github.com/highlightjs/highlight.js")
     ]
 }

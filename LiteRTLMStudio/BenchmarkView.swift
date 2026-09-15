@@ -22,12 +22,12 @@ struct BenchmarkView: View {
             HStack(spacing: 8) {
                 ForEach(BenchmarkStore.Stage.allCases, id: \.self) { step in
                     stageChip(step)
-                    if step != .done { Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(.tertiary) }
+                    if step != .done { stageChevron }
                 }
             }
             if store.stage == .measure {
                 Text("반복 \(store.currentIter)/\(store.totalIter) 측정 중…")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .font(DS.captionFont).foregroundStyle(.secondary)
             }
             Divider()
             if let met = store.metrics, store.stage == .done {
@@ -63,17 +63,17 @@ struct BenchmarkView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 Text("백엔드 \(met.backend) · 프리필 \(met.prefillTokens)토큰 · 디코드 \(met.decodeTokens)토큰")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .font(DS.captionFont).foregroundStyle(.secondary)
                 miniChart(met)
                 ForEach(met.explanation, id: \.0) { title, body in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title).font(.system(size: 13, weight: .semibold))
                         Text(body).font(.system(size: 12)).foregroundStyle(.secondary)
                     }
-                    .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.textBackgroundColor).opacity(0.5))
-                    .clipShape(.rect(cornerRadius: 8))
+                    .cardBox(padding: 10,
+                             background: Color(.textBackgroundColor).opacity(0.5),
+                             stroked: false)
                 }
                 DisclosureGroup("원문 출력") { logSection }
             }.frame(maxWidth: .infinity, alignment: .leading)
@@ -87,6 +87,11 @@ struct BenchmarkView: View {
         }
         .chartYAxisLabel("초당 토큰")
         .frame(height: 140)
+    }
+
+    private var stageChevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 10)).foregroundStyle(.tertiary)
     }
 
     private var logSection: some View {

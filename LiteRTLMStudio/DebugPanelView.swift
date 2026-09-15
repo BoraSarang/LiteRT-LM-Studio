@@ -11,18 +11,12 @@ struct DebugPanelView: View {
     @State private var atBottom = true
     @State private var viewportHeight: CGFloat = 400
     @State private var matchIndex = 0
-    @State private var copied = false
+    @StateObject private var copyFlag = CopyFlag()
     @Environment(\.dismiss) private var dismiss
-
-    private nonisolated static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm:ss.SSS"
-        return f
-    }()
 
     /// 시간 문자열 (T-053/T-057): HH:mm:ss.SSS.
     nonisolated static func timeString(_ date: Date) -> String {
-        timeFormatter.string(from: date)
+        TimeFormat.debugTime(date)
     }
 
     /// 검색 일치 (순수, 테스트 가능): 시간·레벨·기능·메시지 대상.
@@ -90,7 +84,7 @@ struct DebugPanelView: View {
                         .textFieldStyle(.roundedBorder).frame(width: 150)
                     if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Text(rows.isEmpty ? "0건" : "\(matchIndex + 1)/\(rows.count)건")
-                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                            .font(DS.captionFont).foregroundStyle(.secondary)
                             .monospacedDigit()
                             .frame(minWidth: 52, alignment: .leading)
                         Button("이전") { jumpMatch(-1, proxy: proxy) }.disabled(rows.isEmpty)
@@ -106,7 +100,7 @@ struct DebugPanelView: View {
                     }.pickerStyle(.menu).frame(width: 110)
                 }.padding(12)
                 HStack(spacing: 8) {
-                    Button(copied ? "복사됨" : "선택 복사") { copySelection() }
+                    Button(copyFlag.copied ? "복사됨" : "선택 복사") { copySelection() }
                         .help("선택한 행 복사 (선택 없으면 표시 전체)")
                     Button("전체 복사") { copyAll() }
                         .help("필터·검색 무관 전체 로그 복사")
@@ -126,7 +120,7 @@ struct DebugPanelView: View {
                                     .foregroundStyle(.tertiary).frame(width: 76, alignment: .leading)
                                 Text(e.level.rawValue).font(.system(size: 10, weight: .bold))
                                     .foregroundStyle(color(for: e.level)).frame(width: 44, alignment: .leading)
-                                Text("[\(e.feature)]").font(.system(size: 11)).foregroundStyle(.secondary)
+                                Text("[\(e.feature)]").font(DS.captionFont).foregroundStyle(.secondary)
                                 Text(Self.highlightedMessage(e, query: query))
                                     .font(.system(size: 11, design: .monospaced))
                                     .textSelection(.enabled)
@@ -219,27 +213,29 @@ struct DebugPanelView: View {
         let ids = selection
         let targets = ids.isEmpty ? rows : rows.filter { ids.contains($0.id) }
         copy(entries: targets)
-        copied = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
+        copyFlag.mark()
     }
 
     /// 전체 복사 (T-086): 필터·검색 무관 저장 전체.
     private func copyAll() {
         copy(entries: logger.entries)
-        copied = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
+        copyFlag.mark()
     }
 
     private func color(for l: DebugLogger.Level) -> Color {
-        switch l { case .info: .blue; case .error: .red; case .perf: .orange; case .cache: .green }
+        switch l {
+        case .info: .blue
+        case .error: .red
+        case .perf: .orange
+        case .cache: .green
+        }
     }
 
     private func copy(entries: [DebugLogger.Entry]) {
         let s = entries.map {
             "[\(Self.timeString($0.date))] [\($0.level.rawValue)] [\($0.feature)] \($0.message)"
         }.joined(separator: "\n")
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(s, forType: .string)
+        PasteboardUtil.copy(s)
     }
 }
 

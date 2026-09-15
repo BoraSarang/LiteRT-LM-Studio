@@ -3,7 +3,7 @@ import Foundation
 /// 로컬 모델 레지스트리 (~/.litert-lm/models). list 표기 용량 + du 실제 점유 병기.
 @MainActor
 final class ModelStore: ObservableObject {
-    struct Model: Identifiable, Hashable {
+    struct Model: Identifiable, Hashable, Sendable {
         let id: String
         let listedSize: String
         let modified: String
@@ -33,10 +33,20 @@ final class ModelStore: ObservableObject {
             return
         }
         var parsed = Self.parseList(out)
-        // du 실제 용량 + describe capability 병합
-        for idx in parsed.indices {
-            parsed[idx].realSize = await realSize(of: parsed[idx].id)
-            await fillCapabilities(&parsed[idx])
+        // du 실제 용량 + describe capability 병렬 병합 (T-127): 순서 보존.
+        let registryPath = registryURL.path
+        parsed = await withTaskGroup(of: (Int, Model).self, returning: [Model].self) { group in
+            for (idx, item) in parsed.enumerated() {
+                group.addTask {
+                    var m = item
+                    m.realSize = await Self.realSize(of: m.id, registryPath: registryPath)
+                    await Self.fillCapabilities(&m)
+                    return (idx, m)
+                }
+            }
+            var out = parsed
+            for await (idx, m) in group { out[idx] = m }
+            return out
         }
         models = parsed
         logger.info(feature: "모델목록", "\(parsed.count)개 모델 확인")
@@ -63,14 +73,15 @@ final class ModelStore: ObservableObject {
         return parsed
     }
 
-    private func realSize(of id: String) async -> String {
-        let (out, code) = await uv.run("/usr/bin/du", args: ["-sh", registryURL.appendingPathComponent(id).path])
+    private nonisolated static func realSize(of id: String, registryPath: String) async -> String {
+        let target = (registryPath as NSString).appendingPathComponent(id)
+        let (out, code) = await UvManager.runProcess("/usr/bin/du", args: ["-sh", target])
         guard code == 0 else { return "-" }
         return out.split(separator: "\t").first.map(String.init) ?? "-"
     }
 
-    private func fillCapabilities(_ model: inout Model) async {
-        let (out, code) = await uv.run(UvManager.litertBin, args: ["describe", model.id])
+    private nonisolated static func fillCapabilities(_ model: inout Model) async {
+        let (out, code) = await UvManager.runProcess(UvManager.litertBin, args: ["describe", model.id])
         guard code == 0 else { return }
         for line in out.split(separator: "\n") {
             let t = line.trimmingCharacters(in: .whitespaces)

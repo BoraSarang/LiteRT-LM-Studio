@@ -20,6 +20,7 @@ final class DebugLogger: ObservableObject {
     @Published private(set) var entries: [Entry] = []
     private let log = Logger(subsystem: "com.borasarang.litert-lm-studio", category: "app")
     private let lock = NSLock()
+    /// 메모리 상한 (T-119): 최근 2000건 유지. DebugPanel·복사는 저장분 기준.
 
     func info(feature: String, _ message: String) { add(.info, feature: feature, message) }
     func error(code: String, feature: String, _ message: String) {
@@ -30,12 +31,16 @@ final class DebugLogger: ObservableObject {
 
     private func add(_ level: Level, feature: String, _ message: String) {
         let entry = Entry(level: level, feature: feature, message: message)
-        lock.withLock { entries.append(entry) }
+        lock.withLock {
+            entries.append(entry)
+            if entries.count > 2000 { entries.removeFirst(entries.count - 2000) }
+        }
         switch level {
         case .info: log.info("[\(feature, privacy: .public)] \(message, privacy: .public)")
         case .error: log.error("[\(feature, privacy: .public)] \(message, privacy: .public)")
         case .perf, .cache:
-            log.debug("[\(level.rawValue, privacy: .public)] [\(feature, privacy: .public)] \(message, privacy: .public)")
+            let tag = "[\(level.rawValue)] [\(feature)]"
+            log.debug("\(tag, privacy: .public) \(message, privacy: .public)")
         }
     }
 

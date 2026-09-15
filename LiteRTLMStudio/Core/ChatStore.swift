@@ -3,6 +3,12 @@ import Foundation
 /// OpenAI 호환 /v1/chat/completions 스트리밍 채팅 (PLAN_v3 T-032 세션/영속).
 @MainActor
 final class ChatStore: ObservableObject {
+    /// 첨부 이미지 (T-127): Vision 전송용. (data, mime) 튜플 대신 명명 타입.
+    struct ChatImage {
+        let data: Data
+        let mime: String
+    }
+
     struct Message: Identifiable, Codable {
         var id = UUID()
         let role: String
@@ -94,10 +100,12 @@ final class ChatStore: ObservableObject {
     var baseURL = URL(string: "http://127.0.0.1:9379")!
     var model = "gemma4-12b"
     var temperature = 0.7
+    /// 네이티브 엔진 주입 (T-130, nil이면 CLI 전용). ContentView가 AppServices에서 연결.
+    var inferenceEngine: (any InferenceEngine)?
 
     private var currentTask: Task<Void, Never>?
-    private let logger = DebugLogger.shared
-    private let storageURL: URL
+    let logger = DebugLogger.shared
+    let storageURL: URL
 
     init(storageURL: URL? = nil) {
         if let storageURL {
@@ -110,7 +118,7 @@ final class ChatStore: ObservableObject {
             }
         }
         load()
-        if sessions.isEmpty { newSession() }
+        if sessions.isEmpty { startDraft() }
         logger.info(feature: "채팅기록", "채팅 \(sessions.count)개 복원")
     }
 
@@ -132,8 +140,9 @@ final class ChatStore: ObservableObject {
         return (dst, migrated)
     }
 
-    func send(_ prompt: String, image: (data: Data, mime: String)? = nil) {
+    func send(_ prompt: String, image: ChatImage? = nil) {
         logger.info(feature: "채팅전송", "model=\(model) len=\(prompt.count) image=\(image != nil)")
+        guard ensureSessionForSend() != nil else { return }
         messages.append(Message(role: "user", text: prompt))
         messages.append(Message(role: "assistant", text: ""))
         refreshTitle()
@@ -143,67 +152,28 @@ final class ChatStore: ObservableObject {
         preparing = true
         let idx = messages.count - 1
         let started = Date()
-        var firstTokenAt: Date?
+        if startNativeIfNeeded(prompt: prompt, image: image, idx: idx, started: started) { return }
         currentTask = Task {
             do {
-                var req = URLRequest(url: baseURL.appendingPathComponent("v1/chat/completions"))
-                req.httpMethod = "POST"
-                req.timeoutInterval = 300 // Vision 추론은 수 분 가능
-                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                let history = messages.dropLast(2).map { ["role": $0.role, "content": $0.text] }
-                let userContent: Any
-                if let image {
-                    let b64 = image.data.base64EncodedString()
-                    userContent = [
-                        ["type": "text", "text": prompt],
-                        ["type": "image_url", "image_url": ["url": "data:\(image.mime);base64,\(b64)"]],
-                    ]
-                } else {
-                    userContent = prompt
-                }
-                let historyPlus = history + [["role": "user", "content": userContent]]
-                req.httpBody = try JSONSerialization.data(withJSONObject: [
-                    "model": model, "messages": historyPlus,
-                    "temperature": temperature, "stream": true,
-                ])
+                let req = try self.chatRequest(prompt: prompt, image: image)
                 let (bytes, resp) = try await URLSession.shared.bytes(for: req)
                 guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
                     throw URLError(.badServerResponse)
                 }
-                var acc = ""
+                var state = SSEStreamState(lastFlush: started)
                 for try await line in bytes.lines {
-                    if Task.isCancelled { break }
-                    guard line.hasPrefix("data:") else { continue }
-                    let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
-                    if payload == "[DONE]" { break }
-                    guard let data = payload.data(using: .utf8),
-                          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                          let choices = json["choices"] as? [[String: Any]],
-                          let delta = choices.first?["delta"] as? [String: Any],
-                          let content = delta["content"] as? String
-                    else { continue }
-                    if firstTokenAt == nil {
-                        firstTokenAt = Date()
-                        preparing = false
-                        let ttft = firstTokenAt!.timeIntervalSince(started)
-                        logger.perf(feature: "채팅전송", "첫 토큰 TTFT=\(String(format: "%.1f", ttft))s")
-                    }
-                    acc += content
-                    messages[idx].text = acc
+                    let done = self.applySSELine(line, state: &state, idx: idx, started: started)
+                    if done { break }
                 }
+                messages[idx].text = state.acc
                 let elapsed = Date().timeIntervalSince(started)
-                let est = acc.count / max(1, Int(elapsed * 4))
-                messages[idx].perf = String(format: "%.1fs · 약 %d tok/s", elapsed, est)
+                messages[idx].perf = Self.perfLine(chars: state.acc.count, elapsed: elapsed)
                 messages[idx].finishedAt = Date() // T-077 완료 시각 기록
-                logger.perf(feature: "채팅전송", "완료 elapsed=\(String(format: "%.1f", elapsed))s chars=\(acc.count)")
+                logger.perf(feature: "채팅전송", "완료 elapsed=\(String(format: "%.1f", elapsed))s chars=\(state.acc.count)")
             } catch is CancellationError {
                 logger.info(feature: "채팅중단", "사용자 중단")
             } catch {
-                lastError = "E-MAC-NET-0005"
-                messages[idx].text = "요청 실패: 서버 상태를 확인해 주세요. (E-MAC-NET-0005)"
-                messages[idx].isError = true
-                messages[idx].finishedAt = Date() // T-077 실패 시각도 기록
-                logger.error(code: "E-MAC-NET-0005", feature: "채팅전송", "\(error)")
+                self.requestFailed(at: idx, error: error)
             }
             preparing = false
             streaming = false
@@ -211,8 +181,99 @@ final class ChatStore: ObservableObject {
         }
     }
 
+    /// SSE 스트림 누적 상태 (T-148): 한 줄 적용 호출 간 전달용 묶음.
+    struct SSEStreamState {
+        var acc = ""
+        var firstTokenAt: Date?
+        var lastFlush = Date.distantPast
+    }
+
+    /// SSE 한 줄 적용 (T-148 분리): 델타 누적+첫 토큰 기록+0.1초 묶음 반영.
+    /// - Returns: 스트림 종료 여부 (취소 또는 DONE).
+    func applySSELine(_ line: String, state: inout SSEStreamState, idx: Int, started: Date) -> Bool {
+        if Task.isCancelled { return true }
+        guard let content = ChatSSEParser.content(from: line) else {
+            return ChatSSEParser.isDone(line)
+        }
+        if state.firstTokenAt == nil {
+            state.firstTokenAt = Date()
+            noteFirstToken(started: started)
+        }
+        state.acc += content
+        if Self.shouldFlushText(now: Date(), lastFlush: state.lastFlush) {
+            messages[idx].text = state.acc
+            state.lastFlush = Date()
+        }
+        return false
+    }
+
+    /// 네이티브 분기 시도 (T-137): 해당하면 작업 예약 후 true.
+    @discardableResult
+    func startNativeIfNeeded(prompt: String, image: ChatImage?, idx: Int, started: Date) -> Bool {
+        guard usesNative(), let engine = inferenceEngine else { return false }
+        currentTask = Task { await self.runNative(engine: engine, prompt: prompt,
+                                                  image: image, idx: idx, started: started) }
+        return true
+    }
+
+    /// 요청 실패 반영 (T-127 분리): 에러 버블+시각+로그.
+    func requestFailed(at idx: Int, error: Error) {
+        lastError = "E-MAC-NET-0005"
+        messages[idx].text = "요청 실패: 서버 상태를 확인해 주세요. (E-MAC-NET-0005)"
+        messages[idx].isError = true
+        messages[idx].finishedAt = Date() // T-077 실패 시각도 기록
+        logger.error(code: "E-MAC-NET-0005", feature: "채팅전송", "\(error)")
+    }
+
+    /// PERF 뱃지 문구 (순수, 테스트 가능, T-126): "12.3s · 약 15 tok/s".
+    nonisolated static func perfLine(chars: Int, elapsed: TimeInterval) -> String {
+        let est = chars / max(1, Int(elapsed * 4))
+        return String(format: "%.1fs · 약 %d tok/s", elapsed, est)
+    }
+
+    /// 스트리밍 화면 갱신 판정 (순수, 테스트 가능, T-148): 0.1초 간격으로 묶음 처리.
+    /// 토큰마다 @Published를 쏘면 본문 전체가 다시 계산되어 CPU를 먹으므로 묶음 갱신.
+    nonisolated static func shouldFlushText(now: Date, lastFlush: Date,
+                                            interval: TimeInterval = 0.1) -> Bool {
+        now.timeIntervalSince(lastFlush) >= interval
+    }
+
+    /// 전송 히스토리 윈도우 (순수, 테스트 가능, T-149): turns<=0이면 전량(기존 동작).
+    nonisolated static func windowedHistory(_ messages: [Message], turns: Int) -> [Message] {
+        guard turns > 0 else { return messages }
+        return Array(messages.suffix(2 * turns))
+    }
+
+    /// 채팅 요청 생성 (T-126 분리, 테스트 가능): 히스토리+이미지 페이로드 조립.
+    func chatRequest(prompt: String, image: ChatImage? = nil) throws -> URLRequest {
+        var req = URLRequest(url: baseURL.appendingPathComponent("v1/chat/completions"))
+        req.httpMethod = "POST"
+        req.timeoutInterval = 300 // Vision 추론은 수 분 가능
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let windowed = Self.windowedHistory(Array(messages.dropLast(2)),
+                                              turns: HistoryWindow.currentTurns())
+        let history = windowed.map { ["role": $0.role, "content": $0.text] }
+        let userContent: Any
+        if let image {
+            let b64 = image.data.base64EncodedString()
+            userContent = [
+                ["type": "text", "text": prompt],
+                ["type": "image_url", "image_url": ["url": "data:\(image.mime);base64,\(b64)"]]
+            ]
+        } else {
+            userContent = prompt
+        }
+        let historyPlus = history + [["role": "user", "content": userContent]]
+        req.httpBody = try JSONSerialization.data(withJSONObject: [
+            "model": model, "messages": historyPlus,
+            "temperature": temperature, "stream": true
+        ])
+        return req
+    }
+
     func stop() {
         currentTask?.cancel()
+        inferenceEngine?.cancel()
         preparing = false
         streaming = false
     }
@@ -232,119 +293,42 @@ final class ChatStore: ObservableObject {
         send(prompt)
     }
 
-    func clear() { newSession() }
+    func clear() { startDraft() }
 
-    // MARK: - 세션/영속 (T-032)
+}
 
-    /// 현재 버퍼를 보관하고 새 세션 시작.
-    func newSession() {
-        persistCurrent()
-        let session = Session(title: "새 채팅")
-        sessions.insert(session, at: 0)
-        currentSessionID = session.id
-        messages = []
-        save()
-        logger.info(feature: "채팅기록", "새 채팅 (총 \(sessions.count)개)")
+/// SSE 한 줄 파서 (T-119, 순수): `send` 스트리밍 루프와 동일 판정. Codable 구조체 기반.
+enum ChatSSEParser {
+    /// 종료 마커 (`data: [DONE]`, 앞뒤 공백 허용).
+    nonisolated static func isDone(_ line: String) -> Bool {
+        guard line.hasPrefix("data:") else { return false }
+        return line.dropFirst(5).trimmingCharacters(in: .whitespaces) == "[DONE]"
     }
 
-    /// 세션 전환 (스트리밍 중에는 호출 금지 — 호출 측에서 비활성화).
-    func selectSession(_ id: UUID) {
-        guard id != currentSessionID, !streaming else { return }
-        persistCurrent()
-        currentSessionID = id
-        messages = transcripts()[id] ?? []
-        logger.info(feature: "채팅기록", "채팅 전환")
+    /// 델타 텍스트 추출. 비SSE 줄·종료 마커·파싱 실패는 nil (호출 측에서 종료 판정 후 건너뜀).
+    nonisolated static func content(from line: String) -> String? {
+        guard line.hasPrefix("data:") else { return nil }
+        let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+        guard payload != "[DONE]",
+              let data = payload.data(using: .utf8),
+              let chunk = try? JSONDecoder().decode(ChatChunk.self, from: data),
+              let text = chunk.choices?.first?.delta?.content
+        else { return nil }
+        return text
     }
+}
 
-    /// 고정 토글 (T-058).
-    func togglePin(_ id: UUID) {
-        guard let idx = sessions.firstIndex(where: { $0.id == id }) else { return }
-        sessions[idx].pinned.toggle()
-        save()
-        logger.info(feature: "채팅기록", sessions[idx].pinned ? "고정" : "고정 해제")
-    }
+/// SSE 청크 디코딩 모델 (T-119, 파일 스코프: nesting 린트 회피).
+private struct ChatDelta: Decodable {
+    var content: String?
+}
 
-    /// 이름 변경 (T-058): 빈 값은 자동 제목으로 복귀.
-    func renameSession(_ id: UUID, title: String) {
-        guard let idx = sessions.firstIndex(where: { $0.id == id }) else { return }
-        let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        sessions[idx].customTitle = t.isEmpty ? nil : t
-        sessions[idx].updatedAt = Date()
-        save()
-        logger.info(feature: "채팅기록", "이름 변경")
-    }
+/// SSE 청크 디코딩 모델 (T-119, 파일 스코프: nesting 린트 회피).
+private struct ChatChoice: Decodable {
+    var delta: ChatDelta?
+}
 
-    /// 세션 삭제. 현재 세션을 지우면 최신 세션으로 이동 (없으면 새로 생성).
-    func deleteSession(_ id: UUID) {
-        var payload = loadPayload() ?? Payload(sessions: [], transcripts: [:])
-        payload.sessions.removeAll { $0.id == id }
-        payload.transcripts.removeValue(forKey: id)
-        sessions = payload.sessions
-        if currentSessionID == id {
-            if let next = sessions.first {
-                currentSessionID = next.id
-                messages = payload.transcripts[next.id] ?? []
-            } else {
-                persist(payload: payload)
-                newSession()
-                return
-            }
-        }
-        persist(payload: payload)
-        logger.info(feature: "채팅기록", "채팅 삭제 (잔여 \(sessions.count)개)")
-    }
-
-    /// 첫 사용자 메시지로 무제 세션 제목 자동 지정 (순수 조회+적용, 테스트 가능).
-    /// 사용자 지정 이름이 있으면 손대지 않음 (T-058).
-    func refreshTitle() {
-        guard let id = currentSessionID,
-              let idx = sessions.firstIndex(where: { $0.id == id }),
-              sessions[idx].title == "새 채팅",
-              sessions[idx].customTitle == nil,
-              let first = messages.first(where: { $0.role == "user" }) else { return }
-        sessions[idx].title = String(first.text.prefix(20))
-        sessions[idx].updatedAt = Date()
-    }
-
-    /// 활동 시각 갱신 (T-058, 최근순 정렬용).
-    private func touchSession() {
-        guard let id = currentSessionID,
-              let idx = sessions.firstIndex(where: { $0.id == id }) else { return }
-        sessions[idx].updatedAt = Date()
-    }
-
-    private func transcripts() -> [UUID: [Message]] {
-        loadPayload()?.transcripts ?? [:]
-    }
-
-    private func persistCurrent() {
-        guard let id = currentSessionID else { return }
-        var payload = loadPayload() ?? Payload(sessions: sessions, transcripts: [:])
-        payload.sessions = sessions
-        payload.transcripts[id] = messages
-        persist(payload: payload)
-    }
-
-    private func save() {
-        persistCurrent()
-    }
-
-    private func load() {
-        guard let payload = loadPayload() else { return }
-        sessions = payload.sessions
-        if let first = sessions.first {
-            currentSessionID = first.id
-            messages = payload.transcripts[first.id] ?? []
-        }
-    }
-
-    private func loadPayload() -> Payload? {
-        guard let data = try? Data(contentsOf: storageURL) else { return nil }
-        return try? JSONDecoder().decode(Payload.self, from: data)
-    }
-
-    private func persist(payload: Payload) {
-        guard let data = try? JSONEncoder().encode(payload) else { return }
-        try? data.write(to: storageURL, options: .atomic)
-    }
+/// SSE 청크 디코딩 모델 (T-119, 파일 스코프: nesting 린트 회피).
+private struct ChatChunk: Decodable {
+    var choices: [ChatChoice]?
 }
