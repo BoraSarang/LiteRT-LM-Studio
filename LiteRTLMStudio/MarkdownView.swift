@@ -53,7 +53,7 @@ struct MarkdownView: View, Equatable {
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.leading, CGFloat(indent) * 14)
+                    .padding(.leading, 12 + CGFloat(indent) * 14) // T-164 최상위도 기본 인덴트
                 case .ordered(let n, let t, let indent):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("\(n).")
@@ -61,7 +61,7 @@ struct MarkdownView: View, Equatable {
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.leading, CGFloat(indent) * 14)
+                    .padding(.leading, 12 + CGFloat(indent) * 14) // T-164 최상위도 기본 인덴트
                 case .table(let rows, let header):
                     tableBody(rows: rows, header: header)
                 case .hr:
@@ -79,7 +79,8 @@ struct MarkdownView: View, Equatable {
         }
     }
 
-    /// 실제 표 렌더 (T-152/T-161): 테두리 상자 + 행/열 구분선 + 셀 패딩.
+    /// 실제 표 렌더 (T-152/T-161/T-163): 테두리 상자 + 행/열 1px 실선 + 셀 패딩.
+    /// Divider 축 의존 제거 (Grid 셀 안에서 가로로 눕는 버그) — 열 구분선은 명시 폭 Rectangle.
     func tableBody(rows: [[String]], header: Bool) -> some View {
         let cols = max(1, rows.map(\.count).max() ?? 1)
         let padded = rows.map { r in r + Array(repeating: "", count: max(0, cols - r.count)) }
@@ -93,13 +94,19 @@ struct MarkdownView: View, Equatable {
                             .padding(.vertical, 6)
                             .padding(.horizontal, 8)
                             .gridCellAnchor(.leading)
-                        if ci < cols - 1 { Divider() }
+                        if ci < cols - 1 {
+                            Rectangle().fill(.separator).frame(width: 1)
+                        }
                     }
                 }
                 if ri < padded.count - 1 || (header && ri == 0) {
-                    Divider()
-                        .gridCellUnsizedAxes(.horizontal)
-                        .gridCellColumns(cols * 2 - 1)
+                    GridRow {
+                        Rectangle()
+                            .fill(.separator)
+                            .frame(height: 1)
+                            .gridCellUnsizedAxes(.horizontal)
+                            .gridCellColumns(cols * 2 - 1)
+                    }
                 }
             }
         }

@@ -97,7 +97,7 @@ struct AssistantBubbleView: View {
     var body: some View {
         // T-065: 어시스턴트는 기본 좌우 여백 없이 전폭. T-096 좌우 패딩 제거로 푸터와 좌단 일치.
         // T-147: 본문이 왼쪽 끝에 붙는 느낌 → 박스+푸터 함께 2pt (정렬 유지).
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
                 if message.text.isEmpty {
                     Text(showCursor && !preparing ? "▍" : "") // T-101 준비 중 커서 숨김 (스피너만)
                         .font(.system(size: 14 * fontScale))
@@ -135,10 +135,9 @@ struct AssistantBubbleView: View {
                             .font(DS.captionFont).foregroundStyle(.secondary)
                     }
                 }
-                // T-105수정: 완료 후 호버 시에만 일반 줄로 표시 (pill 폐기=응답 가림·추적 불안 해소).
-                // "그 줄" 자체가 호버 영역이라 바 위에선 안정 유지. 복사·재시도는 아이콘+툴팁.
-                if !isStreaming && hovering {
-                    HStack(spacing: 4) { // T-109 버튼 간격 축소 (히트 28 유지)
+                // T-162: 상시 배치+투명도 전환 (공간 예약, 출렁 방지). 응답+푸터 전체가 호버 영역.
+                if !isStreaming {
+                    HStack(spacing: 4) {
                         if let perf = message.perf {
                             Text(perf).font(.system(size: 11).monospacedDigit()).foregroundStyle(.tertiary)
                         }
@@ -151,16 +150,19 @@ struct AssistantBubbleView: View {
                             copyFlag.mark()
                         } label: {
                             Image(systemName: copyFlag.copied ? "checkmark" : "square.on.square")
-                                .frame(minWidth: 28, minHeight: 28) // T-105 클릭 영역 보장 (보이는 크기 그대로)
+                                .frame(minWidth: 20, minHeight: 20) // T-162 본문 직하 단일행
                                 .contentShape(Rectangle())
                         }.buttonStyle(.plain).help("응답 복사")
                         Button { onRetry() } label: {
                             Image(systemName: "arrow.counterclockwise")
-                                .frame(minWidth: 28, minHeight: 28) // T-105 클릭 영역 보장
+                                .frame(minWidth: 20, minHeight: 20) // T-162 본문 직하 단일행
                                 .contentShape(Rectangle())
                         }.buttonStyle(.plain).help("응답 재시도")
                     }
                     .font(DS.captionFont).foregroundStyle(.tertiary)
+                    .frame(height: 20) // T-162 공간 예약 (숨김 때도 자리 유지)
+                    .opacity(hovering ? 1 : 0)
+                    .accessibilityHidden(!hovering)
                 }
         }
         .onHover { inside in // T-105 해제 지연 (바 경계 깜빡임 방지, 재진입 시 취소)
