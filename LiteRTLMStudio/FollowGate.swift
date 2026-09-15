@@ -14,8 +14,7 @@ final class FollowGate: ObservableObject {
     var entrySince = Date.distantPast // T-078 진입 시작 시각 (휠 존중용)
     var wheelAccum: CGFloat = 0 // T-080 휠 누적 (미세 접촉 무시용)
     var lastDocHeights: [CGFloat] = [] // T-080 진입 수렴 안정 판정용
-    var kickDone = false // T-083 프록시 킥 1회 플래그
-    var verifyKickDone = false // T-086 수렴 검증 킥 플래그
+    var kickDone = false // T-083 진입 킥 1회 플래그
     var lastJumpSession: UUID? // T-112 이중 발사 제거용 (마지막 점프 세션)
     var lastJumpAt = Date.distantPast // T-112 이중 발사 제거용 (마지막 점프 시각)
 }

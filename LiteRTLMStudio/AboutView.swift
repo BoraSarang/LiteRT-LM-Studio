@@ -31,11 +31,13 @@ struct AboutView: View {
             Divider()
                 .padding(.vertical, 4)
 
-            Text("사용한 라이브러리")
-                .font(.caption.weight(.semibold))
+            if !AboutLibraries.all.isEmpty {
+                Text("사용한 라이브러리")
+                    .font(.caption.weight(.semibold))
 
-            ForEach(AboutLibraries.all, id: \.name) { lib in
-                AboutLibraryRow(library: lib)
+                ForEach(AboutLibraries.all, id: \.name) { lib in
+                    AboutLibraryRow(library: lib)
+                }
             }
 
             Divider()

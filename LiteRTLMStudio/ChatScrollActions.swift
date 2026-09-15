@@ -38,7 +38,6 @@ extension ContentView {
         followGate.entrySince = Date()
         followGate.lastDocHeights = []
         followGate.kickDone = false
-        followGate.verifyKickDone = false
         // T-084 진입 진단 (시작 1줄).
         let docH0 = chatScrollView?.documentView?.bounds.height ?? -1
         let off0 = chatScrollView.map { Int($0.contentView.bounds.origin.y) } ?? -1

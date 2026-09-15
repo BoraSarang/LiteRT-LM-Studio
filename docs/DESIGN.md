@@ -15,9 +15,9 @@
   - 입력창: 터미널과 동일 뼈대 (바깥 박스 배경+테두리, 에디터 투명) (T-097).
   - 터미널: 탭 전환 고정 (콘텐츠 영역 통일+셀 늘림+헤더 자리 유지) (T-100).
   - 버블: 유저 우측 / 어시스턴트 좌측 + 복사·재시도 푸터 + 에러 테두리 (PLAN_v3).
-  - 본문: WKWebView 마크다운 (스트리밍 appendChunk, 높이피팅).
+  - 본문: 네이티브 마크다운 (T-150, WKWebView 제거): 줄블록(제목·목록·표·구분선·인용·문단)+펜스 코드(Highlightr 색상·헤더·복사)+줄바꿈 보존. 대화 열 12px inset (T-172).
   - 입력: TextEditor 멀티라인 (Return 전송·Shift 줄바꿈·Cmd+. 중단).
-  - 스크롤: Sticky-Pin (하단 고정 시만 추종).
+  - 스크롤: Sticky-Pin (하단 고정 시만 추종) + 진입 절대점프 일원화 (T-167).
 * 우측 인스펙터 (240px): backend(CPU/GPU), MTP, temperature/topK/topP, max tokens, thinking budget(미지원 시 비활성화), vision/audio backend.
 * DebugPanel: Cmd+Shift+D 별도 윈도우, 열림 시 마지막, 자동 스크롤 토글+핀, 네이티브 List 선택 복사, 검색 (T-053/T-057).
 
@@ -42,9 +42,9 @@
 * 앱: `LiteRTLMStudioApp`(본체) + `AppServices` + `MenuBarView` + `SettingsView` + `AppNotifications`.
 * 콘텐츠: `ContentView`(툴바·task) + `FollowGate` + `SidebarView` + `InspectorView` + `ChatPaneView` + `ChatScrollActions` + `PaletteViews`. 순수 스크롤 수학은 `ScrollMath(ContentView ext)` 유지.
 * 채팅: `SessionListView` + `MessageBubbles` + `ChatInputBar` + `BottomPanelView`.
-* 마크다운: `MarkdownView` + `MarkdownWebView(+Coordinator)` + `MarkdownPage`(템플릿·캐시).
-* 코어: `ChatStore(+Session/+SSE)` + `SystemMonitor(+Sampling/+Daemon)` + `PasteboardUtil` + `TimeFormat` + `ImageUtil`.
-* 공용 UI: `DSComponents`(CardBox·CopyFlag·HistoryLineChart) + `MeterRow` + `ChatStore.ChatImage`.
+* 마크다운: `MarkdownView`(네이티브 렌더) + `NativeMarkdown`(순수 파서) + `CodeHighlight`(Highlightr 래퍼) + `CodeBlockView`(헤더·복사·비동기 승격).
+* 코어: `ChatStore(+Session/+Native)` + `SystemMonitor(+Sampling/+Daemon)` + `PasteboardUtil` + `TimeFormat` + `ImageUtil`.
+* 공용 UI: `DSComponents`(CardBox·CopyFlag·HistoryLineChart·HoverTip) + `MeterRow` + `ChatStore.ChatImage`.
 * 네이티브 엔진 (T-010/PLAN_v7): `EngineVendor`(바이너리 래퍼) + `Core/LiteRTLM`(벤더 소스 13종, 수정 금지)
   + `InferenceEngine`(추상) + `NativeEngine`(생명주기) + `EngineMode`(전역 토글, 기본 CLI).
   인스펙터에 네이티브 모드 앱 상주 표시. 에러코드 `E-MAC-ENG-0001/0002`.
