@@ -1,5 +1,10 @@
 # CHANGELOG — LiteRT-LM Studio
 
+## [0.7.102] - 2026-09-15 (macos)
+
+* 코드 구문 강조 (T-158, PLAN_v20): Highlightr 로컬 벤더 편입+GitHub 라이트/다크 테마, `NativeMarkdown` 분리. [macos]
+* 테스트 84/84 통과. 신규 lint 경고 0건 (수용 4건 유지). [macos]
+
 ## [0.7.101] - 2026-09-15 (macos)
 
 * 표 구분선 다열 수정 (T-157): 셀 단위 판정(셀 안쪽 `|` 제외). 원문 기반 회귀. [macos]

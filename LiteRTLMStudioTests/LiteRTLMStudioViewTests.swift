@@ -47,6 +47,15 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         // T-156 코드 언어 태그 제거.
         XCTAssertEqual(NativeMarkdown.stripLangTag("swift\nlet a = 1\n"), "let a = 1")
         XCTAssertEqual(NativeMarkdown.stripLangTag("그냥 코드"), "그냥 코드")
+        // T-158 코드 언어 분리 + 하이라이트 엔진.
+        XCTAssertEqual(NativeMarkdown.splitCode("cpp\nint x;\n").lang, "cpp")
+        XCTAssertEqual(NativeMarkdown.splitCode("cpp\nint x;\n").body, "int x;")
+        XCTAssertNil(NativeMarkdown.splitCode("그냥 코드").lang)
+        XCTAssertTrue(CodeHighlighter.available())
+        let hl = CodeHighlighter.highlight(code: "int main() { return 0; }", lang: "cpp",
+                                           dark: true, fontSize: 13)
+        XCTAssertNotNil(hl)
+        XCTAssertTrue(String(hl?.characters ?? AttributedString("").characters).contains("main"))
         // T-152 서식 완성: 구분선·한글볼드 정규화·서식 내장.
         XCTAssertEqual(NativeMarkdown.parseProse("위\n---\n아래"),
                        [.paragraph(text: "위"), .hr, .paragraph(text: "아래")])
