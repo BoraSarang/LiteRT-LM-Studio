@@ -120,6 +120,7 @@ struct MarkdownView: View, Equatable {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(.textBackgroundColor))
             .clipShape(.rect(cornerRadius: 8))
+            .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) } // T-159 코드 상자 경계
     }
 
     /// 인라인 서식 텍스트: 실패 시 원문 폴백 (빈 화면 방지).
