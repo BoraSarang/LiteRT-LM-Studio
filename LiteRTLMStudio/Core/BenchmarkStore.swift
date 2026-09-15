@@ -55,12 +55,14 @@ final class BenchmarkStore: ObservableObject {
 
     /// 네이티브 측정 제공자 (T-132, ContentView가 nativeEngine으로 연결).
     var nativeBenchmark: ((String) async throws -> EngineBenchmark)?
+    /// 측정 경로 (T-186): 호출 측이 입력창 route로 지정. 기본 CLI.
+    var route: EngineMode = .cli
 
     func run(modelID: String) {
         guard !running else { return }
         logger.info(feature: "벤치마크", "\(modelID) benchmark 시작 (기본 토큰)")
         reset()
-        if EngineMode.current() == .native, let measure = nativeBenchmark {
+        if route == .native, let measure = nativeBenchmark {
             runNative(modelID: modelID, measure: measure)
             return
         }

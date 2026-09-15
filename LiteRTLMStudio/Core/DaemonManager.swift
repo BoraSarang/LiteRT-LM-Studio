@@ -31,6 +31,7 @@ final class DaemonManager: ObservableObject {
     @Published var lastError: String?
     @Published var external = false // 앱이 띄우지 않은 기존 데몬에 연결 중
     @Published var muted = false // 외부 연결 해제 후 자동 재연결 억제 (명시적 시작까지)
+    @Published var unlinkedRunning = false // 연결 해제한 외부 데몬이 여전히 실행 중 (T-179)
 
     private var process: Process?
     private var pollTask: Task<Void, Never>?
@@ -61,9 +62,12 @@ final class DaemonManager: ObservableObject {
                 logger.info(feature: "데몬감시", "소유 프로세스 확인 → 실행 중")
             }
             unhealthyStreak = 0
+            unlinkedRunning = false
             return
         }
         let healthy = await isHealthy()
+        // mute여도 서버 실상은 표시 (T-179): 중지로 보이지만 떠 있으면 미연결로 안내.
+        unlinkedRunning = Self.unlinkedRunning(muted: muted, healthy: healthy)
         let before = (status, external)
         let next = Self.transition(status: status, external: external, muted: muted,
                                    healthy: healthy, streak: unhealthyStreak)
@@ -75,6 +79,12 @@ final class DaemonManager: ObservableObject {
         if (before.0 != next.status) || (before.1 != next.external) {
             logger.info(feature: "데몬감시", "\(before.0.rawValue)→\(next.status.rawValue) 외부=\(next.external)")
         }
+    }
+
+    /// 미연결 외부 실행 판정 (순수, 테스트 가능, T-179).
+    /// mute+healthy면 서버는 살아있고 연결만 끊긴 상태라 별도 표시한다.
+    nonisolated static func unlinkedRunning(muted: Bool, healthy: Bool) -> Bool {
+        muted && healthy
     }
 
     /// 상태 전이표 (순수, 테스트 가능).
@@ -99,6 +109,7 @@ final class DaemonManager: ObservableObject {
     func start() async {
         logger.info(feature: "데몬시작", "litert-lm serve 기동 시작")
         muted = false // 명시적 시작은 억제 해제
+        unlinkedRunning = false
         guard process?.isRunning != true else { return }
         // 이미 떠 있는 데몬(터미널/이전 실행)이 있으면 바인드 실패 대신 연결한다.
         if await isHealthy() {
@@ -160,6 +171,7 @@ final class DaemonManager: ObservableObject {
         process = nil
         external = false
         status = .stopped
+        unlinkedRunning = false // 다음 폴링에서 실측으로 갱신
         uptimeSince = nil
         unhealthyStreak = 0
     }

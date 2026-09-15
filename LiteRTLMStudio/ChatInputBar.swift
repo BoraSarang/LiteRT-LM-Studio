@@ -44,11 +44,19 @@ struct ChatInputBar: View {
         CGFloat(rows) * lineHeight + 24
     }
 
-    /// 전송 가능 (T-146): 스트리밍 중 제외, 데몬 실행 중 또는 네이티브 준비.
+    /// 전송 가능 (T-146/T-186): 스트리밍 중 제외, 선택 경로별 준비 필요.
+    /// 데몬=실행 중, 네이티브=엔진 준비됨. 입력 자체는 막지 않고 전송만 차단.
     var canSend: Bool {
-        ChatStore.sendAllowed(streaming: chat.streaming,
-                              daemonRunning: daemon.status == .running,
-                              nativeReady: chat.usesNative())
+        switch chat.route {
+        case .cli:
+            return ChatStore.sendAllowed(streaming: chat.streaming,
+                                         daemonRunning: daemon.status == .running,
+                                         nativeReady: false)
+        case .native:
+            return ChatStore.sendAllowed(streaming: chat.streaming,
+                                         daemonRunning: false,
+                                         nativeReady: chat.nativePrepared)
+        }
     }
 
     var body: some View {
@@ -91,12 +99,19 @@ struct ChatInputBar: View {
                         submit()
                         return .handled
                     }
-                    .disabled(!canSend)
+                    .disabled(chat.streaming)
                 HStack(spacing: 8) {
                     Button { pickImage() } label: {
                         Image(systemName: "paperclip").font(.system(size: 15, weight: .semibold))
                     }.buttonStyle(.plain).help("이미지 첨부 (Vision 지원 모델)")
-                        .disabled(!canSend)
+                        .disabled(chat.streaming)
+                    Picker("전송 경로", selection: $chat.route) {
+                        ForEach(EngineMode.allCases, id: \.rawValue) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }.pickerStyle(.menu)
+                        .help("이번 전송에 쓸 경로. 데몬=서버 경유, 네이티브=프로세스 내 직접 추론.")
+                        .disabled(chat.streaming)
                     Spacer()
                     if chat.streaming {
                         Button("중지") { chat.stop() }.keyboardShortcut(".", modifiers: .command)
@@ -104,6 +119,10 @@ struct ChatInputBar: View {
                         Button("전송") { submit() }.keyboardShortcut(.return, modifiers: .command)
                             .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                 || !canSend)
+                            .help(canSend ? "전송 (⌘Return)"
+                                : chat.route == .native && !chat.nativePrepared
+                                ? "네이티브 엔진 실행 후 전송 가능"
+                                : "서버 시작 후 전송 가능")
                     }
                 }
             }.cardBox() // T-097 터미널과 동일 뼈대 (바깥 박스)

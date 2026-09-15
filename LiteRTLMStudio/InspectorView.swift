@@ -9,7 +9,7 @@ extension ContentView {
         Form {
             if showSystem {
                 Section(InspectorTitle.system) {
-                    SystemMetersView(monitor: monitor)
+                    SystemMetersView(monitor: monitor, route: chat.route)
                 }
             }
             if showBackend {
@@ -25,11 +25,66 @@ extension ContentView {
                         Text("Temperature"); Slider(value: $chat.temperature, in: 0...1.5, step: 0.05)
                         Text(String(format: "%.2f", chat.temperature)).monospacedDigit()
                     }
-                    // 현 gemma4-12b 미지원 → 비활성화 + 툴팁 (describe 실측 반영)
-                    Toggle("Thinking", isOn: .constant(false)).disabled(true)
-                        .help(selectedModel?.thinking == true ? "" : "이 모델은 Thinking 미지원 (E-MAC-VALID-0007)")
-                    Toggle("Function Calling", isOn: .constant(false)).disabled(true)
-                        .help(functionCallHelp(selectedModel?.functionCall == true))
+                    HStack {
+                        Text("TopK")
+                        Spacer()
+                        Text("\(chat.topK)").monospacedDigit()
+                        Stepper("", value: $chat.topK, in: 1...256).labelsHidden()
+                    }
+                    HStack {
+                        Text("TopP"); Slider(value: $chat.topP, in: 0...1, step: 0.05)
+                        Text(String(format: "%.2f", chat.topP)).monospacedDigit()
+                    }
+                    HStack {
+                        Text("Max 토큰")
+                        Spacer()
+                        TextField("예: 500", text: Binding(
+                            get: { chat.maxTokens.map(String.init) ?? "" },
+                            set: { chat.maxTokens = ConfigStore.intOrNil($0, min: 1) }
+                        )).multilineTextAlignment(.trailing).frame(width: 140)
+                    }
+                    .help("응답 길이 상한. 빈칸이면 무제한.")
+                    HStack {
+                        Text("Seed")
+                        Spacer()
+                        TextField("예: 7", text: Binding(
+                            get: { chat.seed.map(String.init) ?? "" },
+                            set: { chat.seed = Int($0.trimmingCharacters(in: .whitespaces)) }
+                        )).multilineTextAlignment(.trailing).frame(width: 140)
+                    }
+                    .help("빈칸이면 랜덤. 숫자를 고정하면 같은 질문에 같은 답.")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("시스템 프롬프트")
+                        TextField("예: 간결하게 답해", text: $chat.systemPrompt)
+                    }
+                    .help("네이티브 대화에만 전달됩니다. CLI serve 경로는 미지원.")
+                    if selectedModel?.thinking == true {
+                        Toggle("Thinking", isOn: $chat.thinkingEnabled)
+                        HStack {
+                            Text("Thinking 예산")
+                            Spacer()
+                            TextField("무제한", text: Binding(
+                                get: { chat.thinkingBudget == -1 ? "" : "\(chat.thinkingBudget)" },
+                                set: { chat.thinkingBudget = ConfigStore.budgetOrUnlimited($0) }
+                            )).multilineTextAlignment(.trailing).frame(width: 100)
+                        }
+                    } else {
+                        // 미지원 → 비활성화 + 사유 캡션 (describe 실측 반영)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Toggle("Thinking", isOn: .constant(false)).disabled(true)
+                                .help("이 모델은 Thinking 미지원 (E-MAC-VALID-0007)")
+                            Text("현 모델 미지원 — thinking 지원 모델(E2B/E4B 등)이 필요해요.")
+                                .font(DS.captionFont).foregroundStyle(.secondary)
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Toggle("Function Calling", isOn: .constant(false)).disabled(true)
+                            .help(functionCallHelp(selectedModel?.functionCall == true))
+                        if selectedModel?.functionCall != true {
+                            Text("현 모델 미지원 — FunctionGemma 계열이 필요해요.")
+                                .font(DS.captionFont).foregroundStyle(.secondary)
+                        }
+                    }
                     Text("지원 모델을 가져오면 활성화됩니다.")
                         .font(DS.captionFont).foregroundStyle(.secondary)
                 }
@@ -94,6 +149,8 @@ struct BackendSectionView: View {
     @ObservedObject var config: ConfigStore
     let model: ModelStore.Model?
     var onApply: () -> Void
+    @AppStorage("metalResidency") private var residency = true // T-177 기본 켬
+    @AppStorage("visualTokenBudget") private var visualBudget = 1120 // T-177 describe 상한
 
     var body: some View {
         Picker("LLM 실행", selection: $config.draftBackend) {
@@ -102,12 +159,64 @@ struct BackendSectionView: View {
         Picker("Vision 실행", selection: $config.draftVision) {
             Text("GPU").tag("gpu"); Text("CPU").tag("cpu")
         }.pickerStyle(.segmented)
+        if model?.modalities.contains("Audio") == true {
+            Picker("Audio 실행", selection: $config.draftAudio) {
+                Text("CPU").tag("cpu"); Text("GPU").tag("gpu")
+            }.pickerStyle(.segmented)
+        }
+        if config.draftBackend == "cpu" {
+            HStack {
+                Text("CPU 스레드")
+                Spacer()
+                TextField("자동", text: $config.draftThreads)
+                    .multilineTextAlignment(.trailing).frame(width: 80)
+                    .help("빈칸이면 자동. 1 이상 숫자.")
+            }
+        }
+        Picker("캐시", selection: $config.draftCache) {
+            Text("disk").tag("disk"); Text("memory").tag("memory"); Text("no").tag("no")
+        }.pickerStyle(.segmented)
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text("KV 토큰")
+                Spacer()
+                TextField("예: 10000", text: $config.draftKV)
+                    .multilineTextAlignment(.trailing).frame(width: 140)
+                    .help("컨텍스트+출력 창. 빈칸이면 모델 기본.")
+            }
+            Text("빈칸=모델 기본. 크게 잡으면 긴 대화 가능, 메모리 사용 증가.")
+                .font(DS.captionFont).foregroundStyle(.secondary)
+        }
+        if model?.thinking == true {
+            Toggle("Thinking 기본값", isOn: $config.draftThinking)
+            HStack {
+                Text("Thinking 예산")
+                Spacer()
+                TextField("무제한", text: $config.draftBudget)
+                    .multilineTextAlignment(.trailing).frame(width: 100)
+                    .help("빈칸이면 무제한(-1).")
+            }
+        }
         Toggle("MTP (Speculative Decoding)", isOn: $config.draftMTP)
             .help("GPU 백엔드 권장. 모델이 drafter 포함 시 가속.")
             .disabled(model?.speculative == false)
         if let mdl = model {
             LabeledContent("모델 Speculative", value: mdl.speculative ? "지원" : "미포함")
             LabeledContent("모달리티", value: mdl.modalities)
+        }
+        DisclosureGroup("고급") {
+            Toggle("Metal residency", isOn: $residency)
+                .help("GPU 메모리에 모델을 상주시켜 스와핑 방지. 네이티브 엔진 초기화 때 적용 (모델 전환·재실행 후).")
+            Picker("Visual 예산", selection: $visualBudget) {
+                Text("70").tag(70); Text("140").tag(140); Text("280").tag(280)
+                Text("560").tag(560); Text("1120").tag(1120)
+            }.pickerStyle(.segmented)
+            .help("이미지당 시각 토큰 상한 (Gemma4 전용). 엔진 초기화 때 적용.")
+            Picker("정밀도", selection: $config.draftPrecision) {
+                Text("내장").tag(""); Text("fp16").tag("fp16"); Text("fp32").tag("fp32")
+                Text("int8").tag("int8"); Text("int16").tag("int16")
+            }.pickerStyle(.segmented)
+            .help("연산 정밀도 재지정. serve 경로만 유효, 적용 후 재시작.")
         }
         if config.hasChanges {
             Text(config.diffSummary).font(DS.captionFont).foregroundStyle(.orange)

@@ -2,9 +2,20 @@ import Foundation
 
 /// 네이티브 전송 확장 (T-130): 분기·토큰·실패 매핑.
 extension ChatStore {
-    /// 네이티브 분기 판정 (T-130, 테스트 가능): 모드+주입 모두 필요.
+    /// 네이티브 분기 판정 (T-130, 테스트 가능): 선택 경로+주입 모두 필요.
+    /// T-186부터 전역 설정 대신 입력창 route를 본다.
     func usesNative() -> Bool {
-        EngineMode.current() == .native && inferenceEngine != nil
+        route == .native && inferenceEngine != nil
+    }
+
+    /// 경로별 전송 가능 (순수, 테스트 가능, T-186).
+    /// CLI는 데몬 실행, 네이티브는 엔진 준비가 각각 필요.
+    nonisolated static func routeReady(route: EngineMode, daemonRunning: Bool,
+                                       nativePrepared: Bool) -> Bool {
+        switch route {
+        case .cli: daemonRunning
+        case .native: nativePrepared
+        }
     }
 
     /// 전송 가능 판정 (순수, 테스트 가능, T-146): 스트리밍 중 제외,
@@ -25,12 +36,22 @@ extension ChatStore {
                    image: ChatImage?, idx: Int, started: Date) async {
         do {
             try await engine.prepare(modelID: model)
+            // T-190 TTFT 구간 분리: prepare cost vs (대화 생성+프리필) cost.
+            let prepareElapsed = Date().timeIntervalSince(started)
             // T-149: 전송 범위 설정 적용 (제한 없음이면 전량, 기존 동작).
+            // T-193: 재사용 키는 전체 전사로 (윈도우 슬라이드와 무관하게 접두사 판정).
+            let fullPast = Array(messages.dropLast(2)).map { (role: $0.role, text: $0.text) }
             let windowed = Self.windowedHistory(Array(messages.dropLast(2)),
                                                 turns: HistoryWindow.currentTurns())
             let past = windowed.map { (role: $0.role, text: $0.text) }
+            let histChars = past.reduce(0) { $0 + $1.text.count }
+            logger.perf(feature: "채팅전송",
+                        "준비 완료 \(String(format: "%.1f", prepareElapsed))s "
+                            + "히스토리 \(past.count)개 \(histChars)자")
             let stream = engine.stream(prompt: prompt, image: image,
-                                       history: Array(past), temperature: temperature)
+                                       history: Array(past),
+                                       keyHistory: NativeEngine.ConvKey.entries(fullPast),
+                                       options: generationOptions())
             var acc = ""
             var firstTokenAt: Date?
             var lastFlush = started

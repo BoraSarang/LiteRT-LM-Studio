@@ -16,10 +16,24 @@ final class ConfigStore: ObservableObject {
     @Published var appliedBackend = "gpu"
     @Published var appliedVision = "gpu"
     @Published var appliedMTP = true
+    @Published var appliedAudio = "cpu" // T-175
+    @Published var appliedThreads = "" // T-175 빈칸=자동
+    @Published var appliedCache = "disk" // T-175 disk/memory/no
+    @Published var appliedKV = "" // T-175 빈칸=모델 기본
+    @Published var appliedThinking = false // T-175 모델별 thinking 기본값
+    @Published var appliedBudget = "" // T-175 빈칸=무제한(-1)
+    @Published var appliedPrecision = "" // T-177 빈칸=모델 내장
     /// UI 편집 중인 초안.
     @Published var draftBackend = "gpu"
     @Published var draftVision = "gpu"
     @Published var draftMTP = true
+    @Published var draftAudio = "cpu"
+    @Published var draftThreads = ""
+    @Published var draftCache = "disk"
+    @Published var draftKV = ""
+    @Published var draftThinking = false
+    @Published var draftBudget = ""
+    @Published var draftPrecision = ""
 
     @Published var configExists = false
     @Published var externalRestartPending = false
@@ -32,6 +46,22 @@ final class ConfigStore: ObservableObject {
 
     var hasChanges: Bool {
         draftBackend != appliedBackend || draftVision != appliedVision || draftMTP != appliedMTP
+            || draftAudio != appliedAudio || draftThreads != appliedThreads
+            || draftCache != appliedCache || draftKV != appliedKV
+            || draftThinking != appliedThinking || draftBudget != appliedBudget
+            || draftPrecision != appliedPrecision
+    }
+
+    /// 숫자 초안 → config 값 (순수, 테스트 가능, T-175): 빈칸·비숫자·하한 미달이면 nil(키 삭제).
+    nonisolated static func intOrNil(_ s: String, min: Int) -> Int? {
+        guard let v = Int(s.trimmingCharacters(in: .whitespaces)), v >= min else { return nil }
+        return v
+    }
+
+    /// Thinking 예산 초안 → config 값 (순수, 테스트 가능, T-175): 빈칸·비숫자는 -1(무제한).
+    nonisolated static func budgetOrUnlimited(_ s: String) -> Int {
+        let v = Int(s.trimmingCharacters(in: .whitespaces)) ?? -1
+        return max(-1, v)
     }
 
     /// “LLM cpu→gpu · MTP 끔→켬” 형식 변경 요약.
@@ -42,11 +72,37 @@ final class ConfigStore: ObservableObject {
         if draftMTP != appliedMTP {
             parts.append("MTP \(appliedMTP ? "켬" : "끔")→\(draftMTP ? "켬" : "끔")")
         }
+        if draftAudio != appliedAudio { parts.append("Audio \(appliedAudio)→\(draftAudio)") }
+        if draftThreads != appliedThreads {
+            let before = appliedThreads.isEmpty ? "자동" : appliedThreads
+            let after = draftThreads.isEmpty ? "자동" : draftThreads
+            parts.append("스레드 \(before)→\(after)")
+        }
+        if draftCache != appliedCache { parts.append("캐시 \(appliedCache)→\(draftCache)") }
+        if draftKV != appliedKV {
+            parts.append("KV \(appliedKV.isEmpty ? "기본" : appliedKV)→\(draftKV.isEmpty ? "기본" : draftKV)")
+        }
+        if draftThinking != appliedThinking {
+            parts.append("Thinking \(appliedThinking ? "켬" : "끔")→\(draftThinking ? "켬" : "끔")")
+        }
+        if draftBudget != appliedBudget {
+            let before = appliedBudget.isEmpty ? "무제한" : appliedBudget
+            let after = draftBudget.isEmpty ? "무제한" : draftBudget
+            parts.append("예산 \(before)→\(after)")
+        }
+        if draftPrecision != appliedPrecision {
+            let before = appliedPrecision.isEmpty ? "내장" : appliedPrecision
+            let after = draftPrecision.isEmpty ? "내장" : draftPrecision
+            parts.append("정밀도 \(before)→\(after)")
+        }
         return parts.joined(separator: " · ")
     }
 
     var summary: String {
-        "LLM \(appliedBackend) · Vision \(appliedVision)\(appliedMTP ? " · MTP" : "")"
+        var s = "LLM \(appliedBackend) · Vision \(appliedVision)\(appliedMTP ? " · MTP" : "")"
+        if appliedAudio != "cpu" { s += " · Audio \(appliedAudio)" }
+        if !appliedKV.isEmpty { s += " · KV \(appliedKV)" }
+        return s
     }
 
     /// 기존 파일의 다른 키는 보존하면서 읽는다. applied와 draft를 함께 채운다.
@@ -63,11 +119,17 @@ final class ConfigStore: ObservableObject {
         if let def = json["default"] as? [String: Any] {
             appliedBackend = def["backend"] as? String ?? appliedBackend
             appliedVision = def["vision_backend"] as? String ?? appliedVision
+            appliedAudio = def["audio_backend"] as? String ?? appliedAudio
+            appliedCache = def["cache"] as? String ?? appliedCache
+            appliedPrecision = def["activation_data_type"] as? String ?? appliedPrecision
+            if let t = def["cpu_thread_count"] as? Int { appliedThreads = "\(t)" }
+            if let k = def["max_num_tokens"] as? Int { appliedKV = "\(k)" }
         }
         if let models = json["models"] as? [String: Any],
-           let one = models[modelID] as? [String: Any],
-           let spec = one["speculative_decoding"] as? Bool {
-            appliedMTP = spec
+           let one = models[modelID] as? [String: Any] {
+            if let spec = one["speculative_decoding"] as? Bool { appliedMTP = spec }
+            if let th = one["thinking"] as? Bool { appliedThinking = th }
+            if let b = one["thinking_budget"] as? Int { appliedBudget = b == -1 ? "" : "\(b)" }
         }
         revert()
     }
@@ -77,7 +139,47 @@ final class ConfigStore: ObservableObject {
         draftBackend = appliedBackend
         draftVision = appliedVision
         draftMTP = appliedMTP
+        draftAudio = appliedAudio
+        draftThreads = appliedThreads
+        draftCache = appliedCache
+        draftKV = appliedKV
+        draftThinking = appliedThinking
+        draftBudget = appliedBudget
+        draftPrecision = appliedPrecision
         logger.info(feature: "설정취소", "초안 되돌림")
+    }
+
+    /// default 섹션 쓰기 (T-175 분리): 빈칸 숫자키는 삭제 (엔진 기본 복귀).
+    private func writeDefaults(into def: inout [String: Any]) {
+        def["backend"] = draftBackend
+        def["vision_backend"] = draftVision
+        def["audio_backend"] = draftAudio
+        def["cache"] = draftCache
+        // 빈칸이면 키 삭제 (엔진 기본값으로 복귀).
+        if draftPrecision.isEmpty {
+            def.removeValue(forKey: "activation_data_type")
+        } else {
+            def["activation_data_type"] = draftPrecision
+        }
+        if let t = Self.intOrNil(draftThreads, min: 1) {
+            def["cpu_thread_count"] = t
+        } else {
+            def.removeValue(forKey: "cpu_thread_count")
+        }
+        if let k = Self.intOrNil(draftKV, min: 1) {
+            def["max_num_tokens"] = k
+        } else {
+            def.removeValue(forKey: "max_num_tokens")
+        }
+    }
+
+    /// models 섹션 쓰기 (T-175 분리).
+    private func writeModel(into models: inout [String: Any], modelID: String) {
+        var one = models[modelID] as? [String: Any] ?? [:]
+        one["speculative_decoding"] = draftMTP
+        one["thinking"] = draftThinking
+        one["thinking_budget"] = Self.budgetOrUnlimited(draftBudget)
+        models[modelID] = one
     }
 
     /// 초안을 디스크에 적용한다. 성공 시 applied 갱신, true 반환.
@@ -94,13 +196,10 @@ final class ConfigStore: ObservableObject {
             }
         }
         var def = json["default"] as? [String: Any] ?? [:]
-        def["backend"] = draftBackend
-        def["vision_backend"] = draftVision
+        writeDefaults(into: &def)
         json["default"] = def
         var models = json["models"] as? [String: Any] ?? [:]
-        var one = models[modelID] as? [String: Any] ?? [:]
-        one["speculative_decoding"] = draftMTP
-        models[modelID] = one
+        writeModel(into: &models, modelID: modelID)
         json["models"] = models
         do {
             let data = try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
@@ -109,6 +208,13 @@ final class ConfigStore: ObservableObject {
             appliedBackend = draftBackend
             appliedVision = draftVision
             appliedMTP = draftMTP
+            appliedAudio = draftAudio
+            appliedThreads = draftThreads
+            appliedCache = draftCache
+            appliedKV = draftKV
+            appliedThinking = draftThinking
+            appliedBudget = draftBudget
+            appliedPrecision = draftPrecision
             logger.info(feature: "설정적용", "config 저장 완료 (\(summary.isEmpty ? "변경 없음" : summary))")
             return true
         } catch {

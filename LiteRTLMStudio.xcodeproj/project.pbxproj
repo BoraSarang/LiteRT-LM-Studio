@@ -52,6 +52,7 @@
 				500000000000000000000053,
 				500000000000000000000054,
 				500000000000000000000055,
+				500000000000000000000100,
 				500000000000000000000056,
 				500000000000000000000043,
 				500000000000000000000044,
@@ -97,6 +98,7 @@
 				500000000000000000000059,
 				500000000000000000000060,
 				500000000000000000000086,
+				500000000000000000000099,
 				500000000000000000000020,
 				500000000000000000000021,
 				500000000000000000000023,
@@ -205,6 +207,7 @@
 				400000000000000000000042,
 				400000000000000000000043,
 				400000000000000000000044,
+				400000000000000000000100,
 				400000000000000000000031,
 				400000000000000000000032,
 				400000000000000000000033,
@@ -230,7 +233,6 @@
 				400000000000000000000092,
 				400000000000000000000093,
 				400000000000000000000098,
-				400000000000000000000034,
 				400000000000000000000047,
 				400000000000000000000048,
 				400000000000000000000074,
@@ -241,6 +243,7 @@
 				400000000000000000000021,
 				400000000000000000000059,
 				400000000000000000000060,
+				400000000000000000000099,
 				400000000000000000000061,
 				400000000000000000000062,
 				400000000000000000000063,
@@ -319,6 +322,7 @@
 		400000000000000000000042 = { isa = PBXBuildFile; fileRef = 500000000000000000000054; };
 		400000000000000000000043 = { isa = PBXBuildFile; fileRef = 500000000000000000000055; };
 		400000000000000000000044 = { isa = PBXBuildFile; fileRef = 500000000000000000000056; };
+		400000000000000000000100 = { isa = PBXBuildFile; fileRef = 500000000000000000000100; };
 		400000000000000000000031 = { isa = PBXBuildFile; fileRef = 500000000000000000000043; };
 		400000000000000000000032 = { isa = PBXBuildFile; fileRef = 500000000000000000000044; };
 		400000000000000000000033 = { isa = PBXBuildFile; fileRef = 500000000000000000000045; };
@@ -365,6 +369,7 @@
 		400000000000000000000047 = { isa = PBXBuildFile; fileRef = 500000000000000000000059; };
 		400000000000000000000048 = { isa = PBXBuildFile; fileRef = 500000000000000000000060; };
 		400000000000000000000074 = { isa = PBXBuildFile; fileRef = 500000000000000000000086; };
+		400000000000000000000099 = { isa = PBXBuildFile; fileRef = 500000000000000000000099; };
 		400000000000000000000035 = { isa = PBXBuildFile; fileRef = 500000000000000000000047; };
 		400000000000000000000036 = { isa = PBXBuildFile; fileRef = 500000000000000000000048; };
 		400000000000000000000037 = { isa = PBXBuildFile; fileRef = 500000000000000000000049; };
@@ -412,6 +417,7 @@
 		500000000000000000000053 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InspectorView.swift"; sourceTree = "<group>"; };
 		500000000000000000000054 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SidebarView.swift"; sourceTree = "<group>"; };
 		500000000000000000000055 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatScrollActions.swift"; sourceTree = "<group>"; };
+		500000000000000000000100 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ServerActions.swift"; sourceTree = "<group>"; };
 		500000000000000000000056 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PaletteViews.swift"; sourceTree = "<group>"; };
 		500000000000000000000043 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppServices.swift"; sourceTree = "<group>"; };
 		500000000000000000000044 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuBarViews.swift"; sourceTree = "<group>"; };
@@ -426,6 +432,7 @@
 		500000000000000000000059 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SystemMonitor+Daemon.swift"; sourceTree = "<group>"; };
 		500000000000000000000060 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatStore+Session.swift"; sourceTree = "<group>"; };
 		500000000000000000000086 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatStore+Native.swift"; sourceTree = "<group>"; };
+		500000000000000000000099 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatStore+Generation.swift"; sourceTree = "<group>"; };
 		500000000000000000000020 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ConfigStore.swift"; sourceTree = "<group>"; };
 		500000000000000000000021 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkStore.swift"; sourceTree = "<group>"; };
 		500000000000000000000022 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkView.swift"; sourceTree = "<group>"; };
@@ -532,7 +539,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 114;
+				CURRENT_PROJECT_VERSION = 121;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = LiteRTLMStudio/Info.plist;
@@ -541,7 +548,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.7.114;
+				MARKETING_VERSION = 0.7.129;
 				OTHER_SWIFT_FLAGS = "$(inherited) -Xcc -fmodule-map-file=$(PROJECT_DIR)/EngineVendor/Headers/module.modulemap";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.borasarang.litert-lm-studio";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -559,7 +566,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 114;
+				CURRENT_PROJECT_VERSION = 121;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = LiteRTLMStudio/Info.plist;
@@ -568,7 +575,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.7.114;
+				MARKETING_VERSION = 0.7.129;
 				OTHER_SWIFT_FLAGS = "$(inherited) -Xcc -fmodule-map-file=$(PROJECT_DIR)/EngineVendor/Headers/module.modulemap";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.borasarang.litert-lm-studio";
 				PRODUCT_NAME = "$(TARGET_NAME)";

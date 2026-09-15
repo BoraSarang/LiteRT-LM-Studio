@@ -131,6 +131,21 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         XCTAssertTrue(AboutLibraries.all.isEmpty)
     }
 
+    /// 조각 경계 공백 보존 1 (T-184): 마침표 뒤 공백. `**` 분할 조각을
+    /// 파싱할 때 경계 공백이 trim되면 "궁금하네요.CMD"처럼 붙어 보임.
+    func testStyledPreservesSpaceAfterPeriod() {
+        let s = String(NativeMarkdown.styled("궁금하네요. **`CMD + K`**가", size: 14).characters)
+        XCTAssertTrue(s.contains(". CMD + K가"), "마침표 뒤 공백 유지, 실제: \(s)")
+    }
+
+    /// 조각 경계 공백 보존 2 (T-184): 따옴표 볼드 양쪽 공백.
+    /// "제가 **\"서버가 중지됨\"** 같은"이 붙으면 안 됨.
+    func testStyledPreservesSpacesAroundBold() {
+        let s = String(NativeMarkdown.styled("제가 **\"서버가 중지됨\"** 같은", size: 14).characters)
+        XCTAssertTrue(s.contains("제가 \""), "앞 공백 유지, 실제: \(s)")
+        XCTAssertTrue(s.contains("\" 같은"), "뒤 공백 유지, 실제: \(s)")
+    }
+
     /// 폰트 줌 스텝·px 매핑 (T-070): 0.7~2.0 클램프, 14px 기준.
     func testChatZoom() {
         XCTAssertEqual(ContentView.steppedZoom(1.0, step: 0.1), 1.1, accuracy: 0.0001)
@@ -140,6 +155,13 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         XCTAssertEqual(NativeMarkdown.fontPx(1.0), 14.0, accuracy: 0.0001)
         XCTAssertEqual(NativeMarkdown.fontPx(3.0), 28.0, accuracy: 0.0001)
         XCTAssertEqual(NativeMarkdown.fontPx(0.1), 9.8, accuracy: 0.0001)
+    }
+
+    /// 자간 (T-174): 0.015em 복원, 14pt→0.21pt, 줌 스케일 연동.
+    func testBodyTracking() {
+        XCTAssertEqual(NativeMarkdown.tracking(for: 14), 0.21, accuracy: 0.0001)
+        XCTAssertEqual(NativeMarkdown.tracking(for: 28), 0.42, accuracy: 0.0001)
+        XCTAssertEqual(NativeMarkdown.tracking(for: 13), 0.195, accuracy: 0.0001)
     }
 
     /// 인스펙터 섹션 타이틀 (T-072): 3종 고정, 중복 없음.

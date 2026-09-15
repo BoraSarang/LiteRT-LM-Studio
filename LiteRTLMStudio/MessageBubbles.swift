@@ -73,7 +73,9 @@ struct UserBubbleView: View {
             Spacer(minLength: 60)
             VStack(alignment: .trailing, spacing: 2) {
                 Text(message.text)
-                    .font(.system(size: 14 * fontScale)).textSelection(.enabled)
+                    .font(.system(size: 14 * fontScale))
+                    .tracking(NativeMarkdown.tracking(for: 14 * fontScale)) // T-174 자간 (질문도 동일)
+                    .textSelection(.enabled)
                     .padding(12) // T-099 유저 버블 좌우 숨쉬기 복원 (어시스턴트는 그대로)
                     .background(Color.accentColor.opacity(0.12))
                     .clipShape(.rect(cornerRadius: 10))

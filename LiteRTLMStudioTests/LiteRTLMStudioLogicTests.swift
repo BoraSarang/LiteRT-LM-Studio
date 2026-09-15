@@ -36,6 +36,49 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         try? FileManager.default.removeItem(at: tmp)
     }
 
+    /// 실행 설정 확장 (T-175): 숫자 파싱·예산·신규 키 왕복.
+    @MainActor
+    func testConfigExtendedKeys() async throws {
+        XCTAssertEqual(ConfigStore.intOrNil("", min: 1), nil)
+        XCTAssertEqual(ConfigStore.intOrNil("abc", min: 1), nil)
+        XCTAssertEqual(ConfigStore.intOrNil("0", min: 1), nil)
+        XCTAssertEqual(ConfigStore.intOrNil("16", min: 1), 16)
+        XCTAssertEqual(ConfigStore.budgetOrUnlimited(""), -1)
+        XCTAssertEqual(ConfigStore.budgetOrUnlimited("4096"), 4096)
+        XCTAssertEqual(ConfigStore.budgetOrUnlimited("-9"), -1)
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("litert-test-\(UUID().uuidString).json")
+        let store = ConfigStore(configURL: tmp)
+        store.draftAudio = "gpu"
+        store.draftThreads = "8"
+        store.draftCache = "memory"
+        store.draftKV = "10000"
+        store.draftThinking = true
+        store.draftBudget = "4096"
+        XCTAssertTrue(store.hasChanges)
+        XCTAssertTrue(store.diffSummary.contains("Audio"))
+        XCTAssertTrue(store.apply(modelID: "m1"))
+        let reloaded = ConfigStore(configURL: tmp)
+        reloaded.load(modelID: "m1")
+        XCTAssertEqual(reloaded.appliedAudio, "gpu")
+        XCTAssertEqual(reloaded.appliedThreads, "8")
+        XCTAssertEqual(reloaded.appliedCache, "memory")
+        XCTAssertEqual(reloaded.appliedKV, "10000")
+        XCTAssertTrue(reloaded.appliedThinking)
+        XCTAssertEqual(reloaded.appliedBudget, "4096")
+        // 빈칸이면 키 삭제 (엔진 기본 복귀).
+        reloaded.draftThreads = ""
+        reloaded.draftKV = ""
+        reloaded.draftBudget = ""
+        XCTAssertTrue(reloaded.apply(modelID: "m1"))
+        let json = try JSONSerialization.jsonObject(with: Data(contentsOf: tmp)) as? [String: Any]
+        let def = json?["default"] as? [String: Any]
+        XCTAssertNil(def?["cpu_thread_count"])
+        XCTAssertNil(def?["max_num_tokens"])
+        let one = (json?["models"] as? [String: Any])?["m1"] as? [String: Any]
+        XCTAssertEqual(one?["thinking_budget"] as? Int, -1)
+        try? FileManager.default.removeItem(at: tmp)
+    }
+
     /// 메뉴바 상태 색 매핑.
     func testMenuStatusKeys() {
         XCTAssertEqual(MenuStatus.dotKey(for: .running), "green")
@@ -249,6 +292,71 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         next = T.transition(status: .running, external: true, muted: false, healthy: false, streak: 2)
         XCTAssertEqual(next.status, .failed)
         XCTAssertFalse(next.external)
+    }
+
+    /// 미연결 외부 실행 판정 (T-179): mute+healthy일 때만 true.
+    func testUnlinkedRunning() {
+        typealias T = DaemonManager
+        XCTAssertTrue(T.unlinkedRunning(muted: true, healthy: true))
+        XCTAssertFalse(T.unlinkedRunning(muted: false, healthy: true))
+        XCTAssertFalse(T.unlinkedRunning(muted: true, healthy: false))
+        XCTAssertFalse(T.unlinkedRunning(muted: false, healthy: false))
+    }
+
+    /// 대화 재사용 키 (T-191): 저장분이 현재 앞부분+동일 모델·옵션이면 KV 이어쓰기.
+    func testConvKeyReuses() {
+        typealias K = NativeEngine.ConvKey
+        let opts = GenerationOptions()
+        let stored = K(modelID: "m", history: ["user\nhi"], options: opts)
+        // 이어진 대화 → 재사용
+        XCTAssertTrue(K.reuses(stored: stored, modelID: "m",
+                               history: ["user\nhi", "assistant\nhello", "user\nmore"], options: opts))
+        // 동일 길이 동일 내용 → 재사용
+        XCTAssertTrue(K.reuses(stored: stored, modelID: "m",
+                               history: ["user\nhi"], options: opts))
+        // 재시도(축소)·모델 변경·옵션 변경 → 재생성
+        XCTAssertFalse(K.reuses(stored: stored, modelID: "m", history: [], options: opts))
+        XCTAssertFalse(K.reuses(stored: stored, modelID: "other",
+                                history: ["user\nhi"], options: opts))
+        var other = opts
+        other.temperature = 0.1
+        XCTAssertFalse(K.reuses(stored: stored, modelID: "m",
+                                history: ["user\nhi"], options: other))
+        // 앞부분 불일치 → 재생성
+        XCTAssertFalse(K.reuses(stored: stored, modelID: "m",
+                                history: ["user\nother"], options: opts))
+        // 항목 결합 형식
+        XCTAssertEqual(K.entries([(role: "user", text: "hi")]), ["user\nhi"])
+    }
+
+    /// Ollama식 통합 상태 (T-183): 대화 가능 = 데몬 실행 중 OR 네이티브 준비됨.
+    func testUnifiedStatus() {
+        typealias U = UnifiedStatus
+        // 네이티브 준비 + 데몬 중지 → 대화 가능 (현재 사용자 케이스)
+        var s = U.resolve(daemonRunning: false, unlinkedRunning: false,
+                          engineMode: .native, preparedLabel: "Gemma 4 · 12B")
+        XCTAssertEqual(s.title, "대화 가능")
+        XCTAssertTrue(s.live)
+        XCTAssertFalse(s.unlinked)
+        // 둘 다 없음 → 중지됨
+        s = U.resolve(daemonRunning: false, unlinkedRunning: false,
+                      engineMode: .native, preparedLabel: nil)
+        XCTAssertEqual(s.title, "중지됨")
+        XCTAssertFalse(s.live)
+        // 데몬 실행 중 → 대화 가능
+        s = U.resolve(daemonRunning: true, unlinkedRunning: false,
+                      engineMode: .cli, preparedLabel: nil)
+        XCTAssertEqual(s.title, "대화 가능")
+        XCTAssertTrue(s.live)
+        // 둘 다 → 데몬+네이티브 표기
+        s = U.resolve(daemonRunning: true, unlinkedRunning: false,
+                      engineMode: .native, preparedLabel: "Gemma 4 · 12B")
+        XCTAssertTrue(s.detail.contains("데몬+네이티브"))
+        // 미연결 → 주황 유지 (T-179 계승)
+        s = U.resolve(daemonRunning: false, unlinkedRunning: true,
+                      engineMode: .native, preparedLabel: "Gemma 4 · 12B")
+        XCTAssertTrue(s.unlinked)
+        XCTAssertFalse(s.live)
     }
 
     /// 전송 보정 판정 (T-135): 준비중→하단, 스트리밍→방치, 그 외→재앵커.

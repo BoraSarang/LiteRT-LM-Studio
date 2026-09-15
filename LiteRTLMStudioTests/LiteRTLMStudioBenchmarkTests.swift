@@ -12,30 +12,15 @@ final class LiteRTLMStudioBenchmarkTests: XCTestCase {
         }
     }
 
-    private func withNativeMode(_ body: () -> Void) {
-        let key = "engineMode"
-        let prev = UserDefaults.standard.string(forKey: key)
-        UserDefaults.standard.set("native", forKey: key)
-        defer {
-            if let prev {
-                UserDefaults.standard.set(prev, forKey: key)
-            } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-        body()
-    }
-
-    /// 네이티브 매핑 (T-132): 지표·단계·종료 상태.
+    /// 네이티브 매핑 (T-132/T-186): 지표·단계·종료 상태. 경로는 route 지정.
     func testNativeBenchmarkMapping() async {
         let store = BenchmarkStore()
         store.nativeBenchmark = { _ in
             EngineBenchmark(initTime: 1.5, ttft: 2.5, prefillTokens: 10,
                             prefillSpeed: 20, decodeTokens: 30, decodeSpeed: 15)
         }
-        withNativeMode {
-            store.run(modelID: "m")
-        }
+        store.route = .native
+        store.run(modelID: "m")
         await waitDone(store)
         XCTAssertFalse(store.running)
         XCTAssertEqual(store.stage, .done)
@@ -49,14 +34,13 @@ final class LiteRTLMStudioBenchmarkTests: XCTestCase {
         XCTAssertEqual(met?.decodeTokens, 30)
     }
 
-    /// 네이티브 실패 (T-132): 실행 중 해제+초기 단계 복귀.
+    /// 네이티브 실패 (T-132/T-186): 실행 중 해제+초기 단계 복귀.
     func testNativeBenchmarkFailure() async {
         struct Boom: Error {}
         let store = BenchmarkStore()
         store.nativeBenchmark = { _ in throw Boom() }
-        withNativeMode {
-            store.run(modelID: "m")
-        }
+        store.route = .native
+        store.run(modelID: "m")
         await waitDone(store)
         XCTAssertFalse(store.running)
         XCTAssertNil(store.metrics)

@@ -99,7 +99,21 @@ final class ChatStore: ObservableObject {
 
     var baseURL = URL(string: "http://127.0.0.1:9379")!
     var model = "gemma4-12b"
-    var temperature = 0.7
+    var temperature = 1.0 // T-176 모델 내장·Gallery 대조 (기존 0.7)
+    var topK = 64 // T-176 describe 실측
+    var topP = 0.95 // T-176 describe 실측
+    var maxTokens: Int? // T-176 nil=무제한
+    var seed: Int? // T-176 nil=랜덤
+    var systemPrompt = "" // T-176 네이티브만 유효
+    var thinkingEnabled = false // T-176 지원 모델만 UI 활성
+    var thinkingBudget = -1 // T-176 -1=무제한
+    /// 전송 경로 (T-186): 입력창 피커가 소유. 초기값은 기존 전역 설정 1회 승계.
+    /// 변경 시 UserDefaults에도 저장해 재실행 후 초기값으로 쓴다.
+    @Published var route: EngineMode = EngineMode.current() {
+        didSet { UserDefaults.standard.set(route.rawValue, forKey: "engineMode") }
+    }
+    /// 네이티브 준비 여부 (T-186): 엔진 주입+모델 초기화 완료.
+    var nativePrepared: Bool { inferenceEngine?.preparedModelID != nil }
     /// 네이티브 엔진 주입 (T-130, nil이면 CLI 전용). ContentView가 AppServices에서 연결.
     var inferenceEngine: (any InferenceEngine)?
 
@@ -208,12 +222,29 @@ final class ChatStore: ObservableObject {
     }
 
     /// 네이티브 분기 시도 (T-137): 해당하면 작업 예약 후 true.
+    /// T-185부터 미준비면 자동 초기화 대신 안내하고 true (CLI 폴백 없음, 수동 실행).
     @discardableResult
     func startNativeIfNeeded(prompt: String, image: ChatImage?, idx: Int, started: Date) -> Bool {
         guard usesNative(), let engine = inferenceEngine else { return false }
+        guard engine.preparedModelID != nil else {
+            noticeNativeNotReady(at: idx)
+            return true
+        }
         currentTask = Task { await self.runNative(engine: engine, prompt: prompt,
                                                   image: image, idx: idx, started: started) }
         return true
+    }
+
+    /// 네이티브 미준비 안내 (T-185): 전송 소비, 에러코드 없음 (실패 아님).
+    func noticeNativeNotReady(at idx: Int) {
+        messages[idx].text = "네이티브 엔진이 준비되지 않았습니다. "
+            + "사이드바 엔진 행의 실행 버튼을 눌러 준비한 뒤 다시 전송해 주세요."
+        messages[idx].isError = true
+        messages[idx].finishedAt = Date()
+        preparing = false
+        streaming = false
+        logger.info(feature: "채팅전송", "네이티브 미준비 — 전송 차단")
+        save()
     }
 
     /// 요청 실패 반영 (T-127 분리): 에러 버블+시각+로그.
@@ -242,33 +273,6 @@ final class ChatStore: ObservableObject {
     nonisolated static func windowedHistory(_ messages: [Message], turns: Int) -> [Message] {
         guard turns > 0 else { return messages }
         return Array(messages.suffix(2 * turns))
-    }
-
-    /// 채팅 요청 생성 (T-126 분리, 테스트 가능): 히스토리+이미지 페이로드 조립.
-    func chatRequest(prompt: String, image: ChatImage? = nil) throws -> URLRequest {
-        var req = URLRequest(url: baseURL.appendingPathComponent("v1/chat/completions"))
-        req.httpMethod = "POST"
-        req.timeoutInterval = 300 // Vision 추론은 수 분 가능
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let windowed = Self.windowedHistory(Array(messages.dropLast(2)),
-                                              turns: HistoryWindow.currentTurns())
-        let history = windowed.map { ["role": $0.role, "content": $0.text] }
-        let userContent: Any
-        if let image {
-            let b64 = image.data.base64EncodedString()
-            userContent = [
-                ["type": "text", "text": prompt],
-                ["type": "image_url", "image_url": ["url": "data:\(image.mime);base64,\(b64)"]]
-            ]
-        } else {
-            userContent = prompt
-        }
-        let historyPlus = history + [["role": "user", "content": userContent]]
-        req.httpBody = try JSONSerialization.data(withJSONObject: [
-            "model": model, "messages": historyPlus,
-            "temperature": temperature, "stream": true
-        ])
-        return req
     }
 
     func stop() {

@@ -36,20 +36,25 @@ struct MarkdownView: View, Equatable {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// 자간 적용 본문 Text (T-174): 크기별 0.015em tracking 통일. 코드는 제외.
+    func bodyText(_ s: String, size: CGFloat, weight: Font.Weight = .regular) -> Text {
+        Text(NativeMarkdown.styled(s, size: size, weight: weight))
+            .tracking(NativeMarkdown.tracking(for: size))
+    }
+
     /// 문단 렌더: 줄 블록별 표시 (T-151/T-152).
     func proseBody(_ p: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(Array(NativeMarkdown.parseProse(p).enumerated()), id: \.offset) { _, b in
                 switch b {
                 case .heading(let level, let t):
-                    Text(NativeMarkdown.styled(t, size: (22 - CGFloat(level) * 2) * fontScale,
-                                               weight: .bold))
+                    bodyText(t, size: (22 - CGFloat(level) * 2) * fontScale, weight: .bold)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 case .bullet(let t, let indent):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("•").foregroundStyle(.secondary)
-                        Text(NativeMarkdown.styled(t, size: 14 * fontScale))
+                        bodyText(t, size: 14 * fontScale)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -57,7 +62,7 @@ struct MarkdownView: View, Equatable {
                 case .ordered(let n, let t, let indent):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("\(n).").foregroundStyle(.secondary)
-                        Text(NativeMarkdown.styled(t, size: 14 * fontScale))
+                        bodyText(t, size: 14 * fontScale)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -71,7 +76,7 @@ struct MarkdownView: View, Equatable {
                         RoundedRectangle(cornerRadius: 1.5)
                             .fill(.secondary)
                             .frame(width: 3)
-                        Text(NativeMarkdown.styled(t, size: 14 * fontScale))
+                        bodyText(t, size: 14 * fontScale)
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -80,7 +85,7 @@ struct MarkdownView: View, Equatable {
                     Spacer().frame(height: 6)
                 case .paragraph(let t):
                     if !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(NativeMarkdown.styled(t, size: 14 * fontScale))
+                        bodyText(t, size: 14 * fontScale)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -98,8 +103,8 @@ struct MarkdownView: View, Equatable {
             ForEach(Array(padded.enumerated()), id: \.offset) { ri, row in
                 GridRow {
                     ForEach(Array(row.enumerated()), id: \.offset) { ci, cell in
-                        Text(NativeMarkdown.styled(cell, size: 13 * fontScale,
-                                                   weight: (header && ri == 0) ? .semibold : .regular))
+                        bodyText(cell, size: 13 * fontScale,
+                                     weight: (header && ri == 0) ? .semibold : .regular)
                             .textSelection(.enabled)
                             .padding(.vertical, 6)
                             .padding(.horizontal, 8)

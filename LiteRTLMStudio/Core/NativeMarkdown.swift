@@ -63,8 +63,11 @@ enum NativeMarkdown {
     nonisolated static func styled(_ s: String, size: CGFloat, weight: Font.Weight = .regular)
         -> AttributedString {
         var out = AttributedString()
+        let segOptions = AttributedString.MarkdownParsingOptions(
+            interpretedSyntax: .inlineOnlyPreservingWhitespace)
         for seg in splitStrong(normalizeStrong(s)) {
-            var part = (try? AttributedString(markdown: seg.text)) ?? AttributedString(seg.text)
+            var part = (try? AttributedString(markdown: seg.text, options: segOptions))
+                ?? AttributedString(seg.text)
             for run in part.runs {
                 var f = Font.system(size: size, weight: weight, design: .default)
                 var v = run.inlinePresentationIntent ?? InlinePresentationIntent()
@@ -301,6 +304,14 @@ enum NativeMarkdown {
             return body
         }
         return String(body[body.index(after: nl)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+extension NativeMarkdown {
+    /// 자간 pt (순수, 테스트 가능, T-174): T-075 0.015em 복원. fontScale 연동.
+    /// 코드는 제외 (호출부에서 코드 경로에 미적용).
+    nonisolated static func tracking(for size: CGFloat) -> CGFloat {
+        size * 0.015
     }
 
     /// 줌 스케일 → 기준 px (순수, 테스트 가능, T-070, 기존 MarkdownWebView.fontPx 이관).

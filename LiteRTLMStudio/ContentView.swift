@@ -126,7 +126,7 @@ struct ContentView: View {
                         .frame(width: 28)
                 }
                 .help(serverHelp)
-                .disabled(daemon.status == .starting)
+                .disabled(serverDisabled)
             }
             ToolbarItem(placement: .primaryAction) {
                 Button { toggleLogPanel() } label: {

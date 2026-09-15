@@ -92,7 +92,7 @@ struct MenuBarView: View {
         case .running: "● 실행 중\(services.daemon.external ? " (외부)" : "") · :9379"
         case .starting: "◌ 시작 중…"
         case .failed: "● 실패 — 로그 확인"
-        case .stopped: "○ 중지됨"
+        case .stopped: services.daemon.unlinkedRunning ? "● 외부 실행 중 (미연결)" : "○ 중지됨"
         }
     }
 }

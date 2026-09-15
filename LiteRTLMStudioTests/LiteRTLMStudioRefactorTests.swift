@@ -164,12 +164,14 @@ final class FakeEngine: InferenceEngine {
         prompt: String,
         image: ChatStore.ChatImage?,
         history: [(role: String, text: String)],
-        temperature: Double
+        keyHistory: [String],
+        options: GenerationOptions
     ) -> AsyncThrowingStream<String, Error> {
         lastPrompt = prompt
         lastImage = image
         lastHistory = history
-        lastTemperature = temperature
+        lastKeyHistory = keyHistory
+        lastOptions = options
         let chunks = chunks
         let shouldFail = streamShouldFail
         return AsyncThrowingStream { continuation in
@@ -185,7 +187,8 @@ final class FakeEngine: InferenceEngine {
     var lastPrompt: String?
     var lastImage: ChatStore.ChatImage?
     var lastHistory: [(role: String, text: String)] = []
-    var lastTemperature: Double?
+    var lastKeyHistory: [String] = []
+    var lastOptions: GenerationOptions?
 
     func cancel() { cancelled = true }
 
@@ -234,23 +237,69 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         }
     }
 
-    /// 분기 결정 (T-130): 네이티브+주입일 때만 네이티브.
+    /// 분기 결정 (T-130/T-186): 입력창 route+주입일 때만 네이티브.
     func testUsesNative() {
         let store = makeStore()
-        withNativeMode("native") {
-            store.inferenceEngine = nil
-            XCTAssertFalse(store.usesNative())
-            store.inferenceEngine = FakeEngine()
-            XCTAssertTrue(store.usesNative())
+        store.route = .native
+        store.inferenceEngine = nil
+        XCTAssertFalse(store.usesNative())
+        store.inferenceEngine = FakeEngine()
+        XCTAssertTrue(store.usesNative())
+        store.route = .cli
+        store.inferenceEngine = FakeEngine()
+        XCTAssertFalse(store.usesNative())
+    }
+
+    /// 경로별 전송 가능 (T-186): CLI=데몬 실행, 네이티브=엔진 준비.
+    func testRouteReady() {
+        typealias C = ChatStore
+        XCTAssertTrue(C.routeReady(route: .cli, daemonRunning: true, nativePrepared: false))
+        XCTAssertFalse(C.routeReady(route: .cli, daemonRunning: false, nativePrepared: true))
+        XCTAssertTrue(C.routeReady(route: .native, daemonRunning: false, nativePrepared: true))
+        XCTAssertFalse(C.routeReady(route: .native, daemonRunning: true, nativePrepared: false))
+    }
+
+    /// 미준비 차단 (T-185): 네이티브 선택+미준비면 자동 초기화 없이 안내, CLI 폴백 없음.
+    func testNativeNotReadyNotice() {
+        let store = makeStore()
+        let fake = FakeEngine()
+        fake.preparedModelID = nil
+        store.inferenceEngine = fake
+        store.route = .native
+        store.send("준비 안 됐을 때")
+        XCTAssertTrue(fake.prepareCalls.isEmpty)
+        XCTAssertFalse(store.streaming)
+        XCTAssertEqual(store.messages.last?.isError, true)
+        XCTAssertTrue(store.messages.last?.text.contains("준비되지 않았습니다") == true)
+    }
+
+    /// 키 분리 (T-193): 재사용 키는 전체 전사, 초기 메시지는 윈도우 적용분.
+    func testKeyHistoryIsFullTranscript() async {
+        let store = makeStore()
+        let fake = FakeEngine()
+        fake.preparedModelID = "gemma4-12b"
+        store.inferenceEngine = fake
+        store.route = .native
+        store.messages = [
+            ChatStore.Message(role: "user", text: "old"),
+            ChatStore.Message(role: "assistant", text: "prev"),
+            ChatStore.Message(role: "user", text: "old2"),
+            ChatStore.Message(role: "assistant", text: "prev2")
+        ]
+        let key = "historyTurns"
+        let prev = UserDefaults.standard.object(forKey: key)
+        UserDefaults.standard.set(1, forKey: key) // 1턴 = 2개
+        defer {
+            if let prev {
+                UserDefaults.standard.set(prev, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
         }
-        withNativeMode("cli") {
-            store.inferenceEngine = FakeEngine()
-            XCTAssertFalse(store.usesNative())
-        }
-        withNativeMode(nil) {
-            store.inferenceEngine = FakeEngine()
-            XCTAssertFalse(store.usesNative())
-        }
+        store.send("see")
+        await waitStreaming(store)
+        XCTAssertEqual(fake.lastHistory.count, 2)
+        XCTAssertEqual(fake.lastKeyHistory.count, 4)
     }
 
     /// 엔진 모드 기본값 (T-130): 미설정 시 CLI.
@@ -265,14 +314,14 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         XCTAssertEqual(EngineMode.native.title, "네이티브")
     }
 
-    /// 네이티브 성공 경로 (T-130): 버블·PERF·준비·시각 기록.
+    /// 네이티브 성공 경로 (T-130/T-185): 버블·PERF·준비·시각 기록. 준비된 엔진 전제.
     func testNativeSendSuccess() async {
         let store = makeStore()
         let fake = FakeEngine()
+        fake.preparedModelID = "gemma4-12b"
         store.inferenceEngine = fake
-        withNativeMode("native") {
-            store.send("hi")
-        }
+        store.route = .native
+        store.send("hi")
         await waitStreaming(store)
         XCTAssertFalse(store.streaming)
         XCTAssertEqual(store.messages.count, 2)
@@ -288,11 +337,11 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
     func testNativePrepareFailure() async {
         let store = makeStore()
         let fake = FakeEngine()
+        fake.preparedModelID = "gemma4-12b"
         fake.prepareError = EngineError.initFailed("no file")
         store.inferenceEngine = fake
-        withNativeMode("native") {
-            store.send("hi")
-        }
+        store.route = .native
+        store.send("hi")
         await waitStreaming(store)
         XCTAssertEqual(store.lastError, "E-MAC-ENG-0001")
         XCTAssertTrue(store.messages.last?.isError ?? false)
@@ -303,11 +352,11 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
     func testNativeInferenceFailure() async {
         let store = makeStore()
         let fake = FakeEngine()
+        fake.preparedModelID = "gemma4-12b"
         fake.streamShouldFail = true
         store.inferenceEngine = fake
-        withNativeMode("native") {
-            store.send("hi")
-        }
+        store.route = .native
+        store.send("hi")
         await waitStreaming(store)
         XCTAssertEqual(store.lastError, "E-MAC-ENG-0002")
         XCTAssertTrue(store.messages.last?.isError ?? false)
@@ -335,26 +384,82 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         XCTAssertTrue(store.messages[1].text.contains("E-MAC-ENG-0002"))
     }
 
-    /// 매핑 전달 (T-131): 프롬프트·이미지·히스토리·temperature가 어댑터까지 그대로.
+    /// 매핑 전달 (T-131/T-176): 프롬프트·이미지·히스토리·생성 옵션이 어댑터까지 그대로.
     func testNativeMappingPassthrough() async {
         let store = makeStore()
         store.temperature = 0.9
+        store.topK = 32
+        store.topP = 0.8
+        store.maxTokens = 500
+        store.seed = 7
         store.messages = [
             ChatStore.Message(role: "user", text: "old"),
             ChatStore.Message(role: "assistant", text: "prev")
         ]
         let fake = FakeEngine()
+        fake.preparedModelID = "gemma4-12b"
         store.inferenceEngine = fake
         let image = ChatStore.ChatImage(data: Data([1, 2, 3]), mime: "image/jpeg")
-        withNativeMode("native") {
-            store.send("see", image: image)
-        }
+        store.route = .native
+        store.send("see", image: image)
         await waitStreaming(store)
         XCTAssertEqual(fake.lastPrompt, "see")
         XCTAssertEqual(fake.lastImage?.mime, "image/jpeg")
         XCTAssertEqual(fake.lastImage?.data, Data([1, 2, 3]))
         XCTAssertEqual(fake.lastHistory.map { "\($0.role):\($0.text)" },
                        ["user:old", "assistant:prev"])
-        XCTAssertEqual(fake.lastTemperature ?? -1, 0.9, accuracy: 0.0001)
+        XCTAssertEqual(fake.lastOptions?.temperature ?? -1, 0.9, accuracy: 0.0001)
+        XCTAssertEqual(fake.lastOptions?.topK, 32)
+        XCTAssertEqual(fake.lastOptions?.topP ?? -1, 0.8, accuracy: 0.0001)
+        XCTAssertEqual(fake.lastOptions?.maxTokens, 500)
+        XCTAssertEqual(fake.lastOptions?.seed, 7)
+    }
+
+    /// config 추종 백엔드 (T-177): default 섹션 파싱·폴백.
+    func testResolveBackends() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("litert-backends-\(UUID().uuidString).json")
+        let json = """
+        {"default": {"backend": "cpu", "cpu_thread_count": 8,
+          "vision_backend": "gpu", "audio_backend": "cpu"}}
+        """
+        try json.write(to: tmp, atomically: true, encoding: .utf8)
+        let r = NativeEngine.resolveBackends(configURL: tmp)
+        XCTAssertEqual(r.backend, .cpu(threadCount: 8))
+        XCTAssertEqual(r.vision, .gpu)
+        XCTAssertEqual(r.audio, .cpu(threadCount: nil))
+        try? FileManager.default.removeItem(at: tmp)
+        // 파일 없으면 기존 고정값.
+        let missing = FileManager.default.temporaryDirectory
+            .appendingPathComponent("litert-missing-\(UUID().uuidString).json")
+        let d = NativeEngine.resolveBackends(configURL: missing)
+        XCTAssertEqual(d.backend, .gpu)
+        XCTAssertEqual(d.vision, .cpu(threadCount: nil))
+        XCTAssertNil(d.audio)
+    }
+
+    /// residency·visual 기본값 (T-177): 미설정 시 켬·1120.
+    func testEngineAdvancedDefaults() {
+        let suite = UserDefaults(suiteName: "test-\(UUID().uuidString)")!
+        XCTAssertTrue(NativeEngine.residencyEnabled(suite))
+        XCTAssertEqual(NativeEngine.visualBudget(suite), 1120)
+        suite.set(false, forKey: "metalResidency")
+        suite.set(280, forKey: "visualTokenBudget")
+        XCTAssertFalse(NativeEngine.residencyEnabled(suite))
+        XCTAssertEqual(NativeEngine.visualBudget(suite), 280)
+    }
+
+    /// 요청 바디 (T-176): top_p·max_tokens·seed 전송, top_k 제외.
+    func testChatRequestSampling() throws {
+        let store = makeStore()
+        store.topP = 0.8
+        store.maxTokens = 500
+        store.seed = 7
+        let req = try store.chatRequest(prompt: "hi")
+        let json = try JSONSerialization.jsonObject(with: req.httpBody!) as? [String: Any]
+        XCTAssertEqual(json?["top_p"] as? Double ?? -1, 0.8, accuracy: 0.0001)
+        XCTAssertEqual(json?["max_tokens"] as? Int, 500)
+        XCTAssertEqual(json?["seed"] as? Int, 7)
+        XCTAssertNil(json?["top_k"])
     }
 }

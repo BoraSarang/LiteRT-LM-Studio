@@ -208,37 +208,6 @@ extension ContentView {
         }
     }
 
-    /// 단일 시작/중지 버튼 상태. 실행 중 아이콘은 기본 도형만 사용
-    /// (link.badge.minus는 16pt 툴바에서 링처럼 뭉개져 보임). 외부 구분은 help+사이드바 표기로.
-    var serverIcon: String {
-        daemon.status == .running ? "stop.fill" : "play.fill"
-    }
-
-    var serverHelp: String {
-        if daemon.status == .running {
-            return daemon.external
-                ? "외부 데몬 연결 끊기 (⌘.) — 터미널 데몬은 계속 실행됩니다"
-                : "서버 중지 (⌘.)"
-        }
-        return "서버 시작 (⌘R)"
-    }
-
-     func toggleServer() {
-        if daemon.status == .running {
-            daemon.stop()
-        } else {
-            Task { await daemon.start() }
-        }
-    }
-
-     func toggleLogPanel() {
-        if daemon.status != .running {
-            logger.info(feature: "하단패널", "서버 중지 상태 — 패널 열기 불가")
-            return
-        }
-        logPanelVisible.toggle()
-    }
-
     /// 채팅 스크롤 휠 감시 설치 (T-044, T-080 누적 임계): 호버 중에만 제스처 시각 기록,
     /// 8pt 미만 미세 접촉은 무시. 이벤트는 그대로 통과.
      func installWheelMonitor() {
@@ -360,6 +329,7 @@ extension ContentView {
 
      func runBenchmark(id: String) {
         showBench = true
+        bench.route = chat.route
         bench.run(modelID: id)
     }
 }

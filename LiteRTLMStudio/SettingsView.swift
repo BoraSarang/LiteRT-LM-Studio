@@ -7,7 +7,6 @@ struct SettingsView: View {
     @AppStorage("quitStopsDaemon") private var quitStopsDaemon = true
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @AppStorage("appearance") private var appearanceRaw = AppearanceMode.system.rawValue
-    @AppStorage("engineMode") private var engineModeRaw = EngineMode.cli.rawValue
     @AppStorage("historyTurns") private var historyTurns = HistoryWindow.unlimited.rawValue
     @State private var loginError: String?
 
@@ -32,17 +31,8 @@ struct SettingsView: View {
                     .onChange(of: launchAtLogin) { _, on in setLoginItem(on) }
                 Toggle("앱 종료 시 데몬도 함께 종료", isOn: $quitStopsDaemon)
                     .help("끄면 앱을 닫아도 데몬이 남아 다음 실행 때 바로 씁니다. 터미널 데몬은 항상 유지됩니다.")
-                Picker("추론 엔진", selection: $engineModeRaw) {
-                    ForEach(EngineMode.allCases, id: \.rawValue) { mode in
-                        Text(mode.title).tag(mode.rawValue)
-                    }
-                }.pickerStyle(.segmented)
-                    .help("CLI 데몬(서버 경유) 또는 네이티브(프로세스 내 직접 추론). 처음 네이티브 전송 때 엔진을 초기화합니다.")
-                    .onChange(of: engineModeRaw) { _, raw in
-                        DebugLogger.shared.info(
-                            feature: "엔진모드",
-                            "전환: \((EngineMode(rawValue: raw) ?? .cli).title)")
-                    }
+                Text("전송 경로(CLI 데몬·네이티브)는 채팅 입력창의 피커에서 매번 선택합니다.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Picker("대화 기록 전송", selection: $historyTurns) {
                     ForEach(HistoryWindow.allCases, id: \.rawValue) { w in
                         Text(w.title).tag(w.rawValue)

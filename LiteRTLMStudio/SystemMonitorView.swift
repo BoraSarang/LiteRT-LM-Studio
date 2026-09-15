@@ -15,6 +15,8 @@ private enum MeterColor {
 /// 모니터 본체: 인스펙터·하단 패널이 공유 (샘플러 1개).
 struct SystemMetersView: View {
     @ObservedObject var monitor: SystemMonitor
+    /// 측정 히어로 기준 경로 (T-186): 입력창 route. 네이티브면 앱 상주가 주인공.
+    var route: EngineMode = .cli
     @State private var cpuHover = false
     @State private var ramHover = false
 
@@ -35,9 +37,9 @@ struct SystemMetersView: View {
                 .help("IOKit busy 추정치. powermetrics급 정밀도가 아닙니다.")
         }
         // 데몬 히어로: 이 화면의 주인공 (pid 0개면 측정 없음 표시, 0% 오해 방지)
-        // T-146: 네이티브 모드는 프로세스 내 추론이라 앱 상주가 주인공, 데몬은 대기 표기.
+        // T-146/T-186: 네이티브 경로면 프로세스 내 추론이라 앱 상주가 주인공, 데몬은 대기 표기.
         VStack(alignment: .leading, spacing: 6) {
-            if EngineMode.current() == .native {
+            if route == .native {
                 HStack {
                     Label("네이티브 (프로세스 내)", systemImage: "cpu")
                         .font(.system(size: 12, weight: .semibold))
