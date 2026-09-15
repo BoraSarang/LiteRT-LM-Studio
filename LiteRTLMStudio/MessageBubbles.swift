@@ -79,11 +79,19 @@ struct UserBubbleView: View {
                     .clipShape(.rect(cornerRadius: 10))
                 if !disabled {
                     HStack(spacing: 4) {
-                        Button(copyFlag.copied ? "복사됨" : "복사") {
+                        Button {
                             PasteboardUtil.copy(message.text)
                             copyFlag.mark()
-                        }.buttonStyle(.plain)
-                        Button("다시 요청") { onEdit(message) }.buttonStyle(.plain)
+                        } label: {
+                            Image(systemName: copyFlag.copied ? "checkmark" : "square.on.square")
+                                .frame(minWidth: 20, minHeight: 20) // T-168 응답 푸터와 동일 아이콘
+                                .contentShape(Rectangle())
+                        }.buttonStyle(.plain).help("질문 복사")
+                        Button { onEdit(message) } label: {
+                            Image(systemName: "pencil")
+                                .frame(minWidth: 20, minHeight: 20) // T-168 수정 의미 구분
+                                .contentShape(Rectangle())
+                        }.buttonStyle(.plain).help("수정해서 다시 요청")
                     }
                     .font(DS.captionFont).foregroundStyle(.tertiary)
                     .frame(height: 20) // T-165 공간 예약 (숨김 때도 자리 유지)
@@ -136,7 +144,8 @@ struct AssistantBubbleView: View {
                                    fontScale: fontScale)
                         .equatable() // T-045: 스트리밍 중 구버블 갱신 차단
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 12) // T-096 좌우 여백 제거 (푸터와 좌단 일치)
+                        .padding(.top, 12) // T-096 좌우 여백 제거 (푸터와 좌단 일치)
+                        .padding(.bottom, 8) // T-170 푸터 밀착 (입력 측과 동일 조건)
                         .padding(.horizontal, message.isError ? 12 : 0) // T-102 에러만 안쪽 여백 (박스 그대로)
                         .background(Color(.textBackgroundColor).opacity(0.5))
                         .clipShape(.rect(cornerRadius: 10))
