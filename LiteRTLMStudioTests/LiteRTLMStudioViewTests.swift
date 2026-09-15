@@ -28,8 +28,14 @@ final class LiteRTLMStudioViewTests: XCTestCase {
                        [.bullet(text: "nested", indent: 2)])
         XCTAssertEqual(NativeMarkdown.parseProse("| a |\n|---|\n| 1 |"),
                        [.table(rows: [["a"], ["1"]], header: true)])
-        let kept = NativeMarkdown.attributed("첫줄\n둘째줄").map { String($0.characters) } ?? ""
-        XCTAssertTrue(kept.contains("\n"))
+        // T-155 빈줄 수렴: 연속 빈줄은 blank 1개, 선행/후행은 무시.
+        XCTAssertEqual(NativeMarkdown.parseProse("a\n\n\nb"),
+                       [.paragraph(text: "a"), .blank, .paragraph(text: "b")])
+        XCTAssertEqual(NativeMarkdown.parseProse("\n\na"), [.paragraph(text: "a")])
+        XCTAssertEqual(NativeMarkdown.parseProse("a\n\n"), [.paragraph(text: "a")])
+        // T-156 코드 언어 태그 제거.
+        XCTAssertEqual(NativeMarkdown.stripLangTag("swift\nlet a = 1\n"), "let a = 1")
+        XCTAssertEqual(NativeMarkdown.stripLangTag("그냥 코드"), "그냥 코드")
         // T-152 서식 완성: 구분선·한글볼드 정규화·서식 내장.
         XCTAssertEqual(NativeMarkdown.parseProse("위\n---\n아래"),
                        [.paragraph(text: "위"), .hr, .paragraph(text: "아래")])

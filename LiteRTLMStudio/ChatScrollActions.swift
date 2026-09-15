@@ -142,19 +142,16 @@ extension ContentView {
             // T-104 정착됐는데 하단이 아니면 확정 점프 1회 (수렴 확인은 다음 회차).
             self.jumpToBottom()
         case .finish(let reason):
-            self.jumpToBottom() // T-104 정착 후 확정 점프 1회
-            // T-086 검증 킥: 거짓 수렴이면 문서가 자라서 다음 회차가 이어받음.
-            if !gate.verifyKickDone {
-                gate.verifyKickDone = true
-                self.scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
-                self.logger.info(feature: "진입", "검증 킥")
-            } else {
-                self.pendingSessionJump = false
-                gate.entryWorks.forEach { $0.cancel() }
-                gate.entryWorks.removeAll()
-                self.logger.info(feature: "진입", "종료: \(reason)")
-                return false
+            // T-156 수렴이면 무동작 종료 (재점프·검증킥이 1초 후 출렁의 원인).
+            // 짧음(내용 < 화면)만 확정 점프 1회.
+            if reason != "수렴" {
+                self.jumpToBottom()
             }
+            self.pendingSessionJump = false
+            gate.entryWorks.forEach { $0.cancel() }
+            gate.entryWorks.removeAll()
+            self.logger.info(feature: "진입", "종료: \(reason)")
+            return false
         }
         return true
     }

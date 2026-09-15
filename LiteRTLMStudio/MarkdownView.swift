@@ -17,13 +17,14 @@ enum NativeMarkdown {
         case code(String)
     }
 
-    /// 문단 내 줄 블록 (순수, 테스트 가능, T-151/T-152).
+    /// 문단 내 줄 블록 (순수, 테스트 가능, T-151/T-152/T-155).
     enum ProseBlock: Equatable {
         case heading(level: Int, text: String)
         case bullet(text: String, indent: Int)
         case ordered(index: Int, text: String, indent: Int)
         case table(rows: [[String]], header: Bool)
         case hr
+        case blank
         case paragraph(text: String)
     }
 
@@ -110,55 +111,97 @@ enum NativeMarkdown {
         return segs
     }
 
-    /// 문단 줄 분류 (순수, 테스트 가능, T-151/T-152): 제목·목록·표·구분선·문단 판정.
-    nonisolated static func parseProse(_ s: String) -> [ProseBlock] {
+    /// 줄 분류 누적기 (T-156, 함수 길이 관리용).
+    struct ProseAccumulator {
         var out: [ProseBlock] = []
         var pending: [String] = []
         var rows: [[String]] = []
         var header = false
-        func flushPara() {
-            guard !pending.isEmpty else { return }
-            out.append(.paragraph(text: pending.joined(separator: "\n")))
-            pending = []
-        }
-        func flushTable() {
-            guard !rows.isEmpty else { return }
-            out.append(.table(rows: rows, header: header))
-            rows = []
-            header = false
-        }
+        var blankRun = false
+    }
+
+    /// 문단 줄 분류 (순수, 테스트 가능, T-151/T-152/T-155): 제목·목록·표·구분선·문단 판정.
+    /// 연속 빈줄은 blank 1개로 수렴 (T-155): 앞뒤 내용 있을 때만, 선행 빈줄은 무시.
+    nonisolated static func parseProse(_ s: String) -> [ProseBlock] {
+        var acc = ProseAccumulator()
         for line in s.components(separatedBy: "\n") {
-            let t = line.trimmingCharacters(in: .whitespaces)
-            if t.isEmpty {
-                flushPara()
-                flushTable()
-            } else if isHR(t) {
-                flushPara()
-                flushTable()
-                out.append(.hr)
-            } else if let h = headingOf(t) {
-                flushPara()
-                flushTable()
-                out.append(h)
-            } else if t.hasPrefix("|"), t.hasSuffix("|") {
-                flushPara()
-                if isTableDelimiter(t) {
-                    if !rows.isEmpty { header = true }
-                } else {
-                    rows.append(tableCells(t))
-                }
-            } else if let b = bulletOf(line) {
-                flushPara()
-                flushTable()
-                out.append(b)
-            } else {
-                flushTable()
-                pending.append(line)
-            }
+            appendParsedLine(line, to: &acc)
         }
-        flushPara()
-        flushTable()
-        return out
+        flushPara(acc: &acc)
+        flushTable(acc: &acc)
+        return acc.out
+    }
+
+    /// 누적 flush 3종 (T-156 분리).
+    nonisolated static func flushPara(acc: inout ProseAccumulator) {
+        guard !acc.pending.isEmpty else { return }
+        acc.out.append(.paragraph(text: acc.pending.joined(separator: "\n")))
+        acc.pending = []
+    }
+
+    /// 누적 flush 3종 (T-156 분리).
+    nonisolated static func flushTable(acc: inout ProseAccumulator) {
+        guard !acc.rows.isEmpty else { return }
+        acc.out.append(.table(rows: acc.rows, header: acc.header))
+        acc.rows = []
+        acc.header = false
+    }
+
+    /// 누적 flush 3종 (T-156 분리).
+    nonisolated static func flushBlank(acc: inout ProseAccumulator) {
+        guard acc.blankRun, !acc.out.isEmpty else { return }
+        acc.out.append(.blank)
+        acc.blankRun = false
+    }
+
+    /// 단일 줄 분류·누적 (T-156 분리).
+    nonisolated static func appendParsedLine(_ line: String, to acc: inout ProseAccumulator) {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        if t.isEmpty {
+            flushPara(acc: &acc)
+            flushTable(acc: &acc)
+            acc.blankRun = true
+            return
+        }
+        if isHR(t) {
+            emit(.hr, to: &acc)
+            return
+        }
+        if let h = headingOf(t) {
+            emit(h, to: &acc)
+            return
+        }
+        if t.hasPrefix("|"), t.hasSuffix("|") {
+            flushPara(acc: &acc)
+            flushBlank(acc: &acc)
+            accumulateTableRow(t, rows: &acc.rows, header: &acc.header)
+            return
+        }
+        if let b = bulletOf(line) {
+            emit(b, to: &acc)
+            return
+        }
+        flushTable(acc: &acc)
+        flushBlank(acc: &acc)
+        acc.pending.append(line)
+    }
+
+    /// 블록 확정 배출 (T-156 분리).
+    nonisolated static func emit(_ b: ProseBlock, to acc: inout ProseAccumulator) {
+        flushPara(acc: &acc)
+        flushTable(acc: &acc)
+        flushBlank(acc: &acc)
+        acc.out.append(b)
+    }
+
+    /// 표 행 누적 (T-156 분리).
+    nonisolated static func accumulateTableRow(_ t: String, rows: inout [[String]],
+                                               header: inout Bool) {
+        if isTableDelimiter(t) {
+            if !rows.isEmpty { header = true }
+        } else {
+            rows.append(tableCells(t))
+        }
     }
 
     /// 구분선 `---`/`***`/`___` 3개 이상 (순수, 테스트 가능, T-152).
@@ -219,6 +262,18 @@ enum NativeMarkdown {
             .map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
+    /// 코드 언어 태그 제거 (순수, 테스트 가능, T-156): 첫 줄이 `swift` 같은 식별자면 본문만.
+    nonisolated static func stripLangTag(_ c: String) -> String {
+        let body = c.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let nl = body.firstIndex(of: "\n") else { return body }
+        let first = body[..<nl].trimmingCharacters(in: .whitespaces)
+        let tag = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "+#-"))
+        guard !first.isEmpty, first.unicodeScalars.allSatisfy({ tag.contains($0) }) else {
+            return body
+        }
+        return String(body[body.index(after: nl)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// 줌 스케일 → 기준 px (순수, 테스트 가능, T-070, 기존 MarkdownWebView.fontPx 이관).
     nonisolated static func fontPx(_ scale: Double) -> Double {
         14 * min(2.0, max(0.7, scale))
@@ -246,7 +301,7 @@ struct MarkdownView: View, Equatable {
                 case .prose(let p):
                     proseBody(p)
                 case .code(let c):
-                    Text(c.trimmingCharacters(in: .whitespacesAndNewlines))
+                    Text(NativeMarkdown.stripLangTag(c))
                         .font(.system(size: 13 * fontScale, design: .monospaced))
                         .textSelection(.enabled)
                         .padding(8)
@@ -289,6 +344,8 @@ struct MarkdownView: View, Equatable {
                     tableBody(rows: rows, header: header)
                 case .hr:
                     Divider()
+                case .blank:
+                    Spacer().frame(height: 6)
                 case .paragraph(let t):
                     if !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Text(NativeMarkdown.styled(t, size: 14 * fontScale))
