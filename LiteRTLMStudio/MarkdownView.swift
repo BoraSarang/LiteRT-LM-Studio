@@ -8,17 +8,9 @@ enum MarkdownScheme: String {
     case dark
 }
 
-/// 마크다운 네이티브 렌더 (T-150/T-152, WKWebView 제거).
-/// - 블록 분리 후 블록별 전체 파싱 (개행은 블록 경계로 보존, marked breaks:false와 동일)
-/// - 폰트는 AttributedString에 내장 (Text 뒤 `.font()`는 볼드 특성을 덮어서 사용 금지, T-152)
-/// - 코드 블록: 펜스 분리 후 등폭 텍스트 (구문색 미지원, fazm 폴백과 동일)
-/// - 호출 API는 기존과 동일 (text/scheme/isStreaming/fontScale)이라 호출부 변경 없음
-struct MarkdownView: View, Equatable {
-    let text: String
-    var scheme: MarkdownScheme = .auto
-    var isStreaming: Bool = false
-    var fontScale: CGFloat = 1.0 // T-070 채팅 폰트 줌
-
+/// 마크다운 네이티브 순수 헬퍼 모음 (T-154, 타입 길이 관리용 분리).
+/// 호출부는 `NativeMarkdown.xxx` (테스트 무영향).
+enum NativeMarkdown {
     /// 렌더 블록 (순수, 테스트 가능, T-150): 펜스 안/밖 분리.
     enum Block: Equatable {
         case prose(String)
@@ -28,16 +20,17 @@ struct MarkdownView: View, Equatable {
     /// 문단 내 줄 블록 (순수, 테스트 가능, T-151/T-152).
     enum ProseBlock: Equatable {
         case heading(level: Int, text: String)
-        case bullet(text: String)
-        case ordered(index: Int, text: String)
+        case bullet(text: String, indent: Int)
+        case ordered(index: Int, text: String, indent: Int)
         case table(rows: [[String]], header: Bool)
         case hr
         case paragraph(text: String)
     }
 
-    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.text == rhs.text && lhs.scheme == rhs.scheme && lhs.isStreaming == rhs.isStreaming
-            && lhs.fontScale == rhs.fontScale
+    /// 볼드 구간 (T-154): 균등 `**` 마커 분할. 홀수 조각이 볼드. 불균등이면 전체 일반.
+    struct StrongSeg: Equatable {
+        var text: String
+        var bold: Bool
     }
 
     /// 펜스 코드 블록 분리 (순수, 테스트 가능, T-150): ``` 울타리 기준 교대 분할.
@@ -72,22 +65,49 @@ struct MarkdownView: View, Equatable {
 
     /// 서식 내장 파싱 (T-152): 블록 전체 파싱 + 크기·굵기·등폭을 run에 직접 기록.
     /// View 뒤 `.font()`는 볼드 특성을 덮으므로 폰트는 여기에서만 지정한다.
+    /// `**`는 수동 보장 (T-154): 괄호 등 파서 실패 케이스도 구 koreanStrong처럼 항상 볼드.
     nonisolated static func styled(_ s: String, size: CGFloat, weight: Font.Weight = .regular)
         -> AttributedString {
-        var base = (try? AttributedString(markdown: normalizeStrong(s)))
-            ?? AttributedString(s)
-        for run in base.runs {
-            var f = Font.system(size: size, weight: weight, design: .default)
-            if let v = run.inlinePresentationIntent {
+        var out = AttributedString()
+        for seg in splitStrong(normalizeStrong(s)) {
+            var part = (try? AttributedString(markdown: seg.text)) ?? AttributedString(seg.text)
+            for run in part.runs {
+                var f = Font.system(size: size, weight: weight, design: .default)
+                var v = run.inlinePresentationIntent ?? InlinePresentationIntent()
+                if seg.bold { v.insert(.stronglyEmphasized) }
                 if v.contains(.stronglyEmphasized) { f = f.bold() }
                 if v.contains(.emphasized) { f = f.italic() }
                 if v.contains(.code) {
                     f = Font.system(size: size, weight: weight, design: .monospaced)
                 }
+                part[run.range].inlinePresentationIntent = v
+                part[run.range].font = f
             }
-            base[run.range].font = f
+            out.append(part)
         }
-        return base
+        return out
+    }
+
+    /// `**` 수동 분할 (순수, 테스트 가능, T-154): `***` 오인식 방지 가드 포함.
+    nonisolated static func splitStrong(_ s: String) -> [StrongSeg] {
+        guard let re = try? NSRegularExpression(pattern: #"(?<!\*)\*\*(?!\*)"#) else {
+            return [StrongSeg(text: s, bold: false)]
+        }
+        let ns = s as NSString
+        let marks = re.matches(in: s, range: NSRange(location: 0, length: ns.length))
+        guard marks.count.isMultiple(of: 2), !marks.isEmpty else {
+            return [StrongSeg(text: s, bold: false)]
+        }
+        var segs: [StrongSeg] = []
+        var pos = 0
+        for (i, m) in marks.enumerated() {
+            let len = m.range.location - pos
+            segs.append(StrongSeg(text: ns.substring(with: NSRange(location: pos, length: len)),
+                                  bold: !i.isMultiple(of: 2)))
+            pos = m.range.location + m.range.length
+        }
+        segs.append(StrongSeg(text: ns.substring(from: pos), bold: false))
+        return segs
     }
 
     /// 문단 줄 분류 (순수, 테스트 가능, T-151/T-152): 제목·목록·표·구분선·문단 판정.
@@ -127,7 +147,7 @@ struct MarkdownView: View, Equatable {
                 } else {
                     rows.append(tableCells(t))
                 }
-            } else if let b = bulletOf(t) {
+            } else if let b = bulletOf(line) {
                 flushPara()
                 flushTable()
                 out.append(b)
@@ -163,21 +183,24 @@ struct MarkdownView: View, Equatable {
         return body.isEmpty ? nil : .heading(level: level, text: body)
     }
 
-    /// 목록 판정 `-`/`*`/`N.` (순수, T-151).
+    /// 목록 판정 `-`/`*`/`N.` (순수, T-151/T-154): 앞 공백 2칸당 인덴트 1 (최대 3).
     nonisolated static func bulletOf(_ t: String) -> ProseBlock? {
-        if t.hasPrefix("- ") || t.hasPrefix("* ") {
-            return .bullet(text: String(t.dropFirst(2)))
+        let spaces = t.prefix(while: { $0 == " " }).count
+        let indent = min(3, spaces / 2)
+        let body = String(t.dropFirst(spaces))
+        if body.hasPrefix("- ") || body.hasPrefix("* ") {
+            return .bullet(text: String(body.dropFirst(2)), indent: indent)
         }
         var digits = 0
-        for c in t {
+        for c in body {
             guard c.isNumber else { break }
             digits += 1
         }
         if digits > 0 {
-            let rest = t.dropFirst(digits)
+            let rest = body.dropFirst(digits)
             if rest.hasPrefix(". ") || rest.hasPrefix(") ") {
-                let num = Int(t.prefix(digits)) ?? 1
-                return .ordered(index: num, text: String(rest.dropFirst(2)))
+                let num = Int(body.prefix(digits)) ?? 1
+                return .ordered(index: num, text: String(rest.dropFirst(2)), indent: indent)
             }
         }
         return nil
@@ -200,10 +223,25 @@ struct MarkdownView: View, Equatable {
     nonisolated static func fontPx(_ scale: Double) -> Double {
         14 * min(2.0, max(0.7, scale))
     }
+}
+
+/// 마크다운 네이티브 렌더 (T-150/T-152, WKWebView 제거).
+/// - 블록 분리 후 블록별 전체 파싱 (개행은 블록 경계로 보존, marked breaks:false와 동일)
+/// - 호출 API는 기존과 동일 (text/scheme/isStreaming/fontScale)이라 호출부 변경 없음
+struct MarkdownView: View, Equatable {
+    let text: String
+    var scheme: MarkdownScheme = .auto
+    var isStreaming: Bool = false
+    var fontScale: CGFloat = 1.0 // T-070 채팅 폰트 줌
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.text == rhs.text && lhs.scheme == rhs.scheme && lhs.isStreaming == rhs.isStreaming
+            && lhs.fontScale == rhs.fontScale
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(Self.splitFences(text).enumerated()), id: \.offset) { _, block in
+            ForEach(Array(NativeMarkdown.splitFences(text).enumerated()), id: \.offset) { _, block in
                 switch block {
                 case .prose(let p):
                     proseBody(p)
@@ -224,34 +262,36 @@ struct MarkdownView: View, Equatable {
     /// 문단 렌더: 줄 블록별 표시 (T-151/T-152).
     func proseBody(_ p: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(Self.parseProse(p).enumerated()), id: \.offset) { _, b in
+            ForEach(Array(NativeMarkdown.parseProse(p).enumerated()), id: \.offset) { _, b in
                 switch b {
                 case .heading(let level, let t):
-                    Text(Self.styled(t, size: (22 - CGFloat(level) * 2) * fontScale,
-                                     weight: .bold))
+                    Text(NativeMarkdown.styled(t, size: (22 - CGFloat(level) * 2) * fontScale,
+                                               weight: .bold))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                case .bullet(let t):
+                case .bullet(let t, let indent):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("•")
-                        Text(Self.styled(t, size: 14 * fontScale))
+                        Text(NativeMarkdown.styled(t, size: 14 * fontScale))
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                case .ordered(let n, let t):
+                    .padding(.leading, CGFloat(indent) * 14)
+                case .ordered(let n, let t, let indent):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("\(n).")
-                        Text(Self.styled(t, size: 14 * fontScale))
+                        Text(NativeMarkdown.styled(t, size: 14 * fontScale))
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .padding(.leading, CGFloat(indent) * 14)
                 case .table(let rows, let header):
                     tableBody(rows: rows, header: header)
                 case .hr:
                     Divider()
                 case .paragraph(let t):
                     if !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(Self.styled(t, size: 14 * fontScale))
+                        Text(NativeMarkdown.styled(t, size: 14 * fontScale))
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -269,8 +309,8 @@ struct MarkdownView: View, Equatable {
                 ForEach(Array(padded.enumerated()), id: \.offset) { ri, row in
                     GridRow {
                         ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
-                            Text(Self.styled(cell, size: 13 * fontScale,
-                                             weight: (header && ri == 0) ? .bold : .regular))
+                            Text(NativeMarkdown.styled(cell, size: 13 * fontScale,
+                                                       weight: (header && ri == 0) ? .bold : .regular))
                                 .textSelection(.enabled)
                                 .gridCellAnchor(.leading)
                         }
@@ -285,7 +325,7 @@ struct MarkdownView: View, Equatable {
 
     /// 인라인 서식 텍스트: 실패 시 원문 폴백 (빈 화면 방지).
     func inlineText(_ s: String) -> some View {
-        if let attr = Self.attributed(s) {
+        if let attr = NativeMarkdown.attributed(s) {
             return Text(attr).textSelection(.enabled)
         }
         return Text(s).textSelection(.enabled)

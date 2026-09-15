@@ -14,28 +14,30 @@ final class LiteRTLMStudioViewTests: XCTestCase {
     /// 마크다운 네이티브 렌더 (T-150/T-151): 외관값·줌 매핑·펜스/줄블록 분리·개행 보존.
     func testMarkdownNativeEngine() {
         XCTAssertEqual(MarkdownScheme.auto.rawValue, "auto")
-        XCTAssertEqual(MarkdownView.splitFences("a```b```c"),
+        XCTAssertEqual(NativeMarkdown.splitFences("a```b```c"),
                        [.prose("a"), .code("b"), .prose("c")])
-        XCTAssertNotNil(MarkdownView.attributed("**굵게** 확인"))
+        XCTAssertNotNil(NativeMarkdown.attributed("**굵게** 확인"))
         let empty = try? AttributedString(markdown: "")
         XCTAssertNotNil(empty)
         // T-151 줄블록: 제목·목록·표·문단 분류 + 단일 개행 보존.
-        XCTAssertEqual(MarkdownView.parseProse("# 제목\n본문"),
+        XCTAssertEqual(NativeMarkdown.parseProse("# 제목\n본문"),
                        [.heading(level: 1, text: "제목"), .paragraph(text: "본문")])
-        XCTAssertEqual(MarkdownView.parseProse("- a\n2. b"),
-                       [.bullet(text: "a"), .ordered(index: 2, text: "b")])
-        XCTAssertEqual(MarkdownView.parseProse("| a |\n|---|\n| 1 |"),
+        XCTAssertEqual(NativeMarkdown.parseProse("- a\n2. b"),
+                       [.bullet(text: "a", indent: 0), .ordered(index: 2, text: "b", indent: 0)])
+        XCTAssertEqual(NativeMarkdown.parseProse("    - nested"),
+                       [.bullet(text: "nested", indent: 2)])
+        XCTAssertEqual(NativeMarkdown.parseProse("| a |\n|---|\n| 1 |"),
                        [.table(rows: [["a"], ["1"]], header: true)])
-        let kept = MarkdownView.attributed("첫줄\n둘째줄").map { String($0.characters) } ?? ""
+        let kept = NativeMarkdown.attributed("첫줄\n둘째줄").map { String($0.characters) } ?? ""
         XCTAssertTrue(kept.contains("\n"))
         // T-152 서식 완성: 구분선·한글볼드 정규화·서식 내장.
-        XCTAssertEqual(MarkdownView.parseProse("위\n---\n아래"),
+        XCTAssertEqual(NativeMarkdown.parseProse("위\n---\n아래"),
                        [.paragraph(text: "위"), .hr, .paragraph(text: "아래")])
-        XCTAssertTrue(MarkdownView.isHR("***"))
-        XCTAssertFalse(MarkdownView.isHR("--"))
-        XCTAssertEqual(MarkdownView.normalizeStrong("** ㅌㅌㅌ ** 확인"), "**ㅌㅌㅌ** 확인")
-        XCTAssertEqual(MarkdownView.normalizeStrong("**굵게** 확인"), "**굵게** 확인")
-        let strong = MarkdownView.styled("**굵게** 확인", size: 14)
+        XCTAssertTrue(NativeMarkdown.isHR("***"))
+        XCTAssertFalse(NativeMarkdown.isHR("--"))
+        XCTAssertEqual(NativeMarkdown.normalizeStrong("** ㅌㅌㅌ ** 확인"), "**ㅌㅌㅌ** 확인")
+        XCTAssertEqual(NativeMarkdown.normalizeStrong("**굵게** 확인"), "**굵게** 확인")
+        let strong = NativeMarkdown.styled("**굵게** 확인", size: 14)
         var foundBold = false
         for run in strong.runs {
             if let v = run.inlinePresentationIntent, v.contains(.stronglyEmphasized) {
@@ -43,6 +45,21 @@ final class LiteRTLMStudioViewTests: XCTestCase {
             }
         }
         XCTAssertTrue(foundBold)
+        // T-154 수동 bold: 괄호 포함·불균등 처리.
+        XCTAssertEqual(NativeMarkdown.splitStrong("a **x** b"),
+                       [NativeMarkdown.StrongSeg(text: "a ", bold: false),
+                        NativeMarkdown.StrongSeg(text: "x", bold: true),
+                        NativeMarkdown.StrongSeg(text: " b", bold: false)])
+        XCTAssertEqual(NativeMarkdown.splitStrong("닫히지 않은 ** 하나"),
+                       [NativeMarkdown.StrongSeg(text: "닫히지 않은 ** 하나", bold: false)])
+        let paren = NativeMarkdown.styled("**Gemma-2-27B (4-bit 버전)**을 시도", size: 14)
+        var parenBold = false
+        for run in paren.runs {
+            if let v = run.inlinePresentationIntent, v.contains(.stronglyEmphasized) {
+                parenBold = true
+            }
+        }
+        XCTAssertTrue(parenBold)
     }
 
     /// 정보 창 라이브러리 목록 무결성 (T-150): JS 벤더 제거로 빈 목록.
@@ -56,9 +73,9 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         XCTAssertEqual(ContentView.steppedZoom(2.0, step: 0.1), 2.0, accuracy: 0.0001)
         XCTAssertEqual(ContentView.steppedZoom(0.7, step: -0.1), 0.7, accuracy: 0.0001)
         XCTAssertEqual(ContentView.steppedZoom(1.0, step: -0.5), 0.7, accuracy: 0.0001)
-        XCTAssertEqual(MarkdownView.fontPx(1.0), 14.0, accuracy: 0.0001)
-        XCTAssertEqual(MarkdownView.fontPx(3.0), 28.0, accuracy: 0.0001)
-        XCTAssertEqual(MarkdownView.fontPx(0.1), 9.8, accuracy: 0.0001)
+        XCTAssertEqual(NativeMarkdown.fontPx(1.0), 14.0, accuracy: 0.0001)
+        XCTAssertEqual(NativeMarkdown.fontPx(3.0), 28.0, accuracy: 0.0001)
+        XCTAssertEqual(NativeMarkdown.fontPx(0.1), 9.8, accuracy: 0.0001)
     }
 
     /// 인스펙터 섹션 타이틀 (T-072): 3종 고정, 중복 없음.
@@ -119,6 +136,6 @@ final class LiteRTLMStudioViewTests: XCTestCase {
     func testNativeSpikeStreamingAndZoom() throws {
         let partial = try? AttributedString(markdown: "**미완성 볼드")
         XCTAssertNotNil(partial)
-        XCTAssertEqual(MarkdownView.fontPx(1.5), 21.0, accuracy: 0.0001)
+        XCTAssertEqual(NativeMarkdown.fontPx(1.5), 21.0, accuracy: 0.0001)
     }
 }
