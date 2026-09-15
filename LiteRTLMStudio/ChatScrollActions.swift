@@ -63,6 +63,9 @@ extension ContentView {
         followGate.maxTextLen = chat.messages.last?.text.count ?? 0 // T-106 텍스트 기준 초기화
         pauseNotified = false
         logger.info(feature: "스크롤", "채팅 전환 — 하단 이동")
+        // T-153 진입 즉시 점프: 폴링(min 1.2초) 전 빈 화면·상단 노출 방지. finder 부착 전이면 no-op.
+        DispatchQueue.main.async { self.jumpToBottom() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { self.jumpToBottom() }
         scheduleEntryJump(session: session ?? chat.currentSessionID)
     }
 

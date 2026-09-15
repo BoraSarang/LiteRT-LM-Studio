@@ -8,9 +8,10 @@ enum MarkdownScheme: String {
     case dark
 }
 
-/// 마크다운 네이티브 렌더 (T-150, WKWebView 제거).
-/// - 본문: 줄 단위 블록 분리(제목·목록·표·문단) + 인라인 AttributedString (개행 보존)
-/// - 코드 블록: 펜스 분리 후 등폭 텍스트 (구문색은 미지원, fazm 폴백과 동일)
+/// 마크다운 네이티브 렌더 (T-150/T-152, WKWebView 제거).
+/// - 블록 분리 후 블록별 전체 파싱 (개행은 블록 경계로 보존, marked breaks:false와 동일)
+/// - 폰트는 AttributedString에 내장 (Text 뒤 `.font()`는 볼드 특성을 덮어서 사용 금지, T-152)
+/// - 코드 블록: 펜스 분리 후 등폭 텍스트 (구문색 미지원, fazm 폴백과 동일)
 /// - 호출 API는 기존과 동일 (text/scheme/isStreaming/fontScale)이라 호출부 변경 없음
 struct MarkdownView: View, Equatable {
     let text: String
@@ -24,12 +25,13 @@ struct MarkdownView: View, Equatable {
         case code(String)
     }
 
-    /// 문단 내 줄 블록 (순수, 테스트 가능, T-151): 개행 보존용 줄 단위 분류.
+    /// 문단 내 줄 블록 (순수, 테스트 가능, T-151/T-152).
     enum ProseBlock: Equatable {
         case heading(level: Int, text: String)
         case bullet(text: String)
         case ordered(index: Int, text: String)
-        case tableRow(cells: [String], header: Bool)
+        case table(rows: [[String]], header: Bool)
+        case hr
         case paragraph(text: String)
     }
 
@@ -53,44 +55,100 @@ struct MarkdownView: View, Equatable {
         return try? AttributedString(markdown: s, options: options)
     }
 
-    /// 문단 줄 분류 (순수, 테스트 가능, T-151): 제목·목록·표·문단 판정.
+    /// 한글 볼드 정규화 (순수, 테스트 가능, T-152): 구 marked koreanStrong 확장 동등.
+    /// `**...**` 단위로 안쪽 공백만 제거 (`** ㅌㅌㅌ **` → `**ㅌㅌㅌ**`). 바깥 공백은 유지.
+    nonisolated static func normalizeStrong(_ s: String) -> String {
+        guard let re = try? NSRegularExpression(pattern: #"\*\*([^*]+?)\*\*(?!\*)"#) else {
+            return s
+        }
+        var r = s as NSString
+        for m in re.matches(in: s, range: NSRange(location: 0, length: r.length)).reversed() {
+            let inner = r.substring(with: m.range(at: 1)).trimmingCharacters(in: .whitespaces)
+            guard !inner.isEmpty else { continue }
+            r = r.replacingCharacters(in: m.range, with: "**\(inner)**") as NSString
+        }
+        return r as String
+    }
+
+    /// 서식 내장 파싱 (T-152): 블록 전체 파싱 + 크기·굵기·등폭을 run에 직접 기록.
+    /// View 뒤 `.font()`는 볼드 특성을 덮으므로 폰트는 여기에서만 지정한다.
+    nonisolated static func styled(_ s: String, size: CGFloat, weight: Font.Weight = .regular)
+        -> AttributedString {
+        var base = (try? AttributedString(markdown: normalizeStrong(s)))
+            ?? AttributedString(s)
+        for run in base.runs {
+            var f = Font.system(size: size, weight: weight, design: .default)
+            if let v = run.inlinePresentationIntent {
+                if v.contains(.stronglyEmphasized) { f = f.bold() }
+                if v.contains(.emphasized) { f = f.italic() }
+                if v.contains(.code) {
+                    f = Font.system(size: size, weight: weight, design: .monospaced)
+                }
+            }
+            base[run.range].font = f
+        }
+        return base
+    }
+
+    /// 문단 줄 분류 (순수, 테스트 가능, T-151/T-152): 제목·목록·표·구분선·문단 판정.
     nonisolated static func parseProse(_ s: String) -> [ProseBlock] {
         var out: [ProseBlock] = []
         var pending: [String] = []
-        func flush() {
+        var rows: [[String]] = []
+        var header = false
+        func flushPara() {
             guard !pending.isEmpty else { return }
             out.append(.paragraph(text: pending.joined(separator: "\n")))
             pending = []
         }
-        let lines = s.components(separatedBy: "\n")
-        var i = 0
-        while i < lines.count {
-            let line = lines[i]
+        func flushTable() {
+            guard !rows.isEmpty else { return }
+            out.append(.table(rows: rows, header: header))
+            rows = []
+            header = false
+        }
+        for line in s.components(separatedBy: "\n") {
             let t = line.trimmingCharacters(in: .whitespaces)
             if t.isEmpty {
-                flush()
+                flushPara()
+                flushTable()
+            } else if isHR(t) {
+                flushPara()
+                flushTable()
+                out.append(.hr)
             } else if let h = headingOf(t) {
-                flush()
+                flushPara()
+                flushTable()
                 out.append(h)
             } else if t.hasPrefix("|"), t.hasSuffix("|") {
-                flush()
+                flushPara()
                 if isTableDelimiter(t) {
-                    if case .tableRow(let cells, _) = out.last {
-                        out[out.count - 1] = .tableRow(cells: cells, header: true)
-                    }
+                    if !rows.isEmpty { header = true }
                 } else {
-                    out.append(.tableRow(cells: tableCells(t), header: false))
+                    rows.append(tableCells(t))
                 }
             } else if let b = bulletOf(t) {
-                flush()
+                flushPara()
+                flushTable()
                 out.append(b)
             } else {
+                flushTable()
                 pending.append(line)
             }
-            i += 1
         }
-        flush()
+        flushPara()
+        flushTable()
         return out
+    }
+
+    /// 구분선 `---`/`***`/`___` 3개 이상 (순수, 테스트 가능, T-152).
+    nonisolated static func isHR(_ t: String) -> Bool {
+        guard t.count >= 3 else { return false }
+        let set = CharacterSet(charactersIn: "-*_ ")
+        guard t.unicodeScalars.allSatisfy({ set.contains($0) }) else { return false }
+        let marks = t.filter { $0 != " " }
+        guard marks.count >= 3, let first = marks.first else { return false }
+        return marks.allSatisfy { $0 == first } && first != " "
     }
 
     /// 제목 판정 `#` 1~6개 + 공백 (순수, T-151).
@@ -163,40 +221,62 @@ struct MarkdownView: View, Equatable {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 문단 렌더: 줄 블록별 표시 (T-151).
+    /// 문단 렌더: 줄 블록별 표시 (T-151/T-152).
     func proseBody(_ p: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(Array(Self.parseProse(p).enumerated()), id: \.offset) { _, b in
                 switch b {
                 case .heading(let level, let t):
-                    inlineText(t)
-                        .font(.system(size: (22 - CGFloat(level) * 2) * fontScale, weight: .bold))
+                    Text(Self.styled(t, size: (22 - CGFloat(level) * 2) * fontScale,
+                                     weight: .bold))
+                        .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 case .bullet(let t):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("•").font(.system(size: 14 * fontScale))
-                        inlineText(t)
-                            .font(.system(size: 14 * fontScale))
+                        Text("•")
+                        Text(Self.styled(t, size: 14 * fontScale))
+                            .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 case .ordered(let n, let t):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("\(n).").font(.system(size: 14 * fontScale))
-                        inlineText(t)
-                            .font(.system(size: 14 * fontScale))
+                        Text("\(n).")
+                        Text(Self.styled(t, size: 14 * fontScale))
+                            .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                case .tableRow(let cells, let header):
-                    Text(cells.joined(separator: " · "))
-                        .font(.system(size: 13 * fontScale, weight: header ? .bold : .regular,
-                                      design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                case .table(let rows, let header):
+                    tableBody(rows: rows, header: header)
+                case .hr:
+                    Divider()
                 case .paragraph(let t):
                     if !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        inlineText(t)
-                            .font(.system(size: 14 * fontScale))
+                        Text(Self.styled(t, size: 14 * fontScale))
+                            .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+    }
+
+    /// 실제 표 렌더 (T-152): 헤더 볼드 + 구분선 + 열 맞춤 Grid.
+    func tableBody(rows: [[String]], header: Bool) -> some View {
+        let cols = max(1, rows.map(\.count).max() ?? 1)
+        let padded = rows.map { r in r + Array(repeating: "", count: max(0, cols - r.count)) }
+        return VStack(alignment: .leading, spacing: 2) {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
+                ForEach(Array(padded.enumerated()), id: \.offset) { ri, row in
+                    GridRow {
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
+                            Text(Self.styled(cell, size: 13 * fontScale,
+                                             weight: (header && ri == 0) ? .bold : .regular))
+                                .textSelection(.enabled)
+                                .gridCellAnchor(.leading)
+                        }
+                    }
+                    if header, ri == 0 {
+                        Divider().gridCellUnsizedAxes(.horizontal)
                     }
                 }
             }

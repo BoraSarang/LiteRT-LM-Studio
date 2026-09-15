@@ -25,10 +25,24 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         XCTAssertEqual(MarkdownView.parseProse("- a\n2. b"),
                        [.bullet(text: "a"), .ordered(index: 2, text: "b")])
         XCTAssertEqual(MarkdownView.parseProse("| a |\n|---|\n| 1 |"),
-                       [.tableRow(cells: ["a"], header: true),
-                        .tableRow(cells: ["1"], header: false)])
+                       [.table(rows: [["a"], ["1"]], header: true)])
         let kept = MarkdownView.attributed("첫줄\n둘째줄").map { String($0.characters) } ?? ""
         XCTAssertTrue(kept.contains("\n"))
+        // T-152 서식 완성: 구분선·한글볼드 정규화·서식 내장.
+        XCTAssertEqual(MarkdownView.parseProse("위\n---\n아래"),
+                       [.paragraph(text: "위"), .hr, .paragraph(text: "아래")])
+        XCTAssertTrue(MarkdownView.isHR("***"))
+        XCTAssertFalse(MarkdownView.isHR("--"))
+        XCTAssertEqual(MarkdownView.normalizeStrong("** ㅌㅌㅌ ** 확인"), "**ㅌㅌㅌ** 확인")
+        XCTAssertEqual(MarkdownView.normalizeStrong("**굵게** 확인"), "**굵게** 확인")
+        let strong = MarkdownView.styled("**굵게** 확인", size: 14)
+        var foundBold = false
+        for run in strong.runs {
+            if let v = run.inlinePresentationIntent, v.contains(.stronglyEmphasized) {
+                foundBold = true
+            }
+        }
+        XCTAssertTrue(foundBold)
     }
 
     /// 정보 창 라이브러리 목록 무결성 (T-150): JS 벤더 제거로 빈 목록.
