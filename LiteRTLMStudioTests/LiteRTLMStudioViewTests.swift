@@ -11,7 +11,7 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         XCTAssertFalse(ContentView.isPinnedToBottom(bottomMaxY: 700, viewportHeight: 600))
     }
 
-    /// 마크다운 네이티브 렌더 (T-150): 외관값·줌 매핑·펜스 분리.
+    /// 마크다운 네이티브 렌더 (T-150/T-151): 외관값·줌 매핑·펜스/줄블록 분리·개행 보존.
     func testMarkdownNativeEngine() {
         XCTAssertEqual(MarkdownScheme.auto.rawValue, "auto")
         XCTAssertEqual(MarkdownView.splitFences("a```b```c"),
@@ -19,6 +19,16 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         XCTAssertNotNil(MarkdownView.attributed("**굵게** 확인"))
         let empty = try? AttributedString(markdown: "")
         XCTAssertNotNil(empty)
+        // T-151 줄블록: 제목·목록·표·문단 분류 + 단일 개행 보존.
+        XCTAssertEqual(MarkdownView.parseProse("# 제목\n본문"),
+                       [.heading(level: 1, text: "제목"), .paragraph(text: "본문")])
+        XCTAssertEqual(MarkdownView.parseProse("- a\n2. b"),
+                       [.bullet(text: "a"), .ordered(index: 2, text: "b")])
+        XCTAssertEqual(MarkdownView.parseProse("| a |\n|---|\n| 1 |"),
+                       [.tableRow(cells: ["a"], header: true),
+                        .tableRow(cells: ["1"], header: false)])
+        let kept = MarkdownView.attributed("첫줄\n둘째줄").map { String($0.characters) } ?? ""
+        XCTAssertTrue(kept.contains("\n"))
     }
 
     /// 정보 창 라이브러리 목록 무결성 (T-150): JS 벤더 제거로 빈 목록.
