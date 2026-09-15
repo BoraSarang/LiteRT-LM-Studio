@@ -79,27 +79,34 @@ struct MarkdownView: View, Equatable {
         }
     }
 
-    /// 실제 표 렌더 (T-152): 헤더 볼드 + 구분선 + 열 맞춤 Grid.
+    /// 실제 표 렌더 (T-152/T-161): 테두리 상자 + 행/열 구분선 + 셀 패딩.
     func tableBody(rows: [[String]], header: Bool) -> some View {
         let cols = max(1, rows.map(\.count).max() ?? 1)
         let padded = rows.map { r in r + Array(repeating: "", count: max(0, cols - r.count)) }
-        return VStack(alignment: .leading, spacing: 2) {
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
-                ForEach(Array(padded.enumerated()), id: \.offset) { ri, row in
-                    GridRow {
-                        ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
-                            Text(NativeMarkdown.styled(cell, size: 13 * fontScale,
-                                                       weight: (header && ri == 0) ? .bold : .regular))
-                                .textSelection(.enabled)
-                                .gridCellAnchor(.leading)
-                        }
+        return Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+            ForEach(Array(padded.enumerated()), id: \.offset) { ri, row in
+                GridRow {
+                    ForEach(Array(row.enumerated()), id: \.offset) { ci, cell in
+                        Text(NativeMarkdown.styled(cell, size: 13 * fontScale,
+                                                   weight: (header && ri == 0) ? .semibold : .regular))
+                            .textSelection(.enabled)
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 8)
+                            .gridCellAnchor(.leading)
+                        if ci < cols - 1 { Divider() }
                     }
-                    if header, ri == 0 {
-                        Divider().gridCellUnsizedAxes(.horizontal)
-                    }
+                }
+                if ri < padded.count - 1 || (header && ri == 0) {
+                    Divider()
+                        .gridCellUnsizedAxes(.horizontal)
+                        .gridCellColumns(cols * 2 - 1)
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.textBackgroundColor))
+        .clipShape(.rect(cornerRadius: 8))
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) }
     }
 
     /// 코드 블록 렌더 (T-158/T-160): 첫 페인트는 단색, 하이라이트는 비동기 승격.
