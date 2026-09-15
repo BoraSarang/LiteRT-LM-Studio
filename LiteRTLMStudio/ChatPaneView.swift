@@ -75,6 +75,7 @@ extension ContentView {
     }
 
     /// 메시지 리스트 (T-137): chatPane 본문 타입체크 분할용.
+    /// T-166 방별 ScrollView 재생성: 이전 방 오프셋 잔재로 빈 화면이 보이던 문제 제거.
     var messageListView: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -102,6 +103,7 @@ extension ContentView {
                 }
                 .onAppear { scrollProxy = proxy } // T-081 body 평가 중 변경 회피
             }
+            .id(chat.currentSessionID) // T-166 방별 재생성 (stale 오프셋 제거)
             .coordinateSpace(name: "chatScroll")
             .background {
                 GeometryReader { geo in
@@ -187,6 +189,7 @@ extension ContentView {
             isStreaming: chat.streaming && m.id == chat.messages.last?.id,
             fontScale: chatFontScale,
             onRetry: { chat.retry() },
+            controlsDisabled: chat.streaming,
             onEdit: { msg in
                 // T-165 다시 요청: 질문을 입력창에 채우고 이후 내역 제거.
                 guard let text = chat.editMessage(msg.id) else { return }

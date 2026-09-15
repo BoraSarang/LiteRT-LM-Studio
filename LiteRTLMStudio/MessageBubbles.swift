@@ -42,12 +42,14 @@ struct MessageBubbleView: View {
     var isStreaming: Bool = false
     var fontScale: CGFloat = 1.0 // T-070 채팅 폰트 줌
     let onRetry: () -> Void
+    /// 전역 전송 중 여부 (T-165): 스트리밍 중 자르기는 인덱스 붕괴라 입력 푸터 숨김.
+    var controlsDisabled = false
     var onEdit: (ChatStore.Message) -> Void = { _ in }
 
     var body: some View {
         if message.role == "user" {
             UserBubbleView(message: message, fontScale: fontScale,
-                           isStreaming: isStreaming, onEdit: onEdit)
+                           disabled: controlsDisabled, onEdit: onEdit)
         } else {
             AssistantBubbleView(message: message, showCursor: showCursor,
                                 preparing: preparing, scheme: scheme,
@@ -60,7 +62,7 @@ struct MessageBubbleView: View {
 struct UserBubbleView: View {
     let message: ChatStore.Message
     var fontScale: CGFloat = 1.0 // T-070 채팅 폰트 줌
-    var isStreaming = false
+    var disabled = false // T-165 전역 스트리밍 중 숨김
     var onEdit: (ChatStore.Message) -> Void = { _ in }
     @StateObject private var copyFlag = CopyFlag()
     @State private var hovering = false // T-165 완료 푸터 호버 공개
@@ -75,7 +77,7 @@ struct UserBubbleView: View {
                     .padding(12) // T-099 유저 버블 좌우 숨쉬기 복원 (어시스턴트는 그대로)
                     .background(Color.accentColor.opacity(0.12))
                     .clipShape(.rect(cornerRadius: 10))
-                if !isStreaming {
+                if !disabled {
                     HStack(spacing: 4) {
                         Button(copyFlag.copied ? "복사됨" : "복사") {
                             PasteboardUtil.copy(message.text)

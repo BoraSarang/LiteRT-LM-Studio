@@ -136,6 +136,26 @@ final class LiteRTLMStudioSessionTests: XCTestCase {
         try? FileManager.default.removeItem(at: url)
     }
 
+    /// 12345 spec (T-165): 3에서 다시 요청 → 입력 3, 3·4·5 삭제.
+    @MainActor
+    func testEditMessageSpec12345() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-edit5-\(UUID().uuidString).json")
+        let store = ChatStore(storageURL: url)
+        _ = store.ensureSessionForSend()
+        let m1 = ChatStore.Message(role: "user", text: "1")
+        let m2 = ChatStore.Message(role: "assistant", text: "2")
+        let m3 = ChatStore.Message(role: "user", text: "3")
+        let m4 = ChatStore.Message(role: "assistant", text: "4")
+        let m5 = ChatStore.Message(role: "user", text: "5")
+        store.messages = [m1, m2, m3, m4, m5]
+        store.persistCurrent()
+        XCTAssertEqual(store.editMessage(m3.id), "3")
+        XCTAssertEqual(store.messages.map(\.text), ["1", "2"])
+        XCTAssertEqual(store.transcripts()[store.currentSessionID!]!.map(\.text), ["1", "2"])
+        try? FileManager.default.removeItem(at: url)
+    }
+
     /// 복원 대상 (T-134): 생성순 선두가 아닌 최근 사용 세션.
     func testMostRecentSessionID() {
         typealias S = ChatStore.Session
