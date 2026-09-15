@@ -102,25 +102,11 @@ struct MarkdownView: View, Equatable {
         }
     }
 
-    /// 코드 블록 렌더 (T-158): Highlightr 색상, 실패 시 단색 등폭 폴백.
+    /// 코드 블록 렌더 (T-158/T-160): 첫 페인트는 단색, 하이라이트는 비동기 승격.
     func codeBody(_ c: String) -> some View {
         let part = NativeMarkdown.splitCode(c)
-        let size = 13 * fontScale
-        let dark = scheme != .light
-        let content: Text
-        if let attr = CodeHighlighter.highlight(code: part.body, lang: part.lang,
-                                                dark: dark, fontSize: size) {
-            content = Text(attr)
-        } else {
-            content = Text(part.body).font(.system(size: size, design: .monospaced))
-        }
-        return content
-            .textSelection(.enabled)
-            .padding(8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.textBackgroundColor))
-            .clipShape(.rect(cornerRadius: 8))
-            .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) } // T-159 코드 상자 경계
+        return CodeBlockView(code: part.body, lang: part.lang,
+                             dark: scheme != .light, fontSize: 13 * fontScale)
     }
 
     /// 인라인 서식 텍스트: 실패 시 원문 폴백 (빈 화면 방지).
@@ -129,5 +115,57 @@ struct MarkdownView: View, Equatable {
             return Text(attr).textSelection(.enabled)
         }
         return Text(s).textSelection(.enabled)
+    }
+}
+
+/// 코드 블록 뷰 (T-160): 언어 헤더+복사 버튼 (구 렌더러 동등).
+/// 첫 페인트는 단색 등폭으로 즉시 그리고, 하이라이트는 직렬 큐에서 비동기 승격.
+struct CodeBlockView: View {
+    let code: String
+    let lang: String?
+    let dark: Bool
+    let fontSize: CGFloat
+    @StateObject private var copyFlag = CopyFlag()
+    @State private var highlighted: AttributedString?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Text(lang?.isEmpty == false ? lang! : "code")
+                    .font(DS.captionFont).foregroundStyle(.secondary)
+                Spacer()
+                Button(copyFlag.copied ? "복사됨" : "복사") {
+                    PasteboardUtil.copy(code)
+                    copyFlag.mark()
+                }
+                .buttonStyle(.plain)
+                .font(DS.captionFont).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            Divider()
+            Group {
+                if let highlighted {
+                    Text(highlighted)
+                } else {
+                    Text(code).font(.system(size: fontSize, design: .monospaced))
+                }
+            }
+            .textSelection(.enabled)
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Color(.textBackgroundColor))
+        .clipShape(.rect(cornerRadius: 8))
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) } // T-159 코드 상자 경계
+        .task(id: code) {
+            guard highlighted == nil else { return }
+            let snapshot = code
+            if let attr = await CodeHighlighter.highlightAsync(code: code, lang: lang,
+                                                               dark: dark, fontSize: fontSize),
+               !Task.isCancelled, snapshot == code {
+                highlighted = attr
+            }
+        }
     }
 }

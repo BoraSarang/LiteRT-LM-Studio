@@ -30,8 +30,18 @@ final class LiteRTLMStudioViewTests: XCTestCase {
                        [.table(rows: [["a"], ["1"]], header: true)])
     }
 
-    /// 표 구분선 다열 회귀 (T-157, 구구단 원문 71~76행).
-    func testTableDelimiterMultiline() {
+    /// 빈줄 수렴+언어 태그 (T-155/T-156).
+    func testBlankCollapseAndLangTag() {
+        XCTAssertEqual(NativeMarkdown.parseProse("a\n\n\nb"),
+                       [.paragraph(text: "a"), .blank, .paragraph(text: "b")])
+        XCTAssertEqual(NativeMarkdown.parseProse("\n\na"), [.paragraph(text: "a")])
+        XCTAssertEqual(NativeMarkdown.parseProse("a\n\n"), [.paragraph(text: "a")])
+        XCTAssertEqual(NativeMarkdown.stripLangTag("swift\nlet a = 1\n"), "let a = 1")
+        XCTAssertEqual(NativeMarkdown.stripLangTag("그냥 코드"), "그냥 코드")
+    }
+
+    /// 표 구분선 다열 회귀 (T-157, 구구단 원문 71~76행) + 비동기 하이라이트 (T-160).
+    func testTableDelimiterMultiline() async {
         XCTAssertTrue(NativeMarkdown.isTableDelimiter("| :--- | :--- | :--- |"))
         XCTAssertTrue(NativeMarkdown.isTableDelimiter("|---|---|"))
         XCTAssertFalse(NativeMarkdown.isTableDelimiter("| a | b |"))
@@ -40,13 +50,6 @@ final class LiteRTLMStudioViewTests: XCTestCase {
             NativeMarkdown.parseProse("| 특징 | C 언어 | C++ |\n| :--- | :--- | :--- |\n| **헤더** | `<stdio.h>` | x |"),
             [.table(rows: [["특징", "C 언어", "C++"],
                            ["**헤더**", "`<stdio.h>`", "x"]], header: true)])
-        XCTAssertEqual(NativeMarkdown.parseProse("a\n\n\nb"),
-                       [.paragraph(text: "a"), .blank, .paragraph(text: "b")])
-        XCTAssertEqual(NativeMarkdown.parseProse("\n\na"), [.paragraph(text: "a")])
-        XCTAssertEqual(NativeMarkdown.parseProse("a\n\n"), [.paragraph(text: "a")])
-        // T-156 코드 언어 태그 제거.
-        XCTAssertEqual(NativeMarkdown.stripLangTag("swift\nlet a = 1\n"), "let a = 1")
-        XCTAssertEqual(NativeMarkdown.stripLangTag("그냥 코드"), "그냥 코드")
         // T-158 코드 언어 분리 + 하이라이트 엔진.
         XCTAssertEqual(NativeMarkdown.splitCode("cpp\nint x;\n").lang, "cpp")
         XCTAssertEqual(NativeMarkdown.splitCode("cpp\nint x;\n").body, "int x;")
@@ -56,6 +59,14 @@ final class LiteRTLMStudioViewTests: XCTestCase {
                                            dark: true, fontSize: 13)
         XCTAssertNotNil(hl)
         XCTAssertTrue(String(hl?.characters ?? AttributedString("").characters).contains("main"))
+        // T-160 비동기 하이라이트 + 캐시 키.
+        let asyncHL = await CodeHighlighter.highlightAsync(code: "int x = 1;", lang: "cpp",
+                                                           dark: true, fontSize: 13)
+        XCTAssertNotNil(asyncHL)
+        XCTAssertEqual(CodeHighlighter.cacheKey(code: "a", lang: "cpp", dark: true, fontSize: 13),
+                       CodeHighlighter.cacheKey(code: "a", lang: "cpp", dark: true, fontSize: 13))
+        XCTAssertNotEqual(CodeHighlighter.cacheKey(code: "a", lang: "cpp", dark: true, fontSize: 13),
+                          CodeHighlighter.cacheKey(code: "b", lang: "cpp", dark: true, fontSize: 13))
         // T-152 서식 완성: 구분선·한글볼드 정규화·서식 내장.
         XCTAssertEqual(NativeMarkdown.parseProse("위\n---\n아래"),
                        [.paragraph(text: "위"), .hr, .paragraph(text: "아래")])
