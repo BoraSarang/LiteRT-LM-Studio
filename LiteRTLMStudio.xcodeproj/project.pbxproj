@@ -548,7 +548,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.7.132;
+				MARKETING_VERSION = 0.7.135;
 				OTHER_SWIFT_FLAGS = "$(inherited) -Xcc -fmodule-map-file=$(PROJECT_DIR)/EngineVendor/Headers/module.modulemap";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.borasarang.litert-lm-studio";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -575,7 +575,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.7.132;
+				MARKETING_VERSION = 0.7.135;
 				OTHER_SWIFT_FLAGS = "$(inherited) -Xcc -fmodule-map-file=$(PROJECT_DIR)/EngineVendor/Headers/module.modulemap";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.borasarang.litert-lm-studio";
 				PRODUCT_NAME = "$(TARGET_NAME)";

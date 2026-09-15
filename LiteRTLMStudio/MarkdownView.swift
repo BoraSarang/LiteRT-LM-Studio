@@ -151,10 +151,12 @@ struct MarkdownView: View, Equatable {
     }
 }
 
-/// 코드 블록 뷰 (T-160/T-196): 언어 헤더+복사 버튼 (구 렌더러 동등).
+/// 코드 블록 뷰 (T-160/T-196/T-197): 언어 헤더+복사 버튼 (구 렌더러 동등).
 /// 첫 페인트는 단색 등폭으로 즉시 그리고, 하이라이트는 직렬 큐에서 비동기 승격.
 /// T-196: 스트리밍 중엔 작업 키 고정 → flush마다 JS 하이라이트가 쌓여
 /// CPU 100%·자동 추종 기아를 내던 문제 해소. 완료 후 최종 코드로 1회만 승격.
+/// T-197: 스트리밍 중엔 항상 평문 (첫 페인트 빈 코드의 빈 하이라이트가
+/// 스트림 내내 고착되어 코드가 안 보이던 역효과 수정).
 struct CodeBlockView: View {
     let code: String
     let lang: String?
@@ -188,7 +190,9 @@ struct CodeBlockView: View {
             .padding(.vertical, 4)
             Divider()
             Group {
-                if let highlighted {
+                if isStreaming {
+                    Text(code).font(.system(size: fontSize, design: .monospaced))
+                } else if let highlighted {
                     Text(highlighted)
                 } else {
                     Text(code).font(.system(size: fontSize, design: .monospaced))
@@ -202,7 +206,7 @@ struct CodeBlockView: View {
         .clipShape(.rect(cornerRadius: 8))
         .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) } // T-159 코드 상자 경계
         .task(id: Self.highlightTaskID(code: code, isStreaming: isStreaming)) {
-            guard highlightedCode != code else { return }
+            guard !isStreaming, highlightedCode != code else { return }
             let snapshot = code
             if let attr = await CodeHighlighter.highlightAsync(code: code, lang: lang,
                                                                dark: dark, fontSize: fontSize),

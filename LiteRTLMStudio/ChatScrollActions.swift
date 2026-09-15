@@ -66,6 +66,19 @@ extension ContentView {
         DispatchQueue.main.async { self.jumpToBottom() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { self.jumpToBottom() }
         scheduleEntryJump(session: session ?? chat.currentSessionID)
+        // T-198 지연 보정: 진입 체인 중단·상한 종료 후에도 문서 밖 오프셋이면 수렴.
+        // 정상 위치는 clampToDocument가 건드리지 않음. 다음 전환 시 entryWorks와 함께 취소.
+        // T-199: 느린 첫 페인트(표 많은 방) 대비 5초까지 연장.
+        for delay in [1.5, 3.0, 5.0] {
+            let sessionID = session ?? chat.currentSessionID
+            let work = DispatchWorkItem { [weak followGate] in
+                guard followGate != nil,
+                      sessionID == nil || sessionID == self.chat.currentSessionID else { return }
+                self.clampToDocument()
+            }
+            followGate.entryWorks.append(work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+        }
     }
 
     /// 진입 폴링 1회 (T-080, T-081, T-083, T-104 관측 후 점프): 킥은 레이아웃 증거 후 1회,
@@ -87,6 +100,7 @@ extension ContentView {
             guard session == nil || session == self.chat.currentSessionID,
                   gate.lastWheel < gate.entrySince else {
                 self.reconcilePin()
+                self.clampToDocument() // T-198: 중단 시에도 빈 영역이면 수렴.
                 self.logger.info(feature: "진입", "중단: 세션교체·휠")
                 return
             }
@@ -112,6 +126,8 @@ extension ContentView {
         // T-104 정착 전 점프 없음: 높이만 관측 (출렁 원인 제거).
         gate.lastDocHeights.append(docH)
         if gate.lastDocHeights.count > 3 { gate.lastDocHeights.removeFirst() }
+        // T-199 폴링 중 상시 보정: 문서 밖 오프셋이면 즉시 수렴 (읽는 중 위치 불변).
+        self.clampToDocument()
         guard let sv = self.chatScrollView, let doc = sv.documentView else { return true }
         let clipH = sv.contentView.bounds.height
         // T-150 네이티브 동기 렌더: 페인트 대기 불필요, 항상 참.
@@ -153,6 +169,27 @@ extension ContentView {
         pinnedToBottom = Self.isAtBottomOffset(offset: sv.contentView.bounds.origin.y,
                                                content: doc.bounds.height,
                                                container: sv.contentView.bounds.height)
+    }
+
+    /// 빈 영역 판정 (순수, 테스트 가능, T-198): 문서 끝 초과면 보정 대상.
+    /// 방 전환 잔재 등 오프셋이 문서 밖에 있으면 타임라인이 휑하게 보임.
+    nonisolated static func blankOffset(cur: CGFloat, docHeight: CGFloat, clipHeight: CGFloat,
+                                        threshold: CGFloat = 8) -> Bool {
+        cur > max(0, docHeight - clipHeight) + threshold
+    }
+
+    /// 빈 영역 보정 (T-198): 문서 밖 오프셋만 하단으로 수렴.
+    /// 정상 위치(읽는 중 포함)는 절대 건드리지 않음.
+    func clampToDocument() {
+        guard let sv = chatScrollView, let doc = sv.documentView else { return }
+        guard Self.blankOffset(cur: sv.contentView.bounds.origin.y,
+                               docHeight: doc.bounds.height,
+                               clipHeight: sv.contentView.bounds.height) else { return }
+        let maxY = max(0, doc.bounds.height - sv.contentView.bounds.height)
+        sv.contentView.setBoundsOrigin(NSPoint(x: 0, y: maxY))
+        sv.reflectScrolledClipView(sv.contentView)
+        reconcilePin()
+        logger.info(feature: "스크롤", "빈 영역 보정 → 하단")
     }
 
     /// 하단 중앙 점프 버튼 (T-064): 텍스트 대신 아래 화살표 원형.

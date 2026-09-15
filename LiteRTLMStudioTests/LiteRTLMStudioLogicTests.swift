@@ -138,6 +138,16 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertFalse(ContentView.contentShrank(current: 0, last: 0))
     }
 
+    /// 빈 영역 판정 (T-198): 문서 밖 오프셋만 보정, 정상 위치는 제외.
+    func testBlankOffset() {
+        // 긴 방 잔재 오프셋으로 짧은 방 진입 → 보정 대상.
+        XCTAssertTrue(ContentView.blankOffset(cur: 5000, docHeight: 600, clipHeight: 800))
+        // 하단·읽는 중(중간)·짧은 문서 정상 → 제외.
+        XCTAssertFalse(ContentView.blankOffset(cur: 0, docHeight: 600, clipHeight: 800))
+        XCTAssertFalse(ContentView.blankOffset(cur: 300, docHeight: 2000, clipHeight: 800))
+        XCTAssertFalse(ContentView.blankOffset(cur: 0, docHeight: 0, clipHeight: 800))
+    }
+
     /// 삭제 액션 중복 발사 가드 (T-113): 동일 ID 1초 내 재호출만 무시.
     func testAllowDelete() {
         let id = UUID()
