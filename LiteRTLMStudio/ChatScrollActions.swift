@@ -106,7 +106,7 @@ extension ContentView {
         let minAttempts = 8 // T-081 버스트 전 고원(≈1.2초) 회피
         guard attempt < maxAttempts else {
             pendingSessionJump = false
-            self.jumpToBottom() // T-104 미정착 종료 시 최선 1회
+            self.settleToBottom() // T-209 상한 종료도 동일 (동결 해제+확정)
             // T-204 상한 종료도 기준 기록 (이후 붕괴·고착 판정용).
             if let sv = self.chatScrollView, let doc = sv.documentView {
                 self.followGate.finishDocH = doc.bounds.height
@@ -174,8 +174,8 @@ extension ContentView {
             // T-104 정착됐는데 하단이 아니면 확정 점프 1회 (수렴 확인은 다음 회차).
             self.jumpToBottom()
         case .finish(let reason):
-            // T-167 종료 시 클램프 점프 확정 (데드밴드로 수렴 시 무동작, 미수렴만 교정).
-            self.jumpToBottom()
+            // T-209 프록시 우선 착지 (동결 해제+확정 한 묶음).
+            self.settleToBottom()
             self.pendingSessionJump = false
             // T-204 종료 기준 기록 (이후 붕괴·고착 판정용).
             gate.finishDocH = snap.docH

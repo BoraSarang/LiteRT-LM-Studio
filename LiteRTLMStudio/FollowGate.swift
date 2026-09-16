@@ -166,6 +166,19 @@ extension ContentView {
         logger.info(feature: "스크롤", "고착 보정 → 하단")
     }
 
+    /// 진입 확정 착지 (T-209): 절대 점프 → 프록시 chatBottom → 0.2초 후 확정.
+    /// AppKit 직접 점프만으로는 동결된 추정치를 못 깨고 허공에 남음.
+    /// 프록시는 SwiftUI 레이아웃을 깨우고, 확정 점프가 실측 기준으로 교정
+    /// (T-167 오버슛은 여기서 흡수, 지연 보정 6종 유지).
+    func settleToBottom() {
+        jumpToBottom()
+        scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            self.jumpToBottom()
+            self.refreshFinishMark()
+        }
+    }
+
     /// 스윕 복구 (T-208): 얼어붙은 추정치를 깨는 해머. 맨 위로 갔다가 하단으로.
     /// 점프만으로는 추정치 공간을 못 벗어나서 실측 강제용. 고착 방에서만 1회.
     func sweepBottomRecover() {
