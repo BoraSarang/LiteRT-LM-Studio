@@ -77,6 +77,7 @@ extension ContentView {
         sv.contentView.setBoundsOrigin(NSPoint(x: 0, y: maxY))
         sv.reflectScrolledClipView(sv.contentView)
         reconcilePin()
+        refreshFinishMark() // T-205 후속 판정 기준
         logger.info(feature: "스크롤", "빈 영역 보정 → 하단")
     }
 
@@ -89,7 +90,16 @@ extension ContentView {
                             docHeight: doc.bounds.height,
                             clipHeight: sv.contentView.bounds.height) else { return }
         jumpToBottom()
+        refreshFinishMark() // T-205 보정 후 기준 갱신 (자기차단 방지)
         logger.info(feature: "스크롤", "위 고착 보정 → 하단")
+    }
+
+    /// 종료 기준 갱신 (T-205): 보정 점프 후 현재 위치를 새 기준으로.
+    /// 안 하면 보정 점프 자체가 이동량 가드를 오염시켜 후속 보정이 영구 스킵됨.
+    func refreshFinishMark() {
+        guard let sv = chatScrollView, let doc = sv.documentView else { return }
+        followGate.finishDocH = doc.bounds.height
+        followGate.finishOffset = sv.contentView.bounds.origin.y
     }
 
     /// 붕괴 보정 (T-204): 종료 후 문서가 크게 줄면 종료 시점 오프셋이 허공에 남음.
@@ -102,7 +112,7 @@ extension ContentView {
         let cur = doc.bounds.height
         guard Self.docCollapsed(finish: followGate.finishDocH, current: cur) else { return }
         jumpToBottom()
-        followGate.finishDocH = cur // 반복 점프 방지 (1회성)
+        refreshFinishMark() // T-205 반복 점프 방지 + 후속 판정 기준
         logger.info(feature: "스크롤", "문서 붕괴 보정 → 하단")
     }
 
@@ -118,6 +128,7 @@ extension ContentView {
                                docHeight: doc.bounds.height,
                                clipHeight: sv.contentView.bounds.height) else { return }
         jumpToBottom()
+        refreshFinishMark() // T-205 후속 판정 기준
         logger.info(feature: "스크롤", "고착 보정 → 하단")
     }
 
@@ -133,7 +144,10 @@ extension ContentView {
                                docHeight: doc.bounds.height,
                                clipHeight: sv.contentView.bounds.height) else { return }
         scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { self.jumpToBottom() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            self.jumpToBottom()
+            self.refreshFinishMark() // T-205 후속 판정 기준
+        }
         logger.info(feature: "스크롤", "프록시 재착지")
     }
 }
