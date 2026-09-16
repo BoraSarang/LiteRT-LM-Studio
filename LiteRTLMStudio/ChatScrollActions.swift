@@ -364,8 +364,13 @@ extension ContentView {
     }
 
     /// 백엔드 적용: 저장 → 데몬 재시작. 외부 데몬은 확인 후 인수.
+    /// 앱 내 엔진 경로면 재시작 없이 저장만 (다음 초기화 때 반영).
      func applyBackend() {
         guard config.apply(modelID: chat.model) else { return }
+        if chat.route == .native {
+            logger.info(feature: "설정적용", "앱 내 엔진 경로 — 다음 초기화 때 반영 (재시작 없음)")
+            return
+        }
         if daemon.external {
             showTakeoverConfirm = true
             return
@@ -375,9 +380,11 @@ extension ContentView {
         Task { await daemon.start() }
     }
 
+     /// T-216: 별도창 + 수동 시작 (자동 실행 없음, 모델·모드만 예약).
+     /// T-225: 선택도 해제 (새 측정扱い).
      func runBenchmark(id: String) {
-        showBench = true
-        bench.route = chat.route
-        bench.run(modelID: id)
+        benchHistory.selectedRecordID = nil
+        bench.prepare(modelID: id, route: chat.route)
+        NotificationCenter.default.post(name: .openBenchmark, object: nil)
     }
 }

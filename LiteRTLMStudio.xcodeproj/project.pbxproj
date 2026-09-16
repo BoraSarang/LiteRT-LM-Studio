@@ -60,6 +60,9 @@
 				500000000000000000000046,
 				500000000000000000000013,
 				500000000000000000000022,
+				500000000000000000000102,
+				500000000000000000000104,
+				500000000000000000000105,
 				500000000000000000000024,
 				500000000000000000000027,
 				500000000000000000000028,
@@ -101,6 +104,9 @@
 				500000000000000000000099,
 				500000000000000000000020,
 				500000000000000000000021,
+				500000000000000000000101,
+				500000000000000000000103,
+				500000000000000000000106,
 				500000000000000000000023,
 				500000000000000000000064,
 				500000000000000000000025,
@@ -220,6 +226,12 @@
 				400000000000000000000008,
 				400000000000000000000010,
 				400000000000000000000011,
+				400000000000000000000101,
+				400000000000000000000102,
+				400000000000000000000103,
+				400000000000000000000104,
+				400000000000000000000105,
+				400000000000000000000106,
 				400000000000000000000012,
 				400000000000000000000013,
 				400000000000000000000052,
@@ -346,6 +358,12 @@
 		};
 		400000000000000000000010 = { isa = PBXBuildFile; fileRef = 500000000000000000000020; };
 		400000000000000000000011 = { isa = PBXBuildFile; fileRef = 500000000000000000000021; };
+		400000000000000000000101 = { isa = PBXBuildFile; fileRef = 500000000000000000000101; };
+		400000000000000000000102 = { isa = PBXBuildFile; fileRef = 500000000000000000000102; };
+		400000000000000000000103 = { isa = PBXBuildFile; fileRef = 500000000000000000000103; };
+		400000000000000000000104 = { isa = PBXBuildFile; fileRef = 500000000000000000000104; };
+		400000000000000000000105 = { isa = PBXBuildFile; fileRef = 500000000000000000000105; };
+		400000000000000000000106 = { isa = PBXBuildFile; fileRef = 500000000000000000000106; };
 		400000000000000000000012 = { isa = PBXBuildFile; fileRef = 500000000000000000000022; };
 		400000000000000000000013 = { isa = PBXBuildFile; fileRef = 500000000000000000000023; };
 		400000000000000000000052 = { isa = PBXBuildFile; fileRef = 500000000000000000000064; };
@@ -435,6 +453,12 @@
 		500000000000000000000099 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatStore+Generation.swift"; sourceTree = "<group>"; };
 		500000000000000000000020 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ConfigStore.swift"; sourceTree = "<group>"; };
 		500000000000000000000021 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkStore.swift"; sourceTree = "<group>"; };
+		500000000000000000000101 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkHistory.swift"; sourceTree = "<group>"; };
+		500000000000000000000102 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkWindowSections.swift"; sourceTree = "<group>"; };
+		500000000000000000000103 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkPower.swift"; sourceTree = "<group>"; };
+		500000000000000000000104 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkAnalysis.swift"; sourceTree = "<group>"; };
+		500000000000000000000105 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkListView.swift"; sourceTree = "<group>"; };
+		500000000000000000000106 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GlobalPermission.swift"; sourceTree = "<group>"; };
 		500000000000000000000022 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkView.swift"; sourceTree = "<group>"; };
 		500000000000000000000023 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SystemMonitor.swift"; sourceTree = "<group>"; };
 		500000000000000000000064 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SystemMonitor+Sampling.swift"; sourceTree = "<group>"; };

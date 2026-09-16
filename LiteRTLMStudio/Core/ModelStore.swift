@@ -102,4 +102,26 @@ final class ModelStore: ObservableObject {
         await refresh()
         return code == 0
     }
+
+    /// T-229 입력창 피커 정렬 (순수): Gemma → Qwen → 나머지(가나다). 설치 목록은 그대로.
+    nonisolated static func preferredOrder(_ models: [Model]) -> [Model] {
+        models.sorted { a, b in
+            let ra = Self.familyRank(a.id)
+            let rb = Self.familyRank(b.id)
+            if ra != rb { return ra < rb }
+            return a.id.localizedCompare(b.id) == .orderedAscending
+        }
+    }
+
+    nonisolated private static func familyRank(_ id: String) -> Int {
+        let lower = id.lowercased()
+        if lower.contains("gemma") { return 0 }
+        if lower.contains("qwen") { return 1 }
+        return 2
+    }
+
+    /// T-216: 이미 있으면 네트워크 조회 생략 (벤치마크 창 진입용).
+    func refreshIfEmpty() async {
+        if models.isEmpty { await refresh() }
+    }
 }

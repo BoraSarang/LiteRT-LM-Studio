@@ -11,8 +11,9 @@ struct LiteRTLMStudioApp: App {
     var body: some Scene {
         // 단일 창: openWindow(id:)가 기존 창을 앞으로 올림 (중복 생성 방지).
         Window("LiteRT-LM Studio", id: "main") {
-            ContentView(daemon: services.daemon, monitor: services.monitor,
-                        nativeEngine: services.nativeEngine)
+            ContentView(models: services.models, daemon: services.daemon, monitor: services.monitor,
+                        nativeEngine: services.nativeEngine, chat: services.chat,
+                        bench: services.bench, benchHistory: services.benchHistory)
                 .frame(minWidth: 1000, minHeight: 640)
                 .background {
                     WindowAccessor { $0?.setFrameAutosaveName("LiteRTLMStudioMain") }
@@ -26,6 +27,13 @@ struct LiteRTLMStudioApp: App {
                 .frame(minWidth: 680, minHeight: 420)
         }
         .defaultSize(width: 760, height: 500)
+        // 벤치마크 별도 윈도우 (T-216): 시트 대신 독립 창 (모델·모드 선택+히스토리).
+        Window("벤치마크", id: "benchmark") {
+            BenchmarkWindowView(store: services.bench, history: services.benchHistory,
+                                models: services.models, chat: services.chat)
+                .frame(minWidth: 860, minHeight: 600)
+        }
+        .defaultSize(width: 960, height: 640)
         // 정보 창 (T-068, TubeKeep AboutView 구조).
         Window("정보", id: "about") {
             AboutView()

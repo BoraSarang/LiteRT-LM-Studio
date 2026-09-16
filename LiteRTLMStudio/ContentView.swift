@@ -6,14 +6,17 @@ import UniformTypeIdentifiers
 /// 3분할 매니저형: 사이드바(환경·모델·서버) / 중앙(채팅) / 인스펙터(생성 파라미터).
 struct ContentView: View {
     @StateObject var uv = UvManager()
-    @StateObject var models = ModelStore()
+    @ObservedObject var models: ModelStore
     @ObservedObject var daemon: DaemonManager
     // 모니터는 직접 관찰하지 않음 (T-045): 1Hz 틱이 채팅 전체를 다시 그리며 CPU 100%를 냄.
     // 관찰은 SystemMetersView·BottomPanelView가 각자 담당 (해당 서브트리만 갱신).
     let monitor: SystemMonitor
     // 네이티브 엔진은 준비·해제 때만 퍼블리시라 직접 관찰 (사이드바 상태 표시용).
     @ObservedObject var nativeEngine: NativeEngine
-    @StateObject var chat = ChatStore()
+    // T-216: 채팅·벤치마크는 AppServices 단일 인스턴스 공유 (별도창·사이드바).
+    @ObservedObject var chat: ChatStore
+    @ObservedObject var bench: BenchmarkStore
+    @ObservedObject var benchHistory: BenchmarkHistoryStore
     @StateObject var config = ConfigStore()
     @StateObject var logger = DebugLogger.shared
 
@@ -25,6 +28,7 @@ struct ContentView: View {
     @AppStorage("showGenerate")  var showGenerate = true
     @AppStorage("inspectorVisible")  var inspectorVisible = true
     @AppStorage("chatFontScale")  var chatFontScale = 1.0 // T-070 채팅 폰트 줌
+    @AppStorage("sidebarTab")  var sidebarTabRaw = SidebarTab.chat.rawValue // T-230 탭 영속
     @AppStorage("appearance")  var appearanceRaw = AppearanceMode.system.rawValue
     @Environment(\.colorScheme)  var colorScheme
     @Environment(\.openWindow)  var openWindow // T-053 디버그 윈도우
@@ -46,8 +50,6 @@ struct ContentView: View {
     @State var pendingScrollWorks: [DispatchWorkItem] = [] // T-047 수렴 예약
     @State var pendingSessionJump = true // T-046 첫 표시 점프 (복원 기록 포함)
     @State var scrollProxy: ScrollViewProxy? // T-081 Lazy 강제 생성용 프록시 보관
-    @StateObject var bench = BenchmarkStore()
-    @State var showBench = false
     @State var focusNonce = 0 // T-137 드래프트 시작 시 입력 포커스 신호
 
     var selectedModel: ModelStore.Model? {
@@ -148,7 +150,6 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showPalette) { palette }
-        .sheet(isPresented: $showBench) { BenchmarkView(store: bench) }
         .sheet(isPresented: Binding(get: { aliasTarget != nil }, set: { if !$0 { aliasTarget = nil } })) {
             AliasSheetView(targetID: aliasTarget ?? "", text: $aliasText) {
                 if let id = aliasTarget { ModelAlias.setAlias(id: id, name: aliasText) }
@@ -170,26 +171,7 @@ struct ContentView: View {
             Text("터미널에서 실행 중인 데몬을 종료하고 앱이 직접 띄운 데몬으로 바꿉니다. 터미널 쪽 연결은 끊어집니다.")
         }
         .task {
-            await uv.refresh()
-            await models.refresh()
-            let modelID = selectedModelID ?? models.models.first?.id ?? "gemma4-12b"
-            config.load(modelID: modelID)
-            if await daemon.isHealthy() {
-                daemon.status = .running
-                daemon.external = true
-            }
-            chat.model = selectedModelID ?? chat.model
-            chat.inferenceEngine = nativeEngine
-            bench.nativeBenchmark = { [nativeEngine] modelID in
-                try await nativeEngine.benchmark(modelID: modelID)
-            }
-            monitor.start()
-            monitor.daemonRunning = daemon.status == .running
-            daemon.beginPolling()
-            // Dock 정책·외관은 화면 표시 이후 적용 (App.init 시점 호출 금지).
-            NSApp.setActivationPolicy(UserDefaults.standard.bool(forKey: "showInDock") ? .regular : .accessory)
-            AppearanceMode.apply(appearanceMode)
-            logger.info(feature: "앱시작", "상태 복원 완료")
+            await restoreState()
         }
         .onChange(of: selectedModelID) { _, v in
             if let v {
@@ -214,6 +196,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .serverStop)) { _ in daemon.stop() }
         .onReceive(NotificationCenter.default.publisher(for: .toggleDebug)) { _ in openWindow(id: "debug") }
         .onReceive(NotificationCenter.default.publisher(for: .openAbout)) { _ in openWindow(id: "about") }
+        .onReceive(NotificationCenter.default.publisher(for: .openBenchmark)) { _ in openWindow(id: "benchmark") }
         .onReceive(zoomNotes) { n in applyZoomNote(n) }
         .onReceive(NotificationCenter.default.publisher(for: .toggleInspector)) { _ in toggleInspectorColumn() }
         .onReceive(NotificationCenter.default.publisher(for: .toggleLogPanel)) { _ in toggleLogPanel() }
@@ -223,6 +206,42 @@ struct ContentView: View {
     /// 입력 포커스 (T-137): 다음 런루프에 신호 증가 (ChatInputBar가 감지해 포커스).
     func focusChatInput() {
         DispatchQueue.main.async { focusNonce += 1 }
+    }
+
+    /// T-216: 앱 시작 상태 복원 (T-126: .task 본문 분리로 타입 추론 부하 분산).
+    func restoreState() async {
+        await uv.refresh()
+        await models.refresh()
+        let modelID = selectedModelID ?? models.models.first?.id ?? "gemma4-12b"
+        config.load(modelID: modelID)
+        if await daemon.isHealthy() {
+            daemon.status = .running
+            daemon.external = true
+        }
+        chat.model = selectedModelID ?? chat.model
+        wireBenchmark()
+        monitor.start()
+        monitor.daemonRunning = daemon.status == .running
+        daemon.beginPolling()
+        // Dock 정책·외관은 화면 표시 이후 적용 (App.init 시점 호출 금지).
+        NSApp.setActivationPolicy(UserDefaults.standard.bool(forKey: "showInDock") ? .regular : .accessory)
+        AppearanceMode.apply(appearanceMode)
+        logger.info(feature: "앱시작", "상태 복원 완료")
+    }
+
+    /// T-216: 벤치마크 공유 인스턴스 연결 (측정 제공자+기록 전달).
+    func wireBenchmark() {
+        let engine = nativeEngine
+        let history = benchHistory
+        bench.nativeBenchmarkStaged = { modelID, onStage in
+            try await engine.benchmarkWithProgress(modelID: modelID, onStage: onStage)
+        }
+        bench.nativeBenchmark = { modelID in
+            try await engine.benchmark(modelID: modelID)
+        }
+        bench.onRecord = { record in
+            history.append(record, retention: BenchmarkRetention.current())
+        }
     }
 
 }

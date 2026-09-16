@@ -9,8 +9,8 @@ enum EngineMode: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .cli: "CLI 데몬"
-        case .native: "네이티브"
+        case .cli: "서버"
+        case .native: "앱 내 엔진"
         }
     }
 
@@ -62,7 +62,7 @@ struct UnifiedStatus: Equatable {
         }
         if daemonRunning {
             if engineMode == .native, let label = preparedLabel {
-                return UnifiedStatus(title: "대화 가능", detail: "데몬+네이티브 · \(label)",
+                return UnifiedStatus(title: "대화 가능", detail: "서버+앱 내 엔진 · \(label)",
                                      live: true, unlinked: false)
             }
             return UnifiedStatus(title: "대화 가능", detail: "데몬 :9379",
@@ -114,6 +114,13 @@ struct EngineBenchmark: Equatable {
     var prefillSpeed = 0.0
     var decodeTokens = 0
     var decodeSpeed = 0.0
+}
+
+/// 벤치마크 진행 단계 알림 (T-216): 엔진 내부 prepare→측정→정리를 UI 단계에 매핑.
+enum BenchmarkPhase: Equatable {
+    case preparing
+    case measuring
+    case summarizing
 }
 
 /// 네이티브 추론 엔진 추상 (T-130). LiteRTLM import 없이 ChatStore·테스트에서 사용.

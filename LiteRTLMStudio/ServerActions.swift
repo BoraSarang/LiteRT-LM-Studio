@@ -26,13 +26,13 @@ extension ContentView {
         if chat.route == .native {
             switch nativeEngine.state {
             case .preparing:
-                return "네이티브 준비 중…"
+                return "앱 내 엔진 준비 중…"
             case .ready:
-                return "네이티브 중지 — 메모리 반납 (다시 실행은 사이드바)"
+                return "앱 내 엔진 중지 — 메모리 반납 (다시 실행은 사이드바)"
             case .failed:
-                return "네이티브 다시 실행"
+                return "앱 내 엔진 다시 실행"
             case .idle:
-                return "네이티브 실행"
+                return "앱 내 엔진 초기화"
             }
         }
         if daemon.status == .running {
@@ -41,9 +41,9 @@ extension ContentView {
                 : "서버 중지 (⌘.)"
         }
         if nativeEngine.preparedModelID != nil {
-            return "CLI 데몬 시작 (⌘R) — 네이티브로 대화 가능합니다"
+            return "서버 시작 (⌘R) — 앱 내 엔진으로 대화 가능합니다"
         }
-        return "CLI 데몬 시작 (⌘R)"
+        return "서버 시작 (⌘R)"
     }
 
      func toggleServer() {

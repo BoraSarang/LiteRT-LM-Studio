@@ -242,16 +242,26 @@ final class NativeEngine: InferenceEngine, ObservableObject {
     /// 벤치마크 측정 (T-132): 고정 프롬프트 1턴 실측 후 BenchmarkInfo 매핑.
     /// CLI `benchmark`(256/256 고정)와 조건이 달라 근사 비교용.
     func benchmark(modelID: String) async throws -> EngineBenchmark {
+        try await benchmarkWithProgress(modelID: modelID, onStage: { _ in })
+    }
+
+    /// 벤치마크 측정 + 진행 알림 (T-216): prepare→측정→정리 단계를 콜백으로 전달.
+    /// 오버로드 대신 별도 이름 (동명 오버로드가 타입 추론을 무겁게 함).
+    func benchmarkWithProgress(modelID: String,
+                               onStage: @escaping (BenchmarkPhase) -> Void) async throws -> EngineBenchmark {
+        onStage(.preparing)
         try await prepare(modelID: modelID)
         guard let engine else { throw EngineError.notReady }
         do {
             let conversation = try await engine.createConversation()
             activeConversation = conversation
             activeKey = nil // T-191: 벤치가 대화를 가로채면 다음 채팅은 새로 생성.
+            onStage(.measuring)
             let prompt = Message("Describe Seoul in three sentences.")
             for try await _ in conversation.sendMessageStream(prompt) {
                 try Task.checkCancellation()
             }
+            onStage(.summarizing)
             let info = try conversation.getBenchmarkInfo()
             logger.perf(feature: "네이티브벤치",
                         "완료 prefill=\(info.lastPrefillTokensPerSecond) decode=\(info.lastDecodeTokensPerSecond)")

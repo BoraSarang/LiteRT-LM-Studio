@@ -8,11 +8,18 @@ final class AppServices: ObservableObject {
     let daemon = DaemonManager()
     let monitor = SystemMonitor()
     let nativeEngine = NativeEngine()
+    /// T-216/T-217: 벤치마크 창·사이드바가 공유하는 단일 인스턴스 (창 닫아도 유지).
+    let bench = BenchmarkStore()
+    let benchHistory = BenchmarkHistoryStore()
+    /// T-216: 벤치마크 창에서 모델 목록·현재 채팅 모델(분석용)을 공유.
+    let chat = ChatStore()
+    let models = ModelStore()
 
     private let logger = DebugLogger.shared
 
     init() {
         Self.migrateLegacyDefaults()
+        chat.inferenceEngine = nativeEngine
         // Dock 메뉴 종료 등 모든 종료 경로에서 데몬 정리.
         // willTerminate 퇴출 중에는 런루프가 돌지 않으므로 동기 실행 필수 (Task 비동기는 실행 보장 없음).
         // queue:nil = 게시 스레드(항상 메인)에서 동기 전달.

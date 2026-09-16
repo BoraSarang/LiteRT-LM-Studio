@@ -8,6 +8,8 @@ struct SettingsView: View {
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @AppStorage("appearance") private var appearanceRaw = AppearanceMode.system.rawValue
     @AppStorage("historyTurns") private var historyTurns = HistoryWindow.unlimited.rawValue
+    @AppStorage("benchmarkRetention") private var benchmarkRetention = BenchmarkRetention.ten.rawValue
+    @AppStorage("globalPermission") private var permissionRaw = GlobalPermission.ask.rawValue
     @State private var loginError: String?
 
     var body: some View {
@@ -31,7 +33,7 @@ struct SettingsView: View {
                     .onChange(of: launchAtLogin) { _, on in setLoginItem(on) }
                 Toggle("앱 종료 시 데몬도 함께 종료", isOn: $quitStopsDaemon)
                     .help("끄면 앱을 닫아도 데몬이 남아 다음 실행 때 바로 씁니다. 터미널 데몬은 항상 유지됩니다.")
-                Text("전송 경로(CLI 데몬·네이티브)는 채팅 입력창의 피커에서 매번 선택합니다.")
+                Text("전송 경로(서버·앱 내 엔진)는 채팅 입력창의 피커에서 매번 선택합니다.")
                     .font(.caption).foregroundStyle(.secondary)
                 Picker("대화 기록 전송", selection: $historyTurns) {
                     ForEach(HistoryWindow.allCases, id: \.rawValue) { w in
@@ -43,6 +45,28 @@ struct SettingsView: View {
                         DebugLogger.shared.info(
                             feature: "히스토리범위",
                             "전환: \((HistoryWindow(rawValue: raw) ?? .unlimited).title)")
+                    }
+                Picker("벤치마크 기록 보관", selection: $benchmarkRetention) {
+                    ForEach(BenchmarkRetention.allCases, id: \.rawValue) { r in
+                        Text(r.title).tag(r.rawValue)
+                    }
+                }.pickerStyle(.segmented)
+                    .help("벤치마크 히스토리 최대 보관 수. 초과분은 오래된 것부터 삭제됩니다.")
+                    .onChange(of: benchmarkRetention) { _, raw in
+                        DebugLogger.shared.info(
+                            feature: "벤치마크",
+                            "보관 전환: \((BenchmarkRetention(rawValue: raw) ?? .ten).title)")
+                    }
+                Picker("권한", selection: $permissionRaw) {
+                    ForEach(GlobalPermission.allCases, id: \.rawValue) { p in
+                        Text(p.title).tag(p.rawValue)
+                    }
+                }.pickerStyle(.segmented)
+                    .help("채팅 전송·모델 삭제에 적용되는 전역 권한. 사용 안 함=차단, 매번 묻기=확인 후 실행, 모두 허용=바로 실행.")
+                    .onChange(of: permissionRaw) { _, raw in
+                        DebugLogger.shared.info(
+                            feature: "권한",
+                            "전환: \((GlobalPermission(rawValue: raw) ?? .ask).title)")
                     }
                 if let err = loginError {
                     Text(err).font(.caption).foregroundStyle(.red)

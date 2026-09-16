@@ -67,7 +67,8 @@ extension ContentView {
                     .frame(maxWidth: DS.chatMaxWidth) // T-093 터미널 로그 열폭 통일
                     .padding(.top, 8) // T-094 구분선 제거 대체 간격
             }
-            ChatInputBar(chat: chat, daemon: daemon, input: $input, focusNonce: focusNonce,
+            ChatInputBar(chat: chat, daemon: daemon, models: models, selectedModelID: $selectedModelID,
+                         input: $input, focusNonce: focusNonce,
                          attachedImage: $attachedImage, attachedName: $attachedName)
                 .frame(maxWidth: DS.chatMaxWidth) // T-093 입력창 열폭 통일
                 .padding(.top, 8) // T-094 구분선 제거 대체 간격

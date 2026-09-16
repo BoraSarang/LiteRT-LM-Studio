@@ -19,6 +19,9 @@ private struct InputHeightKey: PreferenceKey {
 struct ChatInputBar: View {
     @ObservedObject var chat: ChatStore
     @ObservedObject var daemon: DaemonManager
+    @ObservedObject var models: ModelStore
+    @Binding var selectedModelID: String?
+    @AppStorage("globalPermission") private var permissionRaw = GlobalPermission.ask.rawValue
     @Binding var input: String
     var focusNonce: Int = 0 // T-137 드래프트 시작 신호 (선언 순서=호출 순서)
     @FocusState private var editorFocused: Bool
@@ -105,6 +108,21 @@ struct ChatInputBar: View {
                         Image(systemName: "paperclip").font(.system(size: 15, weight: .semibold))
                     }.buttonStyle(.plain).help("이미지 첨부 (Vision 지원 모델)")
                         .disabled(chat.streaming)
+                    if models.models.isEmpty {
+                        Text("모델 없음").font(.system(size: 12)).foregroundStyle(.secondary)
+                            .help("사이드바 새로고침 후 모델을 가져오세요")
+                    } else {
+                        Picker("채팅 모델", selection: Binding(
+                            get: { selectedModelID ?? models.models.first?.id ?? "" },
+                            set: { selectedModelID = $0 }
+                        )) {
+                            ForEach(ModelStore.preferredOrder(models.models)) { m in
+                                Text(ModelAlias.display(id: m.id)).tag(m.id)
+                            }
+                        }.pickerStyle(.menu)
+                            .help("이번 채팅에 쓸 모델. 설치된 모델만 표시 (Gemma·Qwen 우선).")
+                            .disabled(chat.streaming)
+                    }
                     Picker("전송 경로", selection: $chat.route) {
                         ForEach(EngineMode.allCases, id: \.rawValue) { mode in
                             Text(mode.title).tag(mode)
@@ -121,7 +139,7 @@ struct ChatInputBar: View {
                                 || !canSend)
                             .help(canSend ? "전송 (⌘Return)"
                                 : chat.route == .native && !chat.nativePrepared
-                                ? "네이티브 엔진 실행 후 전송 가능"
+                                ? "앱 내 엔진 초기화 후 전송 가능"
                                 : "서버 시작 후 전송 가능")
                     }
                 }
@@ -149,6 +167,15 @@ struct ChatInputBar: View {
     }
 
     private func submit() {
+        let perm = GlobalPermission(rawValue: permissionRaw) ?? .ask
+        guard GlobalPermission.allows(perm, confirmed: true) else {
+            logger.error(code: "E-MAC-PERM-0011", feature: "권한", "전송 차단 (권한 꺼짐)")
+            return
+        }
+        if GlobalPermission.needsConfirm(perm) {
+            logger.info(feature: "권한", "전송 확인 요청")
+            guard confirmSend() else { return }
+        }
         let txt = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !txt.isEmpty else { return }
         input = ""
@@ -156,6 +183,16 @@ struct ChatInputBar: View {
         attachedImage = nil
         attachedName = nil
         chat.send(txt, image: image)
+    }
+
+    /// 매번 묻기 확인 (T-113/T-139 선례: AppKit 단발 모달).
+    private func confirmSend() -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "이 모델로 전송할까요?"
+        alert.informativeText = ModelAlias.display(id: selectedModelID ?? "")
+        alert.addButton(withTitle: "전송")
+        alert.addButton(withTitle: "취소")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     private func pickImage() {

@@ -365,10 +365,10 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
                       engineMode: .cli, preparedLabel: nil)
         XCTAssertEqual(s.title, "대화 가능")
         XCTAssertTrue(s.live)
-        // 둘 다 → 데몬+네이티브 표기
+        // 둘 다 → 서버+앱 내 엔진 표기
         s = U.resolve(daemonRunning: true, unlinkedRunning: false,
                       engineMode: .native, preparedLabel: "Gemma 4 · 12B")
-        XCTAssertTrue(s.detail.contains("데몬+네이티브"))
+        XCTAssertTrue(s.detail.contains("서버+앱 내 엔진"))
         // 미연결 → 주황 유지 (T-179 계승)
         s = U.resolve(daemonRunning: false, unlinkedRunning: true,
                       engineMode: .native, preparedLabel: "Gemma 4 · 12B")
@@ -383,5 +383,45 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(ContentView.sendCorrectAction(preparing: true, streaming: true), .jumpBottom)
         XCTAssertEqual(ContentView.sendCorrectAction(preparing: false, streaming: true), .none)
         XCTAssertEqual(ContentView.sendCorrectAction(preparing: false, streaming: false), .reanchor)
+    }
+
+    /// 전역 권한 게이트 (T-228): off 차단, ask 확인 시만, allowAll 통과.
+    func testGlobalPermissionGate() {
+        XCTAssertFalse(GlobalPermission.allows(.off, confirmed: false))
+        XCTAssertFalse(GlobalPermission.allows(.off, confirmed: true))
+        XCTAssertFalse(GlobalPermission.allows(.ask, confirmed: false))
+        XCTAssertTrue(GlobalPermission.allows(.ask, confirmed: true))
+        XCTAssertTrue(GlobalPermission.allows(.allowAll, confirmed: false))
+        XCTAssertTrue(GlobalPermission.allows(.allowAll, confirmed: true))
+        XCTAssertTrue(GlobalPermission.needsConfirm(.ask))
+        XCTAssertFalse(GlobalPermission.needsConfirm(.off))
+        XCTAssertFalse(GlobalPermission.needsConfirm(.allowAll))
+        XCTAssertEqual(GlobalPermission.current().rawValue.isEmpty, false)
+    }
+
+    /// 모델 정렬 (T-229): Gemma → Qwen → 나머지.
+    func testPreferredModelOrder() {
+        let ms = [
+            ModelStore.Model(id: "llama-8b", listedSize: "5G", modified: "01-01"),
+            ModelStore.Model(id: "qwen3-4b", listedSize: "3G", modified: "01-01"),
+            ModelStore.Model(id: "gemma4-12b", listedSize: "7G", modified: "01-01"),
+        ]
+        let ordered = ModelStore.preferredOrder(ms).map(\.id)
+        XCTAssertEqual(ordered, ["gemma4-12b", "qwen3-4b", "llama-8b"])
+        XCTAssertTrue(ModelStore.preferredOrder([]).isEmpty)
+    }
+
+    /// 사이드바 탭 (T-230): 기본 채팅, 원시값 불일치도 채팅.
+    func testSidebarTabDefault() {
+        XCTAssertEqual(ContentView.SidebarTab(rawValue: "chat"), .chat)
+        XCTAssertEqual(ContentView.SidebarTab(rawValue: "models"), .models)
+        XCTAssertNil(ContentView.SidebarTab(rawValue: "unknown"))
+        XCTAssertEqual(ContentView.SidebarTab.allCases.count, 2)
+    }
+
+    /// 엔진 수명주기 route 분기 (규칙 1): 네이티브일 때만 네이티브 버튼.
+    func testEngineLifecycleRoute() {
+        XCTAssertTrue(ContentView.showsNativeLifecycle(route: .native))
+        XCTAssertFalse(ContentView.showsNativeLifecycle(route: .cli))
     }
 }

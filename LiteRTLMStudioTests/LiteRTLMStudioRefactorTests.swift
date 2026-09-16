@@ -310,8 +310,8 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         withNativeMode("native") {
             XCTAssertEqual(EngineMode.current(), .native)
         }
-        XCTAssertEqual(EngineMode.cli.title, "CLI 데몬")
-        XCTAssertEqual(EngineMode.native.title, "네이티브")
+        XCTAssertEqual(EngineMode.cli.title, "서버")
+        XCTAssertEqual(EngineMode.native.title, "앱 내 엔진")
     }
 
     /// 네이티브 성공 경로 (T-130/T-185): 버블·PERF·준비·시각 기록. 준비된 엔진 전제.

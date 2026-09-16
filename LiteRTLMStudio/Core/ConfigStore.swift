@@ -15,7 +15,7 @@ final class ConfigStore: ObservableObject {
     /// 디스크에 저장된 값.
     @Published var appliedBackend = "gpu"
     @Published var appliedVision = "gpu"
-    @Published var appliedMTP = true
+    @Published var appliedMTP = false // T-222 기본 OFF (발열·배터리, 명시된 모델만 켬)
     @Published var appliedAudio = "cpu" // T-175
     @Published var appliedThreads = "" // T-175 빈칸=자동
     @Published var appliedCache = "disk" // T-175 disk/memory/no
@@ -26,7 +26,7 @@ final class ConfigStore: ObservableObject {
     /// UI 편집 중인 초안.
     @Published var draftBackend = "gpu"
     @Published var draftVision = "gpu"
-    @Published var draftMTP = true
+    @Published var draftMTP = false // T-222 기본 OFF
     @Published var draftAudio = "cpu"
     @Published var draftThreads = ""
     @Published var draftCache = "disk"
@@ -147,6 +147,18 @@ final class ConfigStore: ObservableObject {
         draftBudget = appliedBudget
         draftPrecision = appliedPrecision
         logger.info(feature: "설정취소", "초안 되돌림")
+    }
+
+    /// 모델 MTP 저장값 조회 (T-222, 벤치마크 창 표시용): 명시 없으면 nil (기본 OFF).
+    static func savedMTP(modelID: String, configURL: URL? = nil) -> Bool? {
+        let url = configURL ?? Self.defaultURL
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let models = json["models"] as? [String: Any],
+              let one = models[modelID] as? [String: Any],
+              let spec = one["speculative_decoding"] as? Bool
+        else { return nil }
+        return spec
     }
 
     /// default 섹션 쓰기 (T-175 분리): 빈칸 숫자키는 삭제 (엔진 기본 복귀).

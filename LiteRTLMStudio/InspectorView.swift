@@ -14,7 +14,8 @@ extension ContentView {
             }
             if showBackend {
                 Section(InspectorTitle.backend) {
-                    BackendSectionView(config: config, model: selectedModel) {
+                    BackendSectionView(config: config, model: selectedModel,
+                                           isNativeRoute: chat.route == .native) {
                         applyBackend()
                     }
                 }
@@ -57,7 +58,7 @@ extension ContentView {
                         Text("시스템 프롬프트")
                         TextField("예: 간결하게 답해", text: $chat.systemPrompt)
                     }
-                    .help("네이티브 대화에만 전달됩니다. CLI serve 경로는 미지원.")
+                    .help("앱 내 엔진 대화에만 전달됩니다. 서버 경로는 미지원.")
                     if selectedModel?.thinking == true {
                         Toggle("Thinking", isOn: $chat.thinkingEnabled)
                         HStack {
@@ -148,6 +149,7 @@ struct SectionSegments: View {
 struct BackendSectionView: View {
     @ObservedObject var config: ConfigStore
     let model: ModelStore.Model?
+    let isNativeRoute: Bool
     var onApply: () -> Void
     @AppStorage("metalResidency") private var residency = true // T-177 기본 켬
     @AppStorage("visualTokenBudget") private var visualBudget = 1120 // T-177 describe 상한
@@ -206,7 +208,7 @@ struct BackendSectionView: View {
         }
         DisclosureGroup("고급") {
             Toggle("Metal residency", isOn: $residency)
-                .help("GPU 메모리에 모델을 상주시켜 스와핑 방지. 네이티브 엔진 초기화 때 적용 (모델 전환·재실행 후).")
+                .help("GPU 메모리에 모델을 상주시켜 스와핑 방지. 앱 내 엔진 초기화 때 적용 (모델 전환·재실행 후).")
             Picker("Visual 예산", selection: $visualBudget) {
                 Text("70").tag(70); Text("140").tag(140); Text("280").tag(280)
                 Text("560").tag(560); Text("1120").tag(1120)
@@ -223,11 +225,12 @@ struct BackendSectionView: View {
             HStack {
                 Button("취소") { config.revert() }
                 Spacer()
-                Button("적용 후 재시작", action: onApply)
+                Button(isNativeRoute ? "적용 (다음 초기화 때 반영)" : "적용 후 재시작", action: onApply)
                     .buttonStyle(.borderedProminent)
             }
         } else {
-            Text("바꾸면 여기에 적용·취소가 나와요. 적용은 서버 재시작을 동반합니다.")
+            Text(isNativeRoute ? "바꾸면 여기에 적용·취소가 나와요. 앱 내 엔진은 다음 초기화 때 반영됩니다."
+                 : "바꾸면 여기에 적용·취소가 나와요. 적용은 서버 재시작을 동반합니다.")
                 .font(DS.captionFont).foregroundStyle(.secondary)
         }
     }
