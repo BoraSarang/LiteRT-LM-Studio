@@ -19,6 +19,8 @@ struct ContentView: View {
     @ObservedObject var benchHistory: BenchmarkHistoryStore
     /// T-262: 웰컴 새소식 공유 (AppServices 단일 인스턴스).
     @ObservedObject var releases: ReleaseNotes
+    /// T-266 S-2: 도구 승인 요청 공유 (싱글톤 관찰).
+    @ObservedObject var toolApproval = ToolApproval.shared
     @StateObject var config = ConfigStore()
     @StateObject var logger = DebugLogger.shared
 
@@ -112,7 +114,7 @@ struct ContentView: View {
                 }
             }
             .confirmationDialog("외부 데몬 인수", isPresented: $showTakeoverConfirm,
-                                titleVisibility: .visible) {
+                                 titleVisibility: .visible) {
                 Button("종료 후 앱 데몬으로 재시작", role: .destructive) {
                     Task { await daemon.takeOverAndRestart() }
                 }
@@ -122,6 +124,14 @@ struct ContentView: View {
                 Button("취소", role: .cancel) {}
             } message: {
                 Text("터미널에서 실행 중인 데몬을 종료하고 앱이 직접 띄운 데몬으로 바꿉니다. 터미널 쪽 연결은 끊어집니다.")
+            }
+            .confirmationDialog("도구 실행 허용", isPresented: toolApprovalBinding,
+                                titleVisibility: .visible) {
+                Button("허용") { toolApproval.resolve(true) }
+                Button("거부", role: .cancel) { toolApproval.resolve(false) }
+            } message: {
+                Text(toolApproval.pending.map { "\($0.toolName) \($0.detail)" }
+                    ?? "도구 실행을 허용할까요? (120초 무응답 시 거부)")
             }
             .task {
                 await restoreState()
@@ -187,6 +197,12 @@ struct ContentView: View {
     /// 별칭 시트 바인딩 (T-232 분리).
     private var aliasBinding: Binding<Bool> {
         Binding(get: { aliasTarget != nil }, set: { if !$0 { aliasTarget = nil } })
+    }
+
+    /// 도구 승인 바인딩 (T-266 S-2): 닫힘=거부.
+    private var toolApprovalBinding: Binding<Bool> {
+        Binding(get: { toolApproval.pending != nil },
+                set: { if !$0 { toolApproval.resolve(false) } })
     }
     /// 3분할 본체 (T-232: body 타입 추론 부하 분산용 분리).
     /// 3번째 칸 숨김은 visibility가 아니라 레이아웃 분기로 (.doubleColumn은 사이드바를 숨기므로 사용 금지).

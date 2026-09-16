@@ -12,7 +12,7 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         case failed // 준비 실패 (lastError 병행)
     }
 
-    private var engine: Engine?
+    var engine: Engine? // T-266 확장 접근용 internal
     @Published private(set) var preparedModelID: String?
     @Published private(set) var state: State = .idle
     @Published private(set) var lastError: String?
@@ -149,6 +149,8 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         try await prepare(modelID: modelID)
     }
 
+    /// 이벤트 스트림은 NativeEngine+Events 분리 (T-266, 본문 길이 관리).
+
     func stream(
         prompt: String,
         image: ChatStore.ChatImage?,
@@ -197,9 +199,9 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         }
     }
 
-    /// 스트림 준비물 (T-191 분리): 샘플러 묶음 + 대화 (재사용 시 live, 아니면 생성).
-    private func preparedStream(engine: Engine, modelID: String, past: [Message],
-                                entries: [String], opts: GenerationOptions)
+    /// 스트림 준비물 (T-191 분리, T-266 확장 접근용 internal): 샘플러 묶음 + 대화.
+    func preparedStream(engine: Engine, modelID: String, past: [Message],
+                        entries: [String], opts: GenerationOptions)
     async throws -> (conversation: Conversation, thinking: ThinkingConfig?) {
         let sampler = try SamplerConfig(
             topK: opts.topK, topP: Float(opts.topP),
@@ -216,7 +218,9 @@ final class NativeEngine: InferenceEngine, ObservableObject {
             with: ConversationConfig(
                 systemMessage: sysMsg.isEmpty ? nil : Message(sysMsg, role: .system),
                 initialMessages: past,
+                tools: LocalTools.registered(),
                 samplerConfig: sampler,
+                enableToolCallStreaming: true,
                 thinkingConfig: thinking))
         activeConversation = conversation
         activeKey = ConvKey(modelID: modelID, history: entries, options: opts)
@@ -280,11 +284,12 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         }
     }
 
-    /// 실험 플래그 1회 설치 (MTP·벤치마크).
+    /// 실험 플래그 1회 설치 (MTP·벤치마크·도구 스트리밍).
     private static func installFlags() {
         guard !flagsInstalled else { return }
         flagsInstalled = true
         ExperimentalFlags.optIntoExperimentalAPIs()
         ExperimentalFlags.enableBenchmark = true
+        ExperimentalFlags.enableConversationToolCallStreaming = true
     }
 }

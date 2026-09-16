@@ -634,4 +634,190 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(ContentView.healDirection(cur: 395, maxY: 400), .none)
         XCTAssertEqual(ContentView.healDirection(cur: 405, maxY: 400), .none)
     }
+
+    /// 도구 델타 누적 (T-266 S-1): 이름+인자 조각 병합.
+    func testToolAccumulate() {
+        var acc = ToolCallAccumulator()
+        let d1 = ToolChunkParser.parseDelta(Data(
+            #"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"get_time","arguments":"{\"a\":"}}]}}]}"#.utf8))!
+        let d2 = ToolChunkParser.parseDelta(Data(
+            #"{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"1}"}}]},"finish_reason":"tool_calls"}]}"#.utf8))!
+        let (e1, t1) = acc.apply(delta: d1)
+        XCTAssertNotNil(e1) // 조각마다 실시간 이벤트 (칩 즉시 표시)
+        XCTAssertNil(t1)
+        let (e2, t2) = acc.apply(delta: d2)
+        XCTAssertNotNil(e2)
+        XCTAssertNil(t2)
+        XCTAssertEqual(acc.finishReason, "tool_calls")
+        let done = acc.finalized()
+        XCTAssertEqual(done.count, 1)
+        XCTAssertEqual(done[0].name, "get_time")
+        XCTAssertEqual(done[0].argumentsJSON, #"{"a":1}"#)
+        XCTAssertEqual(done[0].status, .received)
+    }
+
+    /// 생각 델타 통과 (T-266 S-1): reasoning_content 추출.
+    func testReasoningPassthrough() {
+        let delta = ToolChunkParser.parseDelta(Data(
+            #"{"choices":[{"delta":{"reasoning_content":"고민 중"}}]}"#.utf8))!
+        var acc = ToolCallAccumulator()
+        let (event, thinking) = acc.apply(delta: delta)
+        XCTAssertNil(event)
+        XCTAssertEqual(thinking, "고민 중")
+        XCTAssertFalse(acc.hasCalls)
+    }
+
+    /// 구 기록 호환 (T-266 S-1): thinking·toolCalls 없어도 디코딩 (id는 항상 기록됨).
+    func testMessageCompat() {
+        do {
+            let json = #"{"id":"00000000-0000-0000-0000-000000000000","role":"user","text":"hi","isError":false}"#
+            let msg = try JSONDecoder().decode(ChatStore.Message.self, from: Data(json.utf8))
+            XCTAssertEqual(msg.text, "hi")
+            XCTAssertNil(msg.thinking)
+            XCTAssertNil(msg.toolCalls)
+        } catch {
+            XCTFail("구 기록 디코딩 실패: \(error)")
+        }
+    }
+
+    /// 인자 요약 절단 (T-266 S-1): 80자.
+    func testToolSummary() {
+        let rec = ToolCallRecord(callID: "c", name: "n",
+                                 argumentsJSON: String(repeating: "x", count: 100))
+        XCTAssertEqual(rec.summary.count, 80)
+    }
+
+    /// 이벤트 기본 매핑 (T-266 S-1): 문자열 스트림→텍스트 이벤트.
+    @MainActor
+    func testStreamEventsDefault() async throws {
+        let engine = FakeEngine()
+        engine.chunks = ["a", "b"]
+        var out: [StreamEvent] = []
+        for try await event in engine.streamEvents(
+            prompt: "p", image: nil, history: [], keyHistory: [],
+            options: GenerationOptions()) {
+            out.append(event)
+        }
+        XCTAssertEqual(out, [.text("a"), .text("b")])
+    }
+
+    /// 네이티브 누적 상태 (T-266 S-1): 본문·생각·도구 병합.
+    func testNativeStreamState() {
+        var state = NativeStreamState()
+        XCTAssertNil(state.apply(.text("hi")))
+        XCTAssertNil(state.apply(.thinking("음")))
+        let rec = ToolCallRecord(callID: "c1", name: "get_time")
+        XCTAssertNotNil(state.apply(.toolCall(rec)))
+        XCTAssertNotNil(state.apply(.toolCall(rec)))
+        XCTAssertEqual(state.acc, "hi")
+        XCTAssertEqual(state.thinking, "음")
+        XCTAssertEqual(state.tools.count, 1)
+    }
+
+    /// 계산기 정상식 (T-266 S-2).
+    func testCalcValid() throws {
+        XCTAssertEqual(try CalcParser.evaluate("1+2*3"), 7)
+        XCTAssertEqual(try CalcParser.evaluate("(1+2)*3"), 9)
+        XCTAssertEqual(try CalcParser.evaluate("-4/2"), -2)
+        XCTAssertEqual(try CalcParser.evaluate(" 2.5 * 4 "), 10)
+    }
+
+    /// 계산기 오류식 (T-266 S-2).
+    func testCalcInvalid() {
+        XCTAssertThrowsError(try CalcParser.evaluate(""))
+        XCTAssertThrowsError(try CalcParser.evaluate("10/0"))
+        XCTAssertThrowsError(try CalcParser.evaluate("1+"))
+        XCTAssertThrowsError(try CalcParser.evaluate("2^3"))
+        XCTAssertThrowsError(try CalcParser.evaluate("abc"))
+    }
+
+    /// 도구 등록 게이트 (T-266 S-2): Off면 빈 배열.
+    func testLocalToolsGate() {
+        XCTAssertTrue(LocalTools.registered(permission: .off).isEmpty)
+        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 2)
+        XCTAssertEqual(LocalTools.registered(permission: .ask).count, 2)
+    }
+
+    /// 실행 결정 (T-266 S-2): Off 거부·Allow 진행.
+    func testToolDecide() async {
+        let off = await LocalTools.decide(toolName: "get_time", detail: "", permission: .off)
+        XCTAssertEqual(off, .denied("도구 사용이 꺼져 있습니다. 설정에서 권한을 바꿔 주세요."))
+        let allow = await LocalTools.decide(toolName: "get_time", detail: "", permission: .allowAll)
+        XCTAssertEqual(allow, .proceed)
+    }
+
+    /// 승인 거부 경로 (T-266 S-2).
+    @MainActor
+    func testToolApprovalDeny() async {
+        let approval = ToolApproval()
+        Task { approval.resolve(false) }
+        let result = await approval.request(toolName: "get_time", detail: "d")
+        XCTAssertFalse(result)
+        XCTAssertNil(approval.pending)
+    }
+
+    /// 원장 배출+상태 매칭 (T-266 S-2).
+    func testToolLedger() async {
+        let ledger = ToolLedger()
+        let base = Date()
+        await ledger.record(toolName: "a", detail: "", result: "r1", denied: false)
+        await ledger.record(toolName: "b", detail: "", result: "r2", denied: true)
+        let out = await ledger.drain(since: base)
+        XCTAssertEqual(out.map(\.toolName), ["a", "b"])
+        XCTAssertEqual(ToolLedger.statuses(count: 3, outcomes: out),
+                       [.done, .denied, .received])
+        let empty = await ledger.drain(since: base)
+        XCTAssertTrue(empty.isEmpty)
+    }
+
+    /// 서버 히스토리 조립 (T-268 S-3): assistant/tool 메시지 형상.
+    func testServerToolHistory() {
+        let calls = [ToolCallRecord(callID: "c1", name: "get_time", argumentsJSON: "{}")]
+        let assistant = ServerToolHistory.assistantMessage(calls: calls)
+        XCTAssertEqual(assistant["role"] as? String, "assistant")
+        let invoked = (assistant["tool_calls"] as? [[String: Any]])?.first
+        XCTAssertEqual(invoked?["id"] as? String, "c1")
+        XCTAssertEqual((invoked?["function"] as? [String: Any])?["name"] as? String, "get_time")
+        let tool = ServerToolHistory.toolMessage(callID: "c1", content: "15시")
+        XCTAssertEqual(tool["role"] as? String, "tool")
+        XCTAssertEqual(tool["tool_call_id"] as? String, "c1")
+        XCTAssertEqual(ServerToolHistory.maxTurns, 3)
+    }
+
+    /// 칩 병합 (T-268 S-3): 일치 교체·신규 추가.
+    func testServerToolMerged() {
+        let cur = [ToolCallRecord(callID: "c1", name: "a", status: .streaming)]
+        let fresh = [ToolCallRecord(callID: "c1", name: "a", status: .received),
+                     ToolCallRecord(callID: "c2", name: "b", status: .received)]
+        let out = ServerToolHistory.merged(cur, with: fresh)
+        XCTAssertEqual(out.count, 2)
+        XCTAssertEqual(out[0].status, .received)
+        XCTAssertEqual(out[1].callID, "c2")
+    }
+
+    @MainActor
+    func testChatRequestTools() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-tools-\(UUID().uuidString).json")
+        let store = ChatStore(storageURL: url)
+        let key = "globalPermission"
+        let prev = UserDefaults.standard.string(forKey: key)
+        defer {
+            if let prev {
+                UserDefaults.standard.set(prev, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+        UserDefaults.standard.set("allowAll", forKey: key)
+        let allowBody = try JSONSerialization.jsonObject(
+            with: store.chatRequest(prompt: "hi").httpBody!) as? [String: Any]
+        XCTAssertNotNil(allowBody?["tools"])
+        XCTAssertEqual(allowBody?["tool_choice"] as? String, "auto")
+        UserDefaults.standard.set("off", forKey: key)
+        let offBody = try JSONSerialization.jsonObject(
+            with: store.chatRequest(prompt: "hi").httpBody!) as? [String: Any]
+        XCTAssertNil(offBody?["tools"])
+        try? FileManager.default.removeItem(at: url)
+    }
 }

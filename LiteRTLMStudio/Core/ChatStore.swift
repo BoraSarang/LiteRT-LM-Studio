@@ -16,6 +16,8 @@ final class ChatStore: ObservableObject {
         var perf: String?
         var isError = false
         var finishedAt: Date? // T-077 응답 완료 시각 (nil=완료 전·구 기록)
+        var thinking: String? // T-266 생각 과정 (nil=없음·구 기록)
+        var toolCalls: [ToolCallRecord]? // T-266 도구 호출 (nil=없음·구 기록)
     }
 
     struct Session: Identifiable, Codable {
@@ -169,21 +171,12 @@ final class ChatStore: ObservableObject {
         if startNativeIfNeeded(prompt: prompt, image: image, idx: idx, started: started) { return }
         currentTask = Task {
             do {
-                let req = try self.chatRequest(prompt: prompt, image: image)
-                let (bytes, resp) = try await URLSession.shared.bytes(for: req)
-                guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
-                    throw URLError(.badServerResponse)
-                }
-                var state = SSEStreamState(lastFlush: started)
-                for try await line in bytes.lines {
-                    let done = self.applySSELine(line, state: &state, idx: idx, started: started)
-                    if done { break }
-                }
-                messages[idx].text = state.acc
+                try await self.runServerTurns(prompt: prompt, image: image, idx: idx, started: started)
                 let elapsed = Date().timeIntervalSince(started)
-                messages[idx].perf = Self.perfLine(chars: state.acc.count, elapsed: elapsed)
+                let chars = messages[idx].text.count
+                messages[idx].perf = Self.perfLine(chars: chars, elapsed: elapsed)
                 messages[idx].finishedAt = Date() // T-077 완료 시각 기록
-                logger.perf(feature: "채팅전송", "완료 elapsed=\(String(format: "%.1f", elapsed))s chars=\(state.acc.count)")
+                logger.perf(feature: "채팅전송", "완료 elapsed=\(String(format: "%.1f", elapsed))s chars=\(chars)")
             } catch is CancellationError {
                 logger.info(feature: "채팅중단", "사용자 중단")
             } catch {
@@ -195,31 +188,7 @@ final class ChatStore: ObservableObject {
         }
     }
 
-    /// SSE 스트림 누적 상태 (T-148): 한 줄 적용 호출 간 전달용 묶음.
-    struct SSEStreamState {
-        var acc = ""
-        var firstTokenAt: Date?
-        var lastFlush = Date.distantPast
-    }
-
-    /// SSE 한 줄 적용 (T-148 분리): 델타 누적+첫 토큰 기록+0.1초 묶음 반영.
-    /// - Returns: 스트림 종료 여부 (취소 또는 DONE).
-    func applySSELine(_ line: String, state: inout SSEStreamState, idx: Int, started: Date) -> Bool {
-        if Task.isCancelled { return true }
-        guard let content = ChatSSEParser.content(from: line) else {
-            return ChatSSEParser.isDone(line)
-        }
-        if state.firstTokenAt == nil {
-            state.firstTokenAt = Date()
-            noteFirstToken(started: started)
-        }
-        state.acc += content
-        if Self.shouldFlushText(now: Date(), lastFlush: state.lastFlush) {
-            messages[idx].text = state.acc
-            state.lastFlush = Date()
-        }
-        return false
-    }
+    /// SSE 한 줄 적용·누적 상태는 ChatStore+Stream 분리 (T-266, 본문 길이 관리).
 
     /// 네이티브 분기 시도 (T-137): 해당하면 작업 예약 후 true.
     /// T-185부터 미준비면 자동 초기화 대신 안내하고 true (CLI 폴백 없음, 수동 실행).
@@ -311,14 +280,19 @@ enum ChatSSEParser {
 
     /// 델타 텍스트 추출. 비SSE 줄·종료 마커·파싱 실패는 nil (호출 측에서 종료 판정 후 건너뜀).
     nonisolated static func content(from line: String) -> String? {
-        guard line.hasPrefix("data:") else { return nil }
-        let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
-        guard payload != "[DONE]",
-              let data = payload.data(using: .utf8),
+        guard let data = payloadData(from: line),
               let chunk = try? JSONDecoder().decode(ChatChunk.self, from: data),
               let text = chunk.choices?.first?.delta?.content
         else { return nil }
         return text
+    }
+
+    /// SSE 페이로드 추출 (T-266): `data:` 이후 JSON 바이트, 종료 마커·비SSE는 nil.
+    nonisolated static func payloadData(from line: String) -> Data? {
+        guard line.hasPrefix("data:") else { return nil }
+        let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+        guard payload != "[DONE]" else { return nil }
+        return payload.data(using: .utf8)
     }
 }
 

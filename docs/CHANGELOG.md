@@ -59,6 +59,14 @@
   미리보기 중심도 매칭 위치 추종. 외부 라이브러리 없음. [macos]
 * 스크롤 충돌 수정 (T-265, PLAN_v60): 팔레트 전환 진입 체인 억제+무스탬프 점프 코어,
   맨 아래로 버튼 미달 시 상향 재점프 (후속질문 칩 지연 팽창 대응). [macos]
+* Tool calling S-1 표시 파이프 (T-266, PLAN_v61): StreamEvent 3채널+SSE tool_calls·
+  reasoning 관용 파서+생각 접기+호출 칩+푸터 횟수. S-0 실측: serve OpenAI 표준
+  (tool_calls·tool 역할 접수 확인). 실행(S-2/S-3)은 후속. [macos]
+* Tool calling S-2 실행 네이티브 (T-267, PLAN_v61): 로컬 도구 2종(현재시각·사칙계산)+
+  권한 게이트 (Off 미등록·Ask 인라인 승인/거부·120초 무응답 거부)+실행 결과 칩 반영.
+  에러코드 E-MAC-ENG-0004 추가. [macos]
+* Tool calling S-3 실행 서버 (T-268, PLAN_v61): tools 스키마 전송+tool_calls 종료 시
+  로컬 실행 후 최대 3턴 재전송, 칩 상태·결과 반영. 실데몬 E2E (gemma4-12b) 통과. [macos]
 * 파일로 설치 (T-254, PLAN_v52): 내 모델 헤더 버튼+NSOpenPanel→스테이징 복사 (원본 유지). [macos]
 * 전송 확인 제거 (T-255, PLAN_v52): 전송 항상 허용, 권한은 모델 삭제·가져오기·설치+
   장래 도구 실행용으로 재정의. [macos]

@@ -146,3 +146,30 @@ protocol InferenceEngine: AnyObject {
     /// 진행 중 추론 중단.
     func cancel()
 }
+
+/// 이벤트 스트림 기본값 (T-266 S-1): 문자열 스트림을 텍스트 이벤트로 매핑.
+/// 채널·도구를 아는 엔진(NativeEngine)은 오버라이드.
+extension InferenceEngine {
+    func streamEvents(
+        prompt: String,
+        image: ChatStore.ChatImage?,
+        history: [(role: String, text: String)],
+        keyHistory: [String],
+        options: GenerationOptions
+    ) -> AsyncThrowingStream<StreamEvent, Error> {
+        let base = stream(prompt: prompt, image: image, history: history,
+                          keyHistory: keyHistory, options: options)
+        return AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    for try await chunk in base {
+                        continuation.yield(.text(chunk))
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+}

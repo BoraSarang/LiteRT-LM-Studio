@@ -1,5 +1,33 @@
 import Foundation
 
+/// 네이티브 이벤트 누적 상태 (T-266 S-1, 순수·테스트 가능).
+struct NativeStreamState: Sendable {
+    var acc = ""
+    var thinkingAcc = ""
+    var tools: [ToolCallRecord] = []
+
+    /// 표시용 생각 (빈 문자열은 nil 취급을 호출 측에서).
+    var thinking: String? { thinkingAcc.isEmpty ? nil : thinkingAcc }
+
+    /// 이벤트 1건 누적. 도구 호출이면 표시 갱신용 레코드 반환.
+    mutating func apply(_ event: StreamEvent) -> ToolCallRecord? {
+        switch event {
+        case .text(let chunk):
+            acc += chunk
+        case .thinking(let chunk):
+            thinkingAcc += chunk
+        case .toolCall(let rec):
+            if let idx = tools.firstIndex(where: { $0.callID == rec.callID }) {
+                tools[idx] = rec
+            } else {
+                tools.append(rec)
+            }
+            return rec
+        }
+        return nil
+    }
+}
+
 /// 네이티브 전송 확장 (T-130): 분기·토큰·실패 매핑.
 extension ChatStore {
     /// 네이티브 분기 판정 (T-130, 테스트 가능): 선택 경로+주입 모두 필요.
@@ -48,31 +76,34 @@ extension ChatStore {
             logger.perf(feature: "채팅전송",
                         "준비 완료 \(String(format: "%.1f", prepareElapsed))s "
                             + "히스토리 \(past.count)개 \(histChars)자")
-            let stream = engine.stream(prompt: prompt, image: image,
-                                       history: Array(past),
-                                       keyHistory: NativeEngine.ConvKey.entries(fullPast),
-                                       options: generationOptions())
-            var acc = ""
+            let stream = engine.streamEvents(prompt: prompt, image: image,
+                                                   history: Array(past),
+                                                   keyHistory: NativeEngine.ConvKey.entries(fullPast),
+                                                   options: generationOptions())
+            var state = NativeStreamState()
             var firstTokenAt: Date?
             var lastFlush = started
-            for try await chunk in stream {
+            for try await event in stream {
                 if Task.isCancelled { break }
                 if firstTokenAt == nil {
                     firstTokenAt = Date()
                     self.noteFirstToken(started: started)
                 }
-                acc += chunk
+                if let rec = state.apply(event) {
+                    messages[idx].toolCalls = state.tools
+                    logger.info(feature: "도구", "네이티브 호출: \(rec.name)")
+                }
                 // T-148: 0.1초 묶음 갱신 (토큰당 전체 리렌더 방지). 종료 후 최종 반영.
                 if Self.shouldFlushText(now: Date(), lastFlush: lastFlush) {
-                    messages[idx].text = acc
+                    messages[idx].text = state.acc
+                    messages[idx].thinking = state.thinking
                     lastFlush = Date()
                 }
             }
-            messages[idx].text = acc
-            let elapsed = Date().timeIntervalSince(started)
-            messages[idx].perf = Self.perfLine(chars: acc.count, elapsed: elapsed)
-            messages[idx].finishedAt = Date() // T-077 완료 시각 기록
-            logger.perf(feature: "채팅전송", "완료 elapsed=\(String(format: "%.1f", elapsed))s chars=\(acc.count)")
+            messages[idx].text = state.acc
+            messages[idx].thinking = state.thinking
+            messages[idx].toolCalls = state.tools.isEmpty ? nil : state.tools
+            await finishNative(at: idx, chars: state.acc.count, started: started)
         } catch is CancellationError {
             logger.info(feature: "채팅중단", "사용자 중단")
         } catch {
@@ -85,6 +116,27 @@ extension ChatStore {
         preparing = false
         streaming = false
         save()
+    }
+
+    /// 네이티브 완료 반영 (T-266 분리): 본문·PERF·시각 확정.
+    /// T-266 S-2: 원장 배출로 도구 상태·결과 반영 (순서 매칭).
+    func finishNative(at idx: Int, chars: Int, started: Date) async {
+        let outcomes = await ToolLedger.shared.drain(since: started)
+        if !outcomes.isEmpty, var calls = messages[idx].toolCalls {
+            let states = ToolLedger.statuses(count: calls.count, outcomes: outcomes)
+            for i in calls.indices {
+                calls[i].status = states[i]
+                if i < outcomes.count {
+                    calls[i].result = String(outcomes[i].result.prefix(100))
+                }
+            }
+            messages[idx].toolCalls = calls
+            logger.info(feature: "도구", "실행 반영 \(outcomes.count)건")
+        }
+        let elapsed = Date().timeIntervalSince(started)
+        messages[idx].perf = Self.perfLine(chars: chars, elapsed: elapsed)
+        messages[idx].finishedAt = Date() // T-077 완료 시각 기록
+        logger.perf(feature: "채팅전송", "완료 elapsed=\(String(format: "%.1f", elapsed))s chars=\(chars)")
     }
 
     /// 네이티브 실패 반영 (T-130): EngineError 코드 매핑.

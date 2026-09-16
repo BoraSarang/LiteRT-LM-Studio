@@ -118,8 +118,7 @@ struct UserBubbleView: View {
 }
 
 /// 어시스턴트 버블: 좌측 정렬 + 복사·재시도 + PERF 뱃지 + 에러 테두리.
-struct AssistantBubbleView: View {
-    let message: ChatStore.Message
+struct AssistantBubbleView: View {    let message: ChatStore.Message
     let showCursor: Bool
     let preparing: Bool
     var scheme: MarkdownScheme = .auto
@@ -130,10 +129,24 @@ struct AssistantBubbleView: View {
     @State private var hovering = false // T-103 완료 푸터 호버 공개
     @State private var hoverHideWork: DispatchWorkItem? // T-105 해제 지연 (경계 깜빡임 방지)
 
+    /// 도구 호출 횟수 접미 (T-266): `· 🔧2`.
+    var toolSuffix: String {
+        guard let calls = message.toolCalls, !calls.isEmpty else { return "" }
+        return " · 🔧\(calls.count)"
+    }
+
     var body: some View {
         // T-065: 어시스턴트는 기본 좌우 여백 없이 전폭. T-096 좌우 패딩 제거로 푸터와 좌단 일치.
         // T-147: 본문이 왼쪽 끝에 붙는 느낌 → 박스+푸터 함께 2pt (정렬 유지).
         VStack(alignment: .leading, spacing: 2) {
+                // T-266: 생각 과정 접기 (완료 후 접힘 기본, 스트리밍 중 펼침).
+                if let thinking = message.thinking, !thinking.isEmpty {
+                    ThinkingBlockView(thinking: thinking, expanded: isStreaming)
+                }
+                // T-266: 도구 호출 칩 (이름+인자 요약+상태).
+                if let calls = message.toolCalls, !calls.isEmpty {
+                    ForEach(calls) { ToolCallChipView(record: $0) }
+                }
                 if message.text.isEmpty {
                     Text(showCursor && !preparing ? "▍" : "") // T-101 준비 중 커서 숨김 (스피너만)
                         .font(.system(size: 14 * fontScale))
@@ -177,7 +190,7 @@ struct AssistantBubbleView: View {
                 if !isStreaming {
                     HStack(spacing: 4) {
                         if let perf = message.perf {
-                            Text(perf).font(.system(size: 11).monospacedDigit()).foregroundStyle(.tertiary)
+                            Text(perf + toolSuffix).font(.system(size: 11).monospacedDigit()).foregroundStyle(.tertiary)
                         }
                         if let finished = message.finishedAt {
                             RelativeTimeText(date: finished)
@@ -216,5 +229,109 @@ struct AssistantBubbleView: View {
             }
         } // T-103 완료 푸터 호버 공개
         .padding(.leading, 2) // T-147 응답 박스+푸터 좌측 숨쉬기
+    }
+}
+
+/// 생각 과정 접기 블록 (T-266): 회색 박스, 스트리밍 중 펼침·완료 후 접힘 기본.
+struct ThinkingBlockView: View {
+    let thinking: String
+    var expanded: Bool = false
+    @State private var open: Bool?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                open = !(open ?? expanded)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "brain")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text(expanded ? "생각 중…" : "생각 과정")
+                        .font(DS.captionFont).foregroundStyle(.secondary)
+                    Image(systemName: (open ?? expanded) ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10)).foregroundStyle(.tertiary)
+                    Spacer()
+                }
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(expanded ? "생각 과정 (생성 중)" : "생각 과정 펼치기")
+            if open ?? expanded {
+                Text(thinking)
+                    .font(DS.captionFont).foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 10).padding(.bottom, 8)
+            }
+        }
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
+        .clipShape(.rect(cornerRadius: 10))
+        .onChange(of: expanded) { _, streaming in
+            if streaming { open = true } // 스트리밍 시작 시 펼침
+        }
+    }
+}
+
+/// 도구 호출 칩 (T-266 S-1): 이름+인자 요약+상태점. 실행 결과는 S-2.
+struct ToolCallChipView: View {
+    let record: ToolCallRecord
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                if record.status == .streaming {
+                    ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
+                } else {
+                    Image(systemName: statusIcon)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(statusColor)
+                        .frame(width: 12, height: 12)
+                }
+                Text(record.name)
+                    .font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                Text(record.summary)
+                    .font(DS.captionFont).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle)
+                Spacer()
+                Text(statusText).font(DS.captionFont).foregroundStyle(.tertiary)
+            }
+            if let result = record.result {
+                Text(result)
+                    .font(DS.captionFont).foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .background(Color.accentColor.opacity(0.08))
+        .clipShape(.rect(cornerRadius: 8))
+        .help("도구 호출: \(record.name)")
+    }
+
+    var statusIcon: String {
+        switch record.status {
+        case .streaming: return "ellipsis"
+        case .received: return "wrench"
+        case .done: return "checkmark.circle"
+        case .failed: return "xmark.circle"
+        case .denied: return "nosign"
+        }
+    }
+
+    var statusColor: Color {
+        switch record.status {
+        case .failed, .denied: return .red
+        case .done: return .green
+        default: return .secondary
+        }
+    }
+
+    var statusText: String {
+        switch record.status {
+        case .streaming: return "호출 중…"
+        case .received: return "수신됨"
+        case .done: return "완료"
+        case .failed: return "실패"
+        case .denied: return "거부됨"
+        }
     }
 }
