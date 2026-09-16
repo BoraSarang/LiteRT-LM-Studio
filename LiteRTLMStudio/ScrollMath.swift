@@ -149,6 +149,24 @@ extension ContentView {
         abs(cur - target) > epsilon
     }
 
+    /// 지연 치유 방향 (순수, 테스트 가능, T-265).
+    /// 오버슛(문서 밖 허공)은 하향 교정, 언더슛(늦게 늘어난 문서 미달)은 상향 재점프.
+    /// 후속질문 칩처럼 완료 시점에 높이가 늦게 늘면 점프가 위에 착지하므로 미달 교정 필요.
+    enum HealDirection: Equatable {
+        case none
+        case clampDown
+        case jumpUp
+    }
+
+    /// 지연 치유 판정 (순수, 테스트 가능, T-265): 넘침 8pt·미달 24pt.
+    nonisolated static func healDirection(cur: CGFloat, maxY: CGFloat,
+                                          overTol: CGFloat = 8,
+                                          underTol: CGFloat = 24) -> HealDirection {
+        if cur > maxY + overTol { return .clampDown }
+        if maxY - cur > underTol { return .jumpUp }
+        return .none
+    }
+
     /// 휠 누적 판정 (순수, 테스트 가능, T-080): 임계 초과 시에만 시각 기록.
     nonisolated static func wheelStamp(
         accum: CGFloat,

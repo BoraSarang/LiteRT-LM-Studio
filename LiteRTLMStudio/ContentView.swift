@@ -58,6 +58,7 @@ struct ContentView: View {
     @AppStorage("followUpEnabled") var followUpEnabled = true // T-261 후속질문 칩
     @State var outlineFlashID: UUID? // T-258 점프 대상 플래시
     @State var outlineFlashWork: DispatchWorkItem? // T-258 플래시 해제 예약
+    @State var suppressNextSessionJump = false // T-265 팔레트 전환 진입 체인 1회 억제
 
     var selectedModel: ModelStore.Model? {
         models.models.first(where: { $0.id == selectedModelID }) ?? models.models.first
@@ -89,17 +90,18 @@ struct ContentView: View {
 
     var body: some View {
         // 하단 로그는 chatPane 하단 (사이드바 제외, T-039).
+        // 팔레트는 Spotlight식 오버레이 (T-263, 시트 교체).
         rootEvents(rootDialogs(
             mainSplit
                 .background { WindowTitleSync(title: roomTitle) }
                 .toolbar { mainToolbar }
+                .overlay { paletteOverlay }
         ))
     }
 
     /// 시트·다이얼로그·task·선택 동기 체인 (T-232: body 타입 추론 부하 분산용 분리).
     private func rootDialogs<T: View>(_ view: T) -> some View {
         view
-            .sheet(isPresented: $showPalette) { palette }
             .sheet(isPresented: aliasBinding) {
                 AliasSheetView(targetID: aliasTarget ?? "", text: $aliasText) {
                     if let id = aliasTarget { ModelAlias.setAlias(id: id, name: aliasText) }
@@ -218,7 +220,7 @@ struct ContentView: View {
         ToolbarItem(placement: .navigation) {
             Button { showPalette = true } label: {
                 Image(systemName: "command").font(.system(size: 16, weight: .semibold))
-            }.help("명령 팔레트 (⌘K)")
+            }.help("명령 팔레트 (⌘K)").keyboardShortcut("k", modifiers: .command)
         }
         ToolbarItem(placement: .principal) {
             VStack(spacing: 1) {

@@ -34,6 +34,12 @@ extension ContentView {
         .onChange(of: chat.currentSessionID) { _, id in
             // 드래프트 진입(nil)은 점프 스킵 (T-137): 빈 뷰 5초 공회전 방지.
             guard id != nil else { return }
+            // T-265: 팔레트 검색 이동은 진입 체인 스킵 (1회 소비, 폴링 자살 방지).
+            if Self.shouldSkipSessionJump(suppressNextSessionJump) {
+                suppressNextSessionJump = false
+                logger.info(feature: "팔레트", "전환 진입 체인 억제 (검색 이동)")
+                return
+            }
             sessionJump(to: id)
         }
     }
@@ -52,7 +58,41 @@ extension ContentView {
         PaletteView(chat: chat, daemon: daemon, models: models,
                     showPalette: $showPalette) {
             toggleLogPanel()
+        } onJumpMessage: { sessionID, messageID in
+            jumpToMessage(sessionID: sessionID, messageID: messageID)
         }
+    }
+
+    /// 팔레트 오버레이 (T-263): Spotlight식 중앙 상단 플로팅, 바깥 클릭 닫기.
+    @ViewBuilder
+    var paletteOverlay: some View {
+        if showPalette {
+            ZStack {
+                Color.black.opacity(0.15)
+                    .onTapGesture { showPalette = false }
+                VStack {
+                    palette
+                        .frame(width: 560)
+                        .padding(.top, 48)
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    /// 검색 이동 (T-263/T-265): 방 전환 후 해당 대화로 스크롤+플래시.
+    /// 진입 체인 억제+무스탬프 코어로 폴링 자살 방지.
+    func jumpToMessage(sessionID: UUID, messageID: UUID) {
+        guard !chat.streaming else { return }
+        if sessionID != chat.currentSessionID {
+            suppressNextSessionJump = true
+            chat.selectSession(sessionID)
+        }
+        // 세션 전환 레이아웃 대기 후 코어 점프 (핀 해제+스크롤+플래시).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            self.jumpToOutlineCore(id: messageID)
+        }
+        DebugLogger.shared.info(feature: "팔레트", "검색 이동 점프: \(messageID)")
     }
 
     /// 하단 섹션 (T-137): chatPane 본문 타입체크 분할용 (터미널+입력).
@@ -154,17 +194,27 @@ extension ContentView {
         }
     }
 
-    /// 목차 점프 (T-258): 핀 해제+추종 차단 후 행으로 이동+플래시.
+    /// 세션 점프 억제 판정 (순수, 테스트 가능, T-265): 팔레트 전환 1회만 스킵.
+    nonisolated static func shouldSkipSessionJump(_ suppress: Bool) -> Bool {
+        suppress
+    }
+
+    /// 목차 점프 (T-258): 수동 클릭용 — 추종 차단 스탬프 후 코어로 이동.
     func jumpToOutline(id: UUID) {
-        pinnedToBottom = false
         followGate.lastWheel = Date()
+        jumpToOutlineCore(id: id)
+        DebugLogger.shared.info(feature: "대화목차", "점프: \(id)")
+    }
+
+    /// 점프 코어 (T-265): 플래시+스크롤+핀 해제, 휠 스탬프 없음 (진입 체인 오인 방지).
+    func jumpToOutlineCore(id: UUID) {
+        pinnedToBottom = false
         outlineFlashWork?.cancel()
         outlineFlashID = id
         let work = DispatchWorkItem { outlineFlashID = nil }
         outlineFlashWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
         withAnimation { scrollProxy?.scrollTo(id, anchor: .top) }
-        DebugLogger.shared.info(feature: "대화목차", "점프: \(id)")
     }
 
     /// 스트리밍 추종 (T-048/T-106): 문서가 늘었을 때만 따라감.

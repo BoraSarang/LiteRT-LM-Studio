@@ -337,18 +337,24 @@ extension ContentView {
         guard Self.shouldJump(cur: clip.bounds.origin.y, target: targetY) else { return }
         clip.setBoundsOrigin(NSPoint(x: 0, y: targetY))
         scrollView.reflectScrolledClipView(clip)
-        // 지연 치유 (T-054, T-087 8pt로 둔감화): 의미 있는 오버슛만 교정.
-        // T-104 진입 체인 활성 중에는 스킵 (다음 점프와 겹친 역보정이 출렁의 일부).
+        // 지연 치유 (T-054/T-087/T-265): 오버슛 교정+미달 재점프(핀ON·휠 정지 때만, 진입 체인 중 스킵).
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             guard self.followGate.entryWorks.isEmpty else { return }
             guard let doc = scrollView.documentView else { return }
             let maxY = Self.bottomTargetY(docHeight: doc.bounds.height,
                                           clipHeight: scrollView.contentView.bounds.height)
             let cur = scrollView.contentView.bounds.origin.y
-            if cur > maxY + 8 {
+            switch Self.healDirection(cur: cur, maxY: maxY) {
+            case .clampDown:
                 DebugLogger.shared.info(feature: "스크롤", "점프 보정: \(Int(cur))→\(Int(maxY))")
                 scrollView.contentView.setBoundsOrigin(NSPoint(x: 0, y: maxY))
                 scrollView.reflectScrolledClipView(scrollView.contentView)
+            case .jumpUp where self.pinnedToBottom
+                    && Date().timeIntervalSince(self.followGate.lastWheel) >= 0.8:
+                DebugLogger.shared.info(feature: "스크롤", "점프 치유(미달): \(Int(cur))→\(Int(maxY))")
+                self.jumpToBottom()
+            case .jumpUp, .none:
+                break
             }
         }
     }

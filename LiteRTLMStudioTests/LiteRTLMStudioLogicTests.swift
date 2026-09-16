@@ -520,4 +520,118 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(store.releases.count, 20)
         try? FileManager.default.removeItem(at: tmp)
     }
+
+    /// 채팅 검색 일치 (T-263): 질문·응답 모두 대상.
+    func testChatSearchMatch() {
+        let session = ChatStore.Session(title: "방")
+        let msgs = [
+            ChatStore.Message(role: "user", text: "리테일 전략 알려줘"),
+            ChatStore.Message(role: "assistant", text: "리테일은 성장 중입니다"),
+            ChatStore.Message(role: "user", text: "다른 이야기"),
+        ]
+        let payload = [session.id: msgs]
+        let hits = ChatSearch.search(query: "리테일", sessions: [session], transcripts: payload)
+        XCTAssertEqual(hits.count, 2)
+        XCTAssertEqual(hits[0].sessionTitle, "방")
+        XCTAssertTrue(hits[0].preview.contains("리테일"))
+    }
+
+    /// 채팅 검색 대소문자 무시 (T-263).
+    func testChatSearchCaseInsensitive() {
+        let session = ChatStore.Session(title: "방")
+        let msgs = [ChatStore.Message(role: "user", text: "Hello World")]
+        let hits = ChatSearch.search(query: "hello", sessions: [session],
+                                     transcripts: [session.id: msgs])
+        XCTAssertEqual(hits.count, 1)
+    }
+
+    /// 채팅 검색 2자 미만 (T-263): 빈 배열.
+    func testChatSearchTooShort() {
+        let session = ChatStore.Session(title: "방")
+        let msgs = [ChatStore.Message(role: "user", text: "안녕하세요")]
+        XCTAssertTrue(ChatSearch.search(query: "안", sessions: [session],
+                                        transcripts: [session.id: msgs]).isEmpty)
+        XCTAssertTrue(ChatSearch.search(query: "", sessions: [session],
+                                        transcripts: [session.id: msgs]).isEmpty)
+    }
+
+    /// 채팅 검색 전체 세션+8건 cap (T-263): 최신방 우선.
+    func testChatSearchSessionsCap() {
+        var sessions: [ChatStore.Session] = []
+        var payload: [UUID: [ChatStore.Message]] = [:]
+        for idx in 0 ..< 10 {
+            var s = ChatStore.Session(title: "방\(idx)")
+            s.updatedAt = Date(timeIntervalSince1970: Double(1000 + idx))
+            sessions.append(s)
+            payload[s.id] = [ChatStore.Message(role: "user", text: "공통 키워드 \(idx)")]
+        }
+        let hits = ChatSearch.search(query: "공통", sessions: sessions, transcripts: payload)
+        XCTAssertEqual(hits.count, 8)
+        XCTAssertEqual(hits[0].sessionTitle, "방9")
+    }
+
+    /// 매칭 문맥 미리보기 (T-263): 앞뒤 … 표기.
+    func testChatSearchPreview() {
+        let long = String(repeating: "가", count: 50) + "키워드" + String(repeating: "나", count: 50)
+        let preview = ChatSearch.contextPreview(long, query: "키워드")
+        XCTAssertTrue(preview.hasPrefix("…"))
+        XCTAssertTrue(preview.hasSuffix("…"))
+        XCTAssertTrue(preview.contains("키워드"))
+    }
+
+    /// 초성 추출 (T-264): 완성형 분해+자모 그대로+그 외 nil.
+    func testChoseongExtract() {
+        XCTAssertEqual(KoreanMatch.choseong(of: "리"), "ㄹ")
+        XCTAssertEqual(KoreanMatch.choseong(of: "ㅁ"), "ㅁ")
+        XCTAssertNil(KoreanMatch.choseong(of: "A"))
+    }
+
+    /// 초성 검색 (T-264): ㅁㅅㅈ → "무슨지".
+    func testChoseongSearch() {
+        XCTAssertTrue(KoreanMatch.matches(text: "무슨지 알려줘", query: "ㅁㅅㅈ"))
+        XCTAssertFalse(KoreanMatch.matches(text: "무슨지 알려줘", query: "ㅁㅅㄱ"))
+    }
+
+    /// 초성+완성형 혼용 (T-264): ㄹ테일 → "리테일".
+    func testChoseongMixed() {
+        XCTAssertTrue(KoreanMatch.matches(text: "리테일 전략 보고서", query: "ㄹ테일"))
+        XCTAssertFalse(KoreanMatch.matches(text: "리테일 전략 보고서", query: "ㄹ택일"))
+    }
+
+    /// 띄어쓰기 무시 (T-264): 붙여쓰기 ↔ 띄어쓰기.
+    func testSearchIgnoreSpace() {
+        XCTAssertTrue(KoreanMatch.matches(text: "리테일 전략 보고서", query: "리테일전략"))
+        XCTAssertTrue(KoreanMatch.matches(text: "리테일전략", query: "리테일 전략"))
+    }
+
+    /// 초성 매칭 범위 (T-264): 미리보기 중심이 매칭 위치.
+    func testChoseongRange() {
+        let text = "어제 회의에서 리테일 전략을 논의했습니다"
+        let range = KoreanMatch.matchRange(in: text, query: "ㄹ테일")
+        XCTAssertNotNil(range)
+        XCTAssertEqual(String(text[range!]), "리테일")
+    }
+
+    /// 초성 검색 end-to-end (T-264): search까지 도달.
+    func testChatSearchChoseong() {
+        let session = ChatStore.Session(title: "방")
+        let msgs = [ChatStore.Message(role: "user", text: "무슨지 알려줘")]
+        let hits = ChatSearch.search(query: "ㅁㅅㅈ", sessions: [session],
+                                     transcripts: [session.id: msgs])
+        XCTAssertEqual(hits.count, 1)
+    }
+
+    /// 세션 점프 억제 판정 (T-265): 팔레트 전환 1회만 스킵.
+    func testSuppressSessionJump() {
+        XCTAssertTrue(ContentView.shouldSkipSessionJump(true))
+        XCTAssertFalse(ContentView.shouldSkipSessionJump(false))
+    }
+
+    /// 지연 치유 방향 (T-265): 넘침 하향·미달 상향·범위 내 없음.
+    func testHealDirection() {
+        XCTAssertEqual(ContentView.healDirection(cur: 500, maxY: 400), .clampDown)
+        XCTAssertEqual(ContentView.healDirection(cur: 300, maxY: 400), .jumpUp)
+        XCTAssertEqual(ContentView.healDirection(cur: 395, maxY: 400), .none)
+        XCTAssertEqual(ContentView.healDirection(cur: 405, maxY: 400), .none)
+    }
 }
