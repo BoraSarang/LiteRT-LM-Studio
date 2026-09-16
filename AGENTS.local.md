@@ -5,6 +5,7 @@
 * 적용 플랫폼 확정: **macOS 단일** (iOS/Android/Web/확장 제외).
 * 네이티브 필수: SwiftUI만. AppKit 뷰 직접 사용 금지. 예외: NSOpenPanel/NSPasteboard/NSImage 크기변환 같은 비(非)뷰 API만 허용. 추가 예외(T-047): 채팅 NSScrollView 탐색용 0크기 `ScrollViewFinder` 1건 (렌더 없음, 절대좌표 점프 진입점).
 * 정렬 규칙 (전역 기본, 별도 요구 없으면 전 화면 적용): 데이터 있음 → 콘텐츠 영역 좌측·상단 정렬. 데이터 없음(빈 상태) → 가로·세로 중앙 정렬.
+* 탭·필터 UI는 전폭 버튼 패턴 (사이드바 탭 선례, T-240). `segmented` 고정폭 사용 금지 (빈 공간·좌측 패딩 어색 원인).
 * 번들ID: `com.borasarang.litert-lm-studio` (T-060 개명, 변경 시 파괴적 가드).
 * 외부 도구: `/opt/homebrew/bin/uv` 절대경로 사용 (Swift Process PATH 미의존).
 * 데몬: `litert-lm serve --host 127.0.0.1 --port 9379` 고정. 포트 변경 시 본 파일 갱신.
