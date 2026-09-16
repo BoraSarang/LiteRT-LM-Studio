@@ -67,6 +67,9 @@
   에러코드 E-MAC-ENG-0004 추가. [macos]
 * Tool calling S-3 실행 서버 (T-268, PLAN_v61): tools 스키마 전송+tool_calls 종료 시
   로컬 실행 후 최대 3턴 재전송, 칩 상태·결과 반영. 실데몬 E2E (gemma4-12b) 통과. [macos]
+* 웹 검색 도구 (T-269, PLAN_v62): wigolo 우선→DDG→Wikipedia 체인+web_search·web_fetch+
+  WigoloManager 데몬 관리+채팅 설정 토글. 에러코드 E-MAC-NET-0015 추가.
+  wigolo CLI 설치는 사용자 몫. [macos]
 * 파일로 설치 (T-254, PLAN_v52): 내 모델 헤더 버튼+NSOpenPanel→스테이징 복사 (원본 유지). [macos]
 * 전송 확인 제거 (T-255, PLAN_v52): 전송 항상 허용, 권한은 모델 삭제·가져오기·설치+
   장래 도구 실행용으로 재정의. [macos]

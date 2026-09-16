@@ -49,6 +49,8 @@
      거부·실패는 모델 전달 문자열 (스트림 유지)+칩 결과 2줄.
    - 서버 도구 루프 (T-268 S-3, PLAN_v61): tools 스키마+auto 전송, tool_calls 종료 시
      로컬 실행 후 최대 3턴 재전송. messages[]는 user/assistant만 (tool 턴은 요청에만).
+   - 웹 검색 (T-269, PLAN_v62): wigolo(3333) 우선→DDG IA→Wikipedia 체인,
+     web_search(발췌 300자 cap)+web_fetch(8K cap), 데몬 앱 관리, 채팅 설정 토글.
   - 본문: 네이티브 마크다운 (T-150, WKWebView 제거): 줄블록(제목·목록·표·구분선·인용·문단)+펜스 코드(Highlightr 색상·헤더·복사)+줄바꿈 보존. 대화 열 12px inset (T-172).
    - 입력: TextEditor 멀티라인 (Return 전송·Shift 줄바꿈·Cmd+. 중단).
    - 명령 팔레트 (T-263, PLAN_v58): Spotlight식 중앙 상단 플로팅 (시트 교체).

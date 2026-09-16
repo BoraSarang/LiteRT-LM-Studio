@@ -30,3 +30,10 @@
 ## Thinking (thinking 지원 모델 보유 시)
 
 12. `365*24를 단계별로 생각해서 풀어줘` — 생각 접기 블록 펼침 확인
+
+## 웹 검색 (T-269, wigolo 설치 후)
+
+13. `최근 LiteRT 소식을 검색해줘` — 🔧 web_search 칩+인용 답변
+14. `이 페이지 읽어줘 https://ai.google.dev/edge/litert-lm` — web_fetch 본문 인용
+15. 데몬 중지 상태로 13번 — DDG/Wikipedia 폴백 또는 정중 거절
+16. 웹 검색 끔 + 13번 — 도구 미호출 확인

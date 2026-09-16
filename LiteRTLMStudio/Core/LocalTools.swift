@@ -7,13 +7,18 @@ enum ToolDecision: Sendable, Equatable {
 }
 
 /// 로컬 안전 도구 묶음 (T-266 S-2): 현재시각·사칙계산. 부작용 없음.
+/// T-269: 웹 검색·가져오기 추가 (토글 꺼지면 제외).
 enum LocalTools {
     /// 권한별 등록 목록 (순수, 테스트 가능): Off면 빈 배열 (모델이 호출 불가).
     nonisolated static func registered(
         permission: GlobalPermission = GlobalPermission.current()
     ) -> [any Tool] {
         guard permission != .off else { return [] }
-        return [GetTimeTool(), CalculatorTool()]
+        var tools: [any Tool] = [GetTimeTool(), CalculatorTool()]
+        if WebSearch.enabled() {
+            tools += [WebSearchTool(), WebFetchTool()]
+        }
+        return tools
     }
 
     /// 실행 결정 (T-266 S-2): Off·거부·타임아웃은 거부, Allow는 진행, Ask는 승인 대기.

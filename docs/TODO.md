@@ -263,4 +263,5 @@
 * [x] T-266 Tool calling S-1 표시 파이프: 이벤트·파서·접기+칩 (PLAN_v61)
 * [x] T-267 Tool calling S-2 실행 네이티브: 로컬 도구+권한 게이트 (PLAN_v61)
 * [x] T-268 Tool calling S-3 실행 서버: tools 전송+tool 응답 루프 (PLAN_v61)
+* [x] T-269 웹 검색 도구: wigolo 우선 체인+검색/가져오기+데몬 관리 (PLAN_v62)
 * [ ] T-215 잔여 간헐 미도달 방: 재현 조건 특정 후 처방 (추후 개선, PLAN_v31~v40 경위 참조)

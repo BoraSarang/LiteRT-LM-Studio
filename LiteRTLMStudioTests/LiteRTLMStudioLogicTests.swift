@@ -731,11 +731,70 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertThrowsError(try CalcParser.evaluate("abc"))
     }
 
-    /// 도구 등록 게이트 (T-266 S-2): Off면 빈 배열.
+    /// 도구 등록 게이트 (T-266 S-2, T-269 웹 도구 포함): Off면 빈 배열.
     func testLocalToolsGate() {
         XCTAssertTrue(LocalTools.registered(permission: .off).isEmpty)
-        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 2)
-        XCTAssertEqual(LocalTools.registered(permission: .ask).count, 2)
+        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 4)
+        XCTAssertEqual(LocalTools.registered(permission: .ask).count, 4)
+    }
+
+    /// wigolo 응답 파싱 (T-269): url 없는 항목 제외.
+    func testParseWigolo() {
+        let json = """
+        {"results":[
+        {"title":"A","url":"https://a.example","excerpt":"요약"},
+        {"title":"B","excerpt":"주소 없음"},
+        {"title":"","url":"https://c.example"}]}
+        """
+        let hits = WebSearch.parseWigolo(Data(json.utf8))
+        XCTAssertEqual(hits.count, 2)
+        XCTAssertEqual(hits[0].title, "A")
+        XCTAssertEqual(hits[1].title, "https://c.example")
+    }
+
+    /// DDG·위키 파싱 (T-269).
+    func testParseDDGWiki() {
+        let ddg = """
+        {"AbstractText":"초록","AbstractURL":"https://d.example",
+        "RelatedTopics":[{"Text":"관련","FirstURL":"https://r.example"},{"Text":""}]}
+        """
+        XCTAssertEqual(WebSearch.parseDDG(Data(ddg.utf8)).count, 2)
+        let wiki = #"["q",["제목"],["설명"],["https://w.example"]]"#
+        let hits = WebSearch.parseWiki(Data(wiki.utf8))
+        XCTAssertEqual(hits.count, 1)
+        XCTAssertEqual(hits[0].title, "제목")
+        XCTAssertTrue(WebSearch.parseWiki(Data("[]".utf8)).isEmpty)
+    }
+
+    /// 모델 포맷 cap (T-269): 발췌 300자.
+    func testFormatForModel() {
+        let hits = [WebHit(title: "T", url: "https://u.example",
+                            excerpt: String(repeating: "가", count: 500))]
+        let out = WebSearch.formatForModel(hits)
+        XCTAssertTrue(out.contains("[1] T"))
+        XCTAssertTrue(out.contains("https://u.example"))
+        XCTAssertEqual(out.count, "[1] T\nhttps://u.example\n".count + 300)
+    }
+
+    /// HTML 제거 (T-269): 스크립트·태그 제거.
+    func testStripHTML() {
+        let html = "<html><head><script>var a=1;</script></head><body><h1>제목</h1><p>본문</p></body></html>"
+        XCTAssertEqual(WebSearch.stripHTML(html), "제목 본문")
+    }
+
+    /// 웹 검색 토글 (T-269): 기본 켜짐.
+    func testWebSearchEnabled() {
+        let defaults = UserDefaults(suiteName: "websearch-test-\(UUID().uuidString)")!
+        XCTAssertTrue(WebSearch.enabled(defaults))
+        defaults.set(false, forKey: WebSearch.toggleKey)
+        XCTAssertFalse(WebSearch.enabled(defaults))
+    }
+
+    /// wigolo 바이너리 탐색 (T-269): override 우선.
+    func testResolveWigoloBinary() {
+        XCTAssertEqual(WigoloManager.resolveBinary(home: "/nonexistent",
+                                                   overridePath: "/tmp/fake-wigolo"), "/tmp/fake-wigolo")
+        XCTAssertNil(WigoloManager.resolveBinary(home: "/nonexistent", overridePath: nil))
     }
 
     /// 실행 결정 (T-266 S-2): Off 거부·Allow 진행.

@@ -12,6 +12,7 @@ struct SettingsView: View {
     @AppStorage("globalPermission") private var permissionRaw = GlobalPermission.ask.rawValue
     @AppStorage("chatOutlineEnabled") private var outlineEnabled = true // T-258 대화 목차
     @AppStorage("followUpEnabled") private var followUpEnabled = true // T-261 후속질문 칩
+    @AppStorage("webSearchEnabled") private var webSearchEnabled = true // T-269 웹 검색 도구
     @State private var loginError: String?
 
     var body: some View {
@@ -88,6 +89,18 @@ struct SettingsView: View {
                     .onChange(of: followUpEnabled) { _, on in
                         DebugLogger.shared.info(feature: "후속질문", on ? "켜짐" : "꺼짐")
                     }
+                Toggle("웹 검색 사용", isOn: $webSearchEnabled)
+                    .help("모델이 web_search·web_fetch 도구를 쓸 수 있게 합니다. wigolo 우선, 없으면 공개 경로로 폴백.")
+                    .onChange(of: webSearchEnabled) { _, on in
+                        DebugLogger.shared.info(feature: "웹검색", on ? "켜짐" : "꺼짐")
+                    }
+                HStack(spacing: 8) {
+                    Text("wigolo 미설치 시 터미널에서 `npm i -g wigolo` 후 `wigolo serve` 실행")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("복사") {
+                        PasteboardUtil.copy("npm i -g wigolo")
+                    }
+                }
             }.formStyle(.grouped).padding()
                 .tabItem { Label("채팅", systemImage: "bubble.left.and.bubble.right") }
         }.frame(minWidth: 580, minHeight: 420)
