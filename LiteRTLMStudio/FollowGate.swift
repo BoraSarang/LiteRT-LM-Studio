@@ -229,6 +229,15 @@ extension ContentView {
         logger.info(feature: "스크롤", "앵커 재수렴 → 하단")
     }
 
+    /// 동결 깨움 (T-212): 진입 종료 후 앵커 보고가 한 번도 없으면 레이아웃 미기상.
+    /// 프록시 스크롤로 SwiftUI 레이아웃을 강제 기상 (점프만으로는 안 깨어남).
+    func wakeFrozenLayout() {
+        guard !chat.streaming, !chat.preparing else { return }
+        guard followGate.finishDocH > 0, followGate.anchorMaxY == 0 else { return }
+        scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
+        logger.info(feature: "스크롤", "레이아웃 깨움")
+    }
+
     /// 자 불일치 진단 (T-207): AppKit 높이와 앵커 실측이 크게 어긋나면 로그만.
     /// 동작 변경 없음 (포인터 교체·추정 붕괴 증거 수집용).
     func diagnoseRulerMismatch() {

@@ -60,7 +60,8 @@ extension ContentView {
            Date().timeIntervalSince(followGate.lastJumpAt) < 1.0 { return }
         followGate.lastJumpSession = session
         followGate.lastJumpAt = Date()
-        pinnedToBottom = true
+        // T-212 pinned 강제 true 제거: 앵커 첫 보고 전까지 모름(false) 유지.
+        // 동결 시 버튼 탈출구 확보. 추종은 앵커 보고 후 실측으로 동작.
         lastFollow = .distantPast
         followGate.lastWheel = .distantPast
         followGate.wheelAccum = 0
@@ -90,6 +91,7 @@ extension ContentView {
                 self.correctStuckBottom() // T-204 고착 보정 (이동량 가드)
                 self.recoverPastTrueEnd() // T-206 앵커 재수렴 (핀ON 사각지대)
                 self.diagnoseRulerMismatch() // T-207 자 불일치 진단 (로그만)
+                self.wakeFrozenLayout() // T-212 동결 깨움 (앵커 보고 없음)
                 if isLast { self.finalVerifyJump() } // T-208 착지 교정
             }
             followGate.clampWorks.append(work)

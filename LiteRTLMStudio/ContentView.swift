@@ -36,7 +36,7 @@ struct ContentView: View {
     @State var showPalette = false
     @State var attachedImage: ChatStore.ChatImage?
     @State var attachedName: String?
-    @State var pinnedToBottom = true // Sticky-Pin: 하단 고정 시만 추종
+    @State var pinnedToBottom = false // Sticky-Pin: 하단 고정 시만 추종 (T-212 모름=false, 첫 보고에 정정)
     @State var viewportHeight: CGFloat = 600
     @StateObject var followGate = FollowGate() // T-044 휠 일시정지
     @State var wheelMonitor: Any?
