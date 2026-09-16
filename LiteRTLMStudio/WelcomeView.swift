@@ -63,12 +63,13 @@ struct WelcomeView: View {
         }
     }
 
-    /// 환영 헤더.
+    /// 환영 헤더 (앱 아이콘+이름, AboutView와 동일 소스).
     var header: some View {
         VStack(spacing: 6) {
-            Image(systemName: "brain")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
+            Image(nsImage: appIcon)
+                .resizable()
+                .frame(width: 64, height: 64)
+                .clipShape(.rect(cornerRadius: 14))
             Text("LiteRT-LM Studio")
                 .font(.system(size: 22, weight: .bold))
             Text("온디바이스 LLM 채팅 매니저 — 아래에 질문을 입력하세요")
@@ -219,6 +220,12 @@ struct WelcomeView: View {
                     .font(DS.captionFont).foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// 앱 아이콘 (AboutView와 동일 소스, 없으면 brain 폴백).
+    var appIcon: NSImage {
+        NSApp.applicationIconImage
+            ?? NSImage(systemSymbolName: "brain", accessibilityDescription: nil) ?? NSImage()
     }
 
     /// 외부 링크 열기 (기본 브라우저).
