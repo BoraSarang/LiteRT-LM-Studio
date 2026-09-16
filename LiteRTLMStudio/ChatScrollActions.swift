@@ -38,6 +38,7 @@ extension ContentView {
         followGate.entryEpoch += 1 // T-202 낡은 폴링 세대 폐기
         followGate.finishDocH = 0 // T-204 종료 기준 리셋
         followGate.finishOffset = 0
+        followGate.anchorMaxY = 0 // T-207 앵커 신선도 보장 (stale 차단)
         followGate.entrySince = Date()
         followGate.lastDocHeights = []
         followGate.kickDone = false
@@ -87,6 +88,7 @@ extension ContentView {
                 self.correctCollapsedBottom() // T-204 붕괴 보정 (이동량 가드)
                 self.correctStuckBottom() // T-204 고착 보정 (이동량 가드)
                 self.recoverPastTrueEnd() // T-206 앵커 재수렴 (핀ON 사각지대)
+                self.diagnoseRulerMismatch() // T-207 자 불일치 진단 (로그만)
                 if isLast { self.reseatBottomViaProxy() } // T-204 최후 수단
             }
             followGate.clampWorks.append(work)

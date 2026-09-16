@@ -26,23 +26,40 @@ final class FollowGate: ObservableObject {
 
 /// 상위 NSScrollView 탐색 (T-047): 절대좌표 점프용 AppKit 진입점. 렌더 없음(AIModelTalk 이식).
 /// ScrollViewProxy의 레이아웃 스냅샷 오차 없이 문서 끝으로 이동한다.
+/// T-207: updateNSView 재탐색으로 교체 감지 (구 포인터 명령 사각지대 해소).
 struct ScrollViewFinder: NSViewRepresentable {
     let onFound: (NSScrollView) -> Void
 
+    /// 발견 인스턴스 보관 (T-207): 동일이면 @State 갱신 생략 (루프 방지).
+    final class Coord {
+        weak var found: NSScrollView?
+    }
+
+    func makeCoordinator() -> Coord { Coord() }
+
+    /// 조상 체인에서 NSScrollView 탐색 (순수 조회, 테스트 불가-AppKit).
+    nonisolated static func find(from host: NSView) -> NSScrollView? {
+        var current: NSView? = host
+        while let candidate = current {
+            if let scrollView = candidate as? NSScrollView { return scrollView }
+            current = candidate.superview
+        }
+        return nil
+    }
+
     func makeNSView(context: Context) -> NSView {
         let host = NSView()
+        let coord = context.coordinator
+        let report = onFound
         DispatchQueue.main.async { [weak host] in
             guard let host else { return }
             // 계층 부착이 늦는 경우가 있어 재시도 — 발견 시 즉시 중단.
             var attempt = 0
             func walk() {
-                var current: NSView? = host
-                while let candidate = current {
-                    if let scrollView = candidate as? NSScrollView {
-                        onFound(scrollView)
-                        return
-                    }
-                    current = candidate.superview
+                if let found = Self.find(from: host) {
+                    coord.found = found
+                    report(found)
+                    return
                 }
                 attempt += 1
                 if attempt < 40 {
@@ -54,7 +71,23 @@ struct ScrollViewFinder: NSViewRepresentable {
         return host
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    func updateNSView(_ nsView: NSView, context: Context) {
+        // T-207 교체 감지: SwiftUI가 스크롤뷰를 교체하면 구 포인터가 사각지대.
+        // 비동기+인스턴스 변경 시에만 보고 (빈번 호출·루프 방지).
+        let coord = context.coordinator
+        let report = onFound
+        DispatchQueue.main.async { [weak nsView] in
+            guard let host = nsView,
+                  let found = Self.find(from: host),
+                  found !== coord.found else { return }
+            let replaced = coord.found != nil // 최초 발견이면 교체 아님
+            coord.found = found
+            if replaced {
+                DebugLogger.shared.info(feature: "스크롤", "스크롤뷰 교체 감지")
+            }
+            report(found)
+        }
+    }
 }
 
 // MARK: - 보정 (파일 길이 관리용 분리, T-204)
@@ -169,5 +202,19 @@ extension ContentView {
         reconcilePin()
         refreshFinishMark()
         logger.info(feature: "스크롤", "앵커 재수렴 → 하단")
+    }
+
+    /// 자 불일치 진단 (T-207): AppKit 높이와 앵커 실측이 크게 어긋나면 로그만.
+    /// 동작 변경 없음 (포인터 교체·추정 붕괴 증거 수집용).
+    func diagnoseRulerMismatch() {
+        guard let sv = chatScrollView, let doc = sv.documentView else { return }
+        guard followGate.anchorMaxY > 0 else { return }
+        let offset = sv.contentView.bounds.origin.y
+        let clipH = sv.contentView.bounds.height
+        let appMaxY = max(0, doc.bounds.height - clipH)
+        let trueMaxY = Self.anchorTrueMaxY(anchorMaxY: followGate.anchorMaxY,
+                                           offset: offset, clipHeight: clipH)
+        guard abs(appMaxY - trueMaxY) > 1000 else { return }
+        logger.info(feature: "스크롤", "자 불일치 문서=\(Int(appMaxY)) 실측=\(Int(trueMaxY))")
     }
 }
