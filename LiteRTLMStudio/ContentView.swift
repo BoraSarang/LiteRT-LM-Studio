@@ -52,6 +52,10 @@ struct ContentView: View {
     @State var pendingSessionJump = true // T-046 첫 표시 점프 (복원 기록 포함)
     @State var scrollProxy: ScrollViewProxy? // T-081 Lazy 강제 생성용 프록시 보관
     @State var focusNonce = 0 // T-137 드래프트 시작 시 입력 포커스 신호
+    @AppStorage("chatOutlineEnabled") var outlineEnabled = true // T-258 대화 목차 사용
+    @AppStorage("followUpEnabled") var followUpEnabled = true // T-261 후속질문 칩
+    @State var outlineFlashID: UUID? // T-258 점프 대상 플래시
+    @State var outlineFlashWork: DispatchWorkItem? // T-258 플래시 해제 예약
 
     var selectedModel: ModelStore.Model? {
         models.models.first(where: { $0.id == selectedModelID }) ?? models.models.first

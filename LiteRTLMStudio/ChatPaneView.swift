@@ -126,6 +126,14 @@ extension ContentView {
                 }
             }
             .onHover { followGate.hover = $0 }
+            .onReceive(NotificationCenter.default.publisher(for: .requestPinCheck)) { _ in
+                // T-260: 휠 스탬프 시 실측 정정 (수동 상승→버튼 보장).
+                let wasPinned = pinnedToBottom
+                reconcilePin()
+                if wasPinned, !pinnedToBottom {
+                    logger.info(feature: "스크롤", "휠 — 핀 해제")
+                }
+            }
             .onAppear {
                 installWheelMonitor()
                 // 첫 표시 점프 (T-046): 복원 기록·빈 화면→대화 전환. 1회만 소비.
@@ -137,7 +145,30 @@ extension ContentView {
             .overlay(alignment: .bottom) {
                 if !pinnedToBottom { scrollBottomButton }
             }
+            .overlay(alignment: .trailing) {
+                // T-258 대화 목차 플로팅 (우측 중앙, 맨 아래로 버튼과 분리).
+                if outlineEnabled {
+                    let entries = ChatOutline.entries(from: chat.messages)
+                    if !entries.isEmpty {
+                        ChatOutlineView(entries: entries) { id in jumpToOutline(id: id) }
+                            .padding(.trailing, 8)
+                    }
+                }
+            }
         }
+    }
+
+    /// 목차 점프 (T-258): 핀 해제+추종 차단 후 행으로 이동+플래시.
+    func jumpToOutline(id: UUID) {
+        pinnedToBottom = false
+        followGate.lastWheel = Date()
+        outlineFlashWork?.cancel()
+        outlineFlashID = id
+        let work = DispatchWorkItem { outlineFlashID = nil }
+        outlineFlashWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
+        withAnimation { scrollProxy?.scrollTo(id, anchor: .top) }
+        DebugLogger.shared.info(feature: "대화목차", "점프: \(id)")
     }
 
     /// 스트리밍 추종 (T-048/T-106): 문서가 늘었을 때만 따라감.
@@ -182,23 +213,50 @@ extension ContentView {
     }
 
     /// 메시지 행 빌더 (T-137): ForEach 본문 타입체크 분할용.
+    /// T-261: 마지막 어시스턴트 응답 아래에 후속질문 칩 (우측 정렬·즉시 전송).
     func messageRow(_ m: ChatStore.Message) -> some View {
-        MessageBubbleView(
-            message: m,
-            showCursor: chat.streaming && m.id == chat.messages.last?.id,
-            preparing: chat.preparing && m.id == chat.messages.last?.id,
-            scheme: AppearanceMode.effectiveScheme(
-                mode: appearanceMode, systemDark: colorScheme == .dark),
-            isStreaming: chat.streaming && m.id == chat.messages.last?.id,
-            fontScale: chatFontScale,
-            onRetry: { chat.retry() },
-            controlsDisabled: chat.streaming,
-            onEdit: { msg in
-                // T-165 다시 요청: 질문을 입력창에 채우고 이후 내역 제거.
-                guard let text = chat.editMessage(msg.id) else { return }
-                input = text
-                focusChatInput()
+        VStack(alignment: .leading, spacing: 6) {
+            MessageBubbleView(
+                message: m,
+                showCursor: chat.streaming && m.id == chat.messages.last?.id,
+                preparing: chat.preparing && m.id == chat.messages.last?.id,
+                scheme: AppearanceMode.effectiveScheme(
+                    mode: appearanceMode, systemDark: colorScheme == .dark),
+                isStreaming: chat.streaming && m.id == chat.messages.last?.id,
+                fontScale: chatFontScale,
+                onRetry: { chat.retry() },
+                controlsDisabled: chat.streaming,
+                onEdit: { msg in
+                    // T-165 다시 요청: 질문을 입력창에 채우고 이후 내역 제거.
+                    guard let text = chat.editMessage(msg.id) else { return }
+                    input = text
+                    focusChatInput()
+                }
+            )
+            .background {
+                // T-258 점프 플래시 (행 배경 강조 1.5초).
+                if outlineFlashID == m.id {
+                    RoundedRectangle(cornerRadius: 10).fill(Color.yellow.opacity(0.25))
+                }
             }
-        )
+            if shouldShowFollowUp(m) {
+                FollowUpChipsView(
+                    chips: FollowUpSuggest.suggestFollowUps(for: m.text),
+                    disabled: chat.streaming
+                ) { chip in
+                    logger.info(feature: "후속질문", "전송: \(chip.prefix(20))")
+                    chat.send(chip)
+                }
+            }
+        }
+    }
+
+    /// 후속질문 표시 판정 (순수 조건 묶음, T-261): 마지막 완료 응답에만.
+    func shouldShowFollowUp(_ m: ChatStore.Message) -> Bool {
+        followUpEnabled
+            && m.role == "assistant"
+            && m.id == chat.messages.last?.id
+            && !chat.streaming && !chat.preparing
+            && !m.text.isEmpty && !m.isError
     }
 }

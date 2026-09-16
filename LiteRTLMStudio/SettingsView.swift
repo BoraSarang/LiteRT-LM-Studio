@@ -10,6 +10,8 @@ struct SettingsView: View {
     @AppStorage("historyTurns") private var historyTurns = HistoryWindow.unlimited.rawValue
     @AppStorage("benchmarkRetention") private var benchmarkRetention = BenchmarkRetention.ten.rawValue
     @AppStorage("globalPermission") private var permissionRaw = GlobalPermission.ask.rawValue
+    @AppStorage("chatOutlineEnabled") private var outlineEnabled = true // T-258 대화 목차
+    @AppStorage("followUpEnabled") private var followUpEnabled = true // T-261 후속질문 칩
     @State private var loginError: String?
 
     var body: some View {
@@ -75,6 +77,19 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }.formStyle(.grouped).padding()
                 .tabItem { Label("일반", systemImage: "gear") }
+            Form {
+                Toggle("대화 목차 사용", isOn: $outlineEnabled)
+                    .help("채팅 우측 중앙에 질문 목록 플로팅. 끄면 숨겨집니다.")
+                    .onChange(of: outlineEnabled) { _, on in
+                        DebugLogger.shared.info(feature: "대화목차", on ? "켜짐" : "꺼짐")
+                    }
+                Toggle("후속 질문 사용", isOn: $followUpEnabled)
+                    .help("응답 완료 후 관련 질문 3~4개를 어시스턴트 아래 우측에 표시. 끄면 숨겨집니다.")
+                    .onChange(of: followUpEnabled) { _, on in
+                        DebugLogger.shared.info(feature: "후속질문", on ? "켜짐" : "꺼짐")
+                    }
+            }.formStyle(.grouped).padding()
+                .tabItem { Label("채팅", systemImage: "bubble.left.and.bubble.right") }
         }.frame(minWidth: 580, minHeight: 420)
     }
 

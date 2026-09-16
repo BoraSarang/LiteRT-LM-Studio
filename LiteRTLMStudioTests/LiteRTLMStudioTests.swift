@@ -230,4 +230,31 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertEqual(SystemMonitor.bytesToGB(0), 0.0, accuracy: 0.0001)
         XCTAssertGreaterThan(SystemMonitor.appFootprintBytes(), 0)
     }
+
+    /// 대화 목차 추출 (T-258): 사용자 첫 줄 40자.
+    func testChatOutlineEntries() {
+        let msgs = [
+            ChatStore.Message(role: "user", text: "첫 질문입니다\n둘째 줄"),
+            ChatStore.Message(role: "assistant", text: "답변"),
+            ChatStore.Message(role: "user", text: "두 번째 질문")
+        ]
+        let entries = ChatOutline.entries(from: msgs)
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertEqual(entries[0].preview, "첫 질문입니다")
+        XCTAssertEqual(entries[0].id, msgs[0].id)
+        XCTAssertEqual(entries[1].preview, "두 번째 질문")
+    }
+
+    /// 대화 목차 빈 본문 (T-258): 이미지 첨부 표기.
+    func testChatOutlineEmptyBody() {
+        let msgs = [ChatStore.Message(role: "user", text: "   ")]
+        XCTAssertEqual(ChatOutline.entries(from: msgs).first?.preview, "(이미지 첨부)")
+    }
+
+    /// 대화 목차 빈 목록 (T-258): 질문 없으면 빈 배열.
+    func testChatOutlineEmpty() {
+        XCTAssertTrue(ChatOutline.entries(from: []).isEmpty)
+        XCTAssertTrue(ChatOutline.entries(
+            from: [ChatStore.Message(role: "assistant", text: "답변")]).isEmpty)
+    }
 }

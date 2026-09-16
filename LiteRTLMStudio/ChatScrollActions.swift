@@ -258,13 +258,17 @@ extension ContentView {
 
     /// 채팅 스크롤 휠 감시 설치 (T-044, T-080 누적 임계): 호버 중에만 제스처 시각 기록,
     /// 8pt 미만 미세 접촉은 무시. 이벤트는 그대로 통과.
+    /// T-260: 스탬프 발생 시 핀 실측 요청 발행 (struct라 직접 변경 불가, 뷰에서 수신).
      func installWheelMonitor() {
         guard wheelMonitor == nil else { return }
         wheelMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak followGate] event in
             if let gate = followGate, gate.hover {
                 let r = ContentView.wheelStamp(accum: gate.wheelAccum, delta: event.deltaY)
                 gate.wheelAccum = r.accum
-                if r.stamp { gate.lastWheel = Date() }
+                if r.stamp {
+                    gate.lastWheel = Date()
+                    NotificationCenter.default.post(name: .requestPinCheck, object: nil)
+                }
             }
             return event
         }

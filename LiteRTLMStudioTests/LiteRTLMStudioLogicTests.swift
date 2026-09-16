@@ -424,4 +424,38 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertTrue(ContentView.showsNativeLifecycle(route: .native))
         XCTAssertFalse(ContentView.showsNativeLifecycle(route: .cli))
     }
+
+    /// 후속질문 빈 응답 (T-261): 고정 4종 반환.
+    func testFollowUpEmpty() {
+        let chips = FollowUpSuggest.suggestFollowUps(for: "")
+        XCTAssertEqual(chips.count, 4)
+        XCTAssertTrue(chips.contains("더 자세히 설명해줘"))
+    }
+
+    /// 후속질문 짧은 응답 (T-261): 100자 미만도 고정 템플릿.
+    func testFollowUpShort() {
+        let chips = FollowUpSuggest.suggestFollowUps(for: "안녕하세요")
+        XCTAssertEqual(chips.count, 4)
+    }
+
+    /// 후속질문 긴 응답 (T-261): 키워드 포함 3~4개, 중복 없음, 30자 이내.
+    func testFollowUpLong() {
+        let text = String(repeating: "리테일이 $12B로 20% 상승했습니다. 리테일 성장 리테일 전략. ", count: 5)
+        let chips = FollowUpSuggest.suggestFollowUps(for: text)
+        XCTAssertTrue((3 ... 4).contains(chips.count))
+        XCTAssertEqual(Set(chips).count, chips.count)
+        XCTAssertTrue(chips.allSatisfy { $0.count <= 30 })
+    }
+
+    /// 후속질문 키워드 (T-261): 빈도순 상위 2개.
+    func testFollowUpKeywords() {
+        let keys = FollowUpSuggest.keywords(from: "사과 사과 사과 바나나", limit: 2)
+        XCTAssertEqual(keys, ["사과", "바나나"])
+    }
+
+    /// 후속질문 개수 상한 (T-261): max 반영.
+    func testFollowUpMax() {
+        let chips = FollowUpSuggest.suggestFollowUps(for: "", max: 3)
+        XCTAssertEqual(chips.count, 3)
+    }
 }
