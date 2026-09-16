@@ -83,6 +83,9 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         XCTAssertTrue(ContentView.pastTrueEnd(offset: 9000, trueMaxY: 8933))
         XCTAssertFalse(ContentView.pastTrueEnd(offset: 8933, trueMaxY: 8933))
         XCTAssertFalse(ContentView.pastTrueEnd(offset: 8900, trueMaxY: 8933))
+        // T-210 calm 임계 40: 잔물결 무시, 진짜 허공만.
+        XCTAssertFalse(ContentView.pastTrueEnd(offset: 8972, trueMaxY: 8933, threshold: 40))
+        XCTAssertTrue(ContentView.pastTrueEnd(offset: 8974, trueMaxY: 8933, threshold: 40))
     }
 
     /// 호버 팁 표시 판정 (T-171): 정지 유지 0.6초 이상이면 표시.

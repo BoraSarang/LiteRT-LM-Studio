@@ -220,6 +220,7 @@ extension ContentView {
 
     /// 앵커 재수렴 (T-206): 핀ON인데 오프셋이 앵커 실측 끝을 초과하면 실측으로 복귀.
     /// AppKit 문서 높이(추정 팽창)와 앵커(실측)가 어긋난 사각지대 담당. 핀 가드 없음.
+    /// T-210 calm 임계 40: 하이라이트 확정 등 미세 변동에는 무동작 (출렁 방지).
     func recoverPastTrueEnd() {
         guard let sv = chatScrollView, sv.documentView != nil else { return }
         guard !chat.streaming, !chat.preparing else { return }
@@ -229,7 +230,7 @@ extension ContentView {
         let trueMaxY = Self.anchorTrueMaxY(anchorMaxY: followGate.anchorMaxY,
                                            offset: offset,
                                            clipHeight: sv.contentView.bounds.height)
-        guard Self.pastTrueEnd(offset: offset, trueMaxY: trueMaxY) else { return }
+        guard Self.pastTrueEnd(offset: offset, trueMaxY: trueMaxY, threshold: 40) else { return }
         sv.contentView.setBoundsOrigin(NSPoint(x: 0, y: trueMaxY))
         sv.reflectScrolledClipView(sv.contentView)
         reconcilePin()
