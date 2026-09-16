@@ -113,6 +113,25 @@ extension ContentView {
             && abs(offset - finishOffset) < moveTol
     }
 
+    /// 앵커 실측 끝 (순수, 테스트 가능, T-206): 스크롤 공간은 내용과 함께 안 움직이므로
+    /// 앵커 표시 위치 + 현재 오프셋 - 클립 = 실측 문서 끝.
+    nonisolated static func anchorTrueMaxY(
+        anchorMaxY: CGFloat,
+        offset: CGFloat,
+        clipHeight: CGFloat
+    ) -> CGFloat {
+        max(0, anchorMaxY + offset - clipHeight)
+    }
+
+    /// 실측 초과 판정 (순수, 테스트 가능, T-206): 오프셋이 실측 끝을 넘으면 허공.
+    nonisolated static func pastTrueEnd(
+        offset: CGFloat,
+        trueMaxY: CGFloat,
+        threshold: CGFloat = 8
+    ) -> Bool {
+        offset > trueMaxY + threshold
+    }
+
     /// 문서 높이 안정 판정 (순수, 테스트 가능, T-080): 최근 3회 1pt 이내.
     nonisolated static func docStable(
         _ heights: [CGFloat],

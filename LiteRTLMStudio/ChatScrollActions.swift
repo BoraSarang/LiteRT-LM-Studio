@@ -86,6 +86,7 @@ extension ContentView {
                 self.clampTopStuck() // T-202 위 고착 보정 (휠 없으면만)
                 self.correctCollapsedBottom() // T-204 붕괴 보정 (이동량 가드)
                 self.correctStuckBottom() // T-204 고착 보정 (이동량 가드)
+                self.recoverPastTrueEnd() // T-206 앵커 재수렴 (핀ON 사각지대)
                 if isLast { self.reseatBottomViaProxy() } // T-204 최후 수단
             }
             followGate.clampWorks.append(work)

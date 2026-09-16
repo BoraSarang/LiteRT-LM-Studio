@@ -75,6 +75,16 @@ final class LiteRTLMStudioViewTests: XCTestCase {
                                                docHeight: 500, clipHeight: 467))
     }
 
+    /// 앵커 실측 끝·초과 판정 (T-206): 핀ON 허공 고착 검출.
+    func testAnchorTrueMaxY() {
+        // 앵커 표시 400 + 오프셋 9000 - 클립 467 = 실측 끝 8933.
+        XCTAssertEqual(ContentView.anchorTrueMaxY(anchorMaxY: 400, offset: 9000,
+                                                  clipHeight: 467), 8933)
+        XCTAssertTrue(ContentView.pastTrueEnd(offset: 9000, trueMaxY: 8933))
+        XCTAssertFalse(ContentView.pastTrueEnd(offset: 8933, trueMaxY: 8933))
+        XCTAssertFalse(ContentView.pastTrueEnd(offset: 8900, trueMaxY: 8933))
+    }
+
     /// 호버 팁 표시 판정 (T-171): 정지 유지 0.6초 이상이면 표시.
     func testHoverTipVisible() {
         XCTAssertTrue(hoverTipVisible(hovering: true, elapsed: 0.6))

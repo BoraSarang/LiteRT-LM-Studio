@@ -88,6 +88,7 @@ extension ContentView {
                         .background {
                             GeometryReader { geo in
                                 Color.clear.onChange(of: geo.frame(in: .named("chatScroll")).maxY) { _, maxY in
+                                    followGate.anchorMaxY = maxY // T-206 앵커 실측 저장 (재렌더 없음)
                                     pinnedToBottom = Self.isPinnedToBottom(
                                         bottomMaxY: maxY, viewportHeight: viewportHeight)
                                 }

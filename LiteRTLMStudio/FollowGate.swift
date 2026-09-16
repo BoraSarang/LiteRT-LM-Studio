@@ -21,6 +21,7 @@ final class FollowGate: ObservableObject {
     var entryEpoch = 0 // T-202 진입 세대 (낡은 폴링 폐기용)
     var finishDocH: CGFloat = 0 // T-204 종료 시점 문서 높이 (붕괴·고착 판정 기준)
     var finishOffset: CGFloat = 0 // T-204 종료 시점 오프셋 (이동량 가드 기준)
+    var anchorMaxY: CGFloat = 0 // T-206 하단 앵커 실측 (AppKit 추정과 대조용, @State 아님)
 }
 
 /// 상위 NSScrollView 탐색 (T-047): 절대좌표 점프용 AppKit 진입점. 렌더 없음(AIModelTalk 이식).
@@ -149,5 +150,24 @@ extension ContentView {
             self.refreshFinishMark() // T-205 후속 판정 기준
         }
         logger.info(feature: "스크롤", "프록시 재착지")
+    }
+
+    /// 앵커 재수렴 (T-206): 핀ON인데 오프셋이 앵커 실측 끝을 초과하면 실측으로 복귀.
+    /// AppKit 문서 높이(추정 팽창)와 앵커(실측)가 어긋난 사각지대 담당. 핀 가드 없음.
+    func recoverPastTrueEnd() {
+        guard let sv = chatScrollView, sv.documentView != nil else { return }
+        guard !chat.streaming, !chat.preparing else { return }
+        guard followGate.finishDocH > 0, followGate.anchorMaxY > 0 else { return }
+        let offset = sv.contentView.bounds.origin.y
+        guard abs(offset - followGate.finishOffset) < 60 else { return }
+        let trueMaxY = Self.anchorTrueMaxY(anchorMaxY: followGate.anchorMaxY,
+                                           offset: offset,
+                                           clipHeight: sv.contentView.bounds.height)
+        guard Self.pastTrueEnd(offset: offset, trueMaxY: trueMaxY) else { return }
+        sv.contentView.setBoundsOrigin(NSPoint(x: 0, y: trueMaxY))
+        sv.reflectScrolledClipView(sv.contentView)
+        reconcilePin()
+        refreshFinishMark()
+        logger.info(feature: "스크롤", "앵커 재수렴 → 하단")
     }
 }

@@ -202,3 +202,4 @@
 * [x] T-203 검증·문서: full+lint+build+DESIGN·CHANGELOG 현행화 (PLAN_v30)
 * [x] T-204 종료 후 문서 붕괴 보정: finishDocH+지연works 재수렴 (PLAN_v31)
 * [x] T-205 보정 시 기준점 갱신: 자기차단 해소 (PLAN_v31)
+* [x] T-206 앵커 실측 재수렴: 핀ON 허공 고착 해소 (PLAN_v32)
