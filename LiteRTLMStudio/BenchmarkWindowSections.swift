@@ -241,7 +241,7 @@ extension BenchmarkWindowView {
 
     private var cliWarningText: String {
         "CLI는 12B급에서 워밍업 10분을 넘기면 타임아웃될 수 있어요. "
-            + "중지(⌘.) 후 네이티브로 시도해 보세요."
+            + "중지(⌘.) 후 앱 내 엔진으로 시도해 보세요."
     }
 
     private var measureProgressText: String {

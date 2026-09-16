@@ -1,7 +1,8 @@
 import Foundation
 
-/// 전역 단일 권한 (T-228, PLAN_v45): Off / Ask every time / Allow all.
-/// 게이트 대상: 채팅 전송 + 모델 삭제 (가져오기는 훅만).
+/// 전역 단일 권한 (T-228, PLAN_v45; T-232에서 가져오기·설치로 확대; T-255 전송 제외).
+/// 게이트 대상: 모델 삭제·가져오기·설치 (사용자 파괴적 액션) + 장래 모델 도구 실행.
+/// 채팅 전송은 항상 허용 (실행권과 무관).
 enum GlobalPermission: String, CaseIterable {
     case off
     case ask

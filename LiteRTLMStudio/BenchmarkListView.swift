@@ -20,9 +20,9 @@ struct BenchmarkListView: View {
     }
 
     /// 새 벤치마크 버튼 (채팅식): 선택 해제+현재 모델·경로 예약 후 창 열기.
+    /// 선택 틴트 없음 (T-235, 새 채팅 규칙과 통일: 평상시 fill 없음).
     private var newBenchmarkButton: some View {
-        let fresh = history.selectedRecordID == nil && !bench.running
-        return Button {
+        Button {
             history.selectedRecordID = nil
             bench.prepare(modelID: chat.model, route: chat.route)
             NotificationCenter.default.post(name: .openBenchmark, object: nil)
@@ -33,11 +33,6 @@ struct BenchmarkListView: View {
                 Spacer()
             }
             .padding(.horizontal, 10).padding(.vertical, 7)
-            .background {
-                if fresh {
-                    RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15))
-                }
-            }
             .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)

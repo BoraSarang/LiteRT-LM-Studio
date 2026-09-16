@@ -34,6 +34,12 @@ struct LiteRTLMStudioApp: App {
                 .frame(minWidth: 860, minHeight: 600)
         }
         .defaultSize(width: 960, height: 640)
+        // 모델 관리 별도창 (T-232): 가져오기·목록·설치·삭제·이름변경.
+        Window("모델 관리", id: "modelManager") {
+            ModelManagerView(models: services.models, center: services.downloads)
+                .frame(minWidth: 900, minHeight: 600)
+        }
+        .defaultSize(width: 1080, height: 700)
         // 정보 창 (T-068, TubeKeep AboutView 구조).
         Window("정보", id: "about") {
             AboutView()

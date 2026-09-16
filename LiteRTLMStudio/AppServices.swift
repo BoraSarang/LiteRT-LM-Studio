@@ -11,6 +11,8 @@ final class AppServices: ObservableObject {
     /// T-216/T-217: 벤치마크 창·사이드바가 공유하는 단일 인스턴스 (창 닫아도 유지).
     let bench = BenchmarkStore()
     let benchHistory = BenchmarkHistoryStore()
+    /// T-233: 다운로드 진행 보관 (관리 창 닫아도 유지·재오픈 시 표시).
+    let downloads = DownloadCenter()
     /// T-216: 벤치마크 창에서 모델 목록·현재 채팅 모델(분석용)을 공유.
     let chat = ChatStore()
     let models = ModelStore()

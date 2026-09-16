@@ -28,6 +28,10 @@ struct PaletteView: View {
                     Task { daemon.status == .running ? daemon.stop() : await daemon.start() }
                 }
                 Button("모델 새로고침") { showPalette = false; Task { await models.refresh() } }
+                Button("모델 관리 열기") {
+                    showPalette = false
+                    NotificationCenter.default.post(name: .openModelManager, object: nil)
+                }
                 Button("하단 패널 토글 (⌘J)") { showPalette = false; onToggleLog() }
                 Button("디버그 패널 (⇧⌘D)") {
                     showPalette = false

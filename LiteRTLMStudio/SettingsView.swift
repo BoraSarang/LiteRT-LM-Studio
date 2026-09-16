@@ -62,7 +62,7 @@ struct SettingsView: View {
                         Text(p.title).tag(p.rawValue)
                     }
                 }.pickerStyle(.segmented)
-                    .help("채팅 전송·모델 삭제에 적용되는 전역 권한. 사용 안 함=차단, 매번 묻기=확인 후 실행, 모두 허용=바로 실행.")
+                    .help("모델 삭제·가져오기·설치에 적용되는 전역 권한. 사용 안 함=차단, 매번 묻기=확인 후 실행, 모두 허용=바로 실행. 채팅 전송은 항상 허용.")
                     .onChange(of: permissionRaw) { _, raw in
                         DebugLogger.shared.info(
                             feature: "권한",

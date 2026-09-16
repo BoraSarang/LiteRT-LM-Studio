@@ -253,7 +253,7 @@ extension BenchmarkStore {
         if record.route == .native, chat.inferenceEngine?.preparedModelID != record.modelID {
             analyzing = false
             analyzingSlotID = nil
-            analysisError = "네이티브 엔진이 준비되지 않았습니다. 사이드바 엔진 행에서 실행 후 다시 시도해 주세요."
+            analysisError = "앱 내 엔진이 준비되지 않았습니다. 사이드바 엔진 행에서 실행 후 다시 시도해 주세요."
             logger.info(feature: "벤치마크", "분석 차단 (네이티브 미준비)")
             return
         }

@@ -237,7 +237,7 @@ final class ChatStore: ObservableObject {
 
     /// 네이티브 미준비 안내 (T-185): 전송 소비, 에러코드 없음 (실패 아님).
     func noticeNativeNotReady(at idx: Int) {
-        messages[idx].text = "네이티브 엔진이 준비되지 않았습니다. "
+        messages[idx].text = "앱 내 엔진이 준비되지 않았습니다. "
             + "사이드바 엔진 행의 실행 버튼을 눌러 준비한 뒤 다시 전송해 주세요."
         messages[idx].isError = true
         messages[idx].finishedAt = Date()

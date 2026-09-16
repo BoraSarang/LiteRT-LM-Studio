@@ -41,7 +41,7 @@ struct SystemMetersView: View {
         VStack(alignment: .leading, spacing: 6) {
             if route == .native {
                 HStack {
-                    Label("네이티브 (프로세스 내)", systemImage: "cpu")
+                    Label("앱 내 엔진 (프로세스 내)", systemImage: "cpu")
                         .font(.system(size: 12, weight: .semibold))
                         .help("프로세스 내 직접 추론. 데몬 CPU 0이 정상입니다.")
                     Spacer()
@@ -53,7 +53,7 @@ struct SystemMetersView: View {
                     Text(Self.nativeDaemonCaption(cpu: monitor.daemonCPU, rssGB: monitor.daemonRSSGB,
                                              pidCount: monitor.daemonPidCount))
                         .font(DS.captionFont).foregroundStyle(.tertiary)
-                        .help(":9379 리스너 + 자식 합산. 네이티브 모드에서는 유휴가 정상입니다.")
+                        .help(":9379 리스너 + 자식 합산. 앱 내 엔진 모드에서는 유휴가 정상입니다.")
                     Spacer()
                 }
             } else {

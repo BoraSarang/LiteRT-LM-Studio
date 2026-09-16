@@ -69,7 +69,7 @@ struct UnifiedStatus: Equatable {
                                  live: true, unlinked: false)
         }
         if engineMode == .native, let label = preparedLabel {
-            return UnifiedStatus(title: "대화 가능", detail: "네이티브 · \(label)",
+            return UnifiedStatus(title: "대화 가능", detail: "앱 내 엔진 · \(label)",
                                  live: true, unlinked: false)
         }
         // T-187: 중지 사유를 선택 경로 기준으로 안내.

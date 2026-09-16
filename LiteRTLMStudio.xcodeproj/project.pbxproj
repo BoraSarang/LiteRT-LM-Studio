@@ -63,6 +63,12 @@
 				500000000000000000000102,
 				500000000000000000000104,
 				500000000000000000000105,
+				500000000000000000000108,
+				500000000000000000000109,
+				500000000000000000000111,
+				500000000000000000000112,
+				500000000000000000000115,
+				500000000000000000000118,
 				500000000000000000000024,
 				500000000000000000000027,
 				500000000000000000000028,
@@ -107,6 +113,11 @@
 				500000000000000000000101,
 				500000000000000000000103,
 				500000000000000000000106,
+				500000000000000000000107,
+				500000000000000000000113,
+				500000000000000000000114,
+				500000000000000000000116,
+				500000000000000000000117,
 				500000000000000000000023,
 				500000000000000000000064,
 				500000000000000000000025,
@@ -150,6 +161,8 @@
 				500000000000000000000067,
 				500000000000000000000068,
 				500000000000000000000087,
+				500000000000000000000110,
+				500000000000000000000119,
 			);
 			path = "LiteRTLMStudioTests";
 			sourceTree = "<group>";
@@ -232,6 +245,17 @@
 				400000000000000000000104,
 				400000000000000000000105,
 				400000000000000000000106,
+				400000000000000000000107,
+				400000000000000000000108,
+				400000000000000000000109,
+				400000000000000000000111,
+				400000000000000000000112,
+				400000000000000000000113,
+				400000000000000000000114,
+				400000000000000000000115,
+				400000000000000000000116,
+				400000000000000000000117,
+				400000000000000000000118,
 				400000000000000000000012,
 				400000000000000000000013,
 				400000000000000000000052,
@@ -308,6 +332,8 @@
 				400000000000000000000055,
 				400000000000000000000056,
 				400000000000000000000075,
+				400000000000000000000110,
+				400000000000000000000119,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -364,6 +390,19 @@
 		400000000000000000000104 = { isa = PBXBuildFile; fileRef = 500000000000000000000104; };
 		400000000000000000000105 = { isa = PBXBuildFile; fileRef = 500000000000000000000105; };
 		400000000000000000000106 = { isa = PBXBuildFile; fileRef = 500000000000000000000106; };
+		400000000000000000000107 = { isa = PBXBuildFile; fileRef = 500000000000000000000107; };
+		400000000000000000000108 = { isa = PBXBuildFile; fileRef = 500000000000000000000108; };
+		400000000000000000000109 = { isa = PBXBuildFile; fileRef = 500000000000000000000109; };
+		400000000000000000000110 = { isa = PBXBuildFile; fileRef = 500000000000000000000110; };
+		400000000000000000000111 = { isa = PBXBuildFile; fileRef = 500000000000000000000111; };
+		400000000000000000000112 = { isa = PBXBuildFile; fileRef = 500000000000000000000112; };
+		400000000000000000000113 = { isa = PBXBuildFile; fileRef = 500000000000000000000113; };
+		400000000000000000000114 = { isa = PBXBuildFile; fileRef = 500000000000000000000114; };
+		400000000000000000000115 = { isa = PBXBuildFile; fileRef = 500000000000000000000115; };
+		400000000000000000000116 = { isa = PBXBuildFile; fileRef = 500000000000000000000116; };
+		400000000000000000000117 = { isa = PBXBuildFile; fileRef = 500000000000000000000117; };
+		400000000000000000000118 = { isa = PBXBuildFile; fileRef = 500000000000000000000118; };
+		400000000000000000000119 = { isa = PBXBuildFile; fileRef = 500000000000000000000119; };
 		400000000000000000000012 = { isa = PBXBuildFile; fileRef = 500000000000000000000022; };
 		400000000000000000000013 = { isa = PBXBuildFile; fileRef = 500000000000000000000023; };
 		400000000000000000000052 = { isa = PBXBuildFile; fileRef = 500000000000000000000064; };
@@ -459,6 +498,17 @@
 		500000000000000000000104 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkAnalysis.swift"; sourceTree = "<group>"; };
 		500000000000000000000105 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkListView.swift"; sourceTree = "<group>"; };
 		500000000000000000000106 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GlobalPermission.swift"; sourceTree = "<group>"; };
+		500000000000000000000107 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelDownload.swift"; sourceTree = "<group>"; };
+		500000000000000000000113 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelCatalog.swift"; sourceTree = "<group>"; };
+		500000000000000000000114 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NativeMarkdownHTML.swift"; sourceTree = "<group>"; };
+		500000000000000000000116 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelDownloader.swift"; sourceTree = "<group>"; };
+		500000000000000000000117 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelStoreStaging.swift"; sourceTree = "<group>"; };
+		500000000000000000000108 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelManagerView.swift"; sourceTree = "<group>"; };
+		500000000000000000000109 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelManagerSections.swift"; sourceTree = "<group>"; };
+		500000000000000000000115 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DownloadRowView.swift"; sourceTree = "<group>"; };
+		500000000000000000000118 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ImportSheetView.swift"; sourceTree = "<group>"; };
+		500000000000000000000111 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CatalogBrowserView.swift"; sourceTree = "<group>"; };
+		500000000000000000000112 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CatalogBrowserSections.swift"; sourceTree = "<group>"; };
 		500000000000000000000022 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkView.swift"; sourceTree = "<group>"; };
 		500000000000000000000023 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SystemMonitor.swift"; sourceTree = "<group>"; };
 		500000000000000000000064 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SystemMonitor+Sampling.swift"; sourceTree = "<group>"; };
@@ -469,6 +519,8 @@
 		500000000000000000000062 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioLogicTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000067 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioRefactorTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000068 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioSessionTests.swift"; sourceTree = "<group>"; };
+		500000000000000000000110 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioModelTests.swift"; sourceTree = "<group>"; };
+		500000000000000000000119 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioModelIOTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000087 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioBenchmarkTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000070 = {
 			isa = XCLocalSwiftPackageReference;

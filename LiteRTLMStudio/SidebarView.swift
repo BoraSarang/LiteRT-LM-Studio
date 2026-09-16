@@ -129,15 +129,11 @@ extension ContentView {
         }
     }
 
-    /// 모델 관리 버튼 (껍데기): 창은 T-232 후속, 지금은 안내만.
+    /// 모델 관리 버튼: 별도 창 열기 (T-232).
     private var manageButton: some View {
         Button {
-            DebugLogger.shared.info(feature: "모델관리", "관리 창 요청 (T-232 후속)")
-            let alert = NSAlert()
-            alert.messageText = "모델 관리"
-            alert.informativeText = "모델 관리 창은 다음 단계에서 제공됩니다."
-            alert.addButton(withTitle: "확인")
-            alert.runModal()
+            DebugLogger.shared.info(feature: "모델관리", "관리 창 열기")
+            openWindow(id: "modelManager")
         } label: {
             HStack {
                 Image(systemName: "plus").font(.system(size: 13, weight: .semibold))
@@ -148,7 +144,7 @@ extension ContentView {
             .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
-        .help("모델 관리 (다음 단계에서 제공)")
+        .help("모델 관리 창 열기")
     }
 
     /// 모델 1행: 탭=선택+호버 메뉴 (채팅식).
@@ -202,8 +198,9 @@ extension ContentView {
         Button("벤치마크 실행") { runBenchmark(id: m.id) }
             .disabled(bench.running)
         Divider()
-        Button("삭제", role: .destructive) {
-            Task { await deleteModelWithPermission(id: m.id) }
+        Button("모델 관리에서 삭제") {
+            DebugLogger.shared.info(feature: "모델관리", "사이드바에서 관리 창으로 이동: \(m.id)")
+            NotificationCenter.default.post(name: .openModelManagerMyModels, object: m.id)
         }
     }
 
@@ -318,24 +315,8 @@ extension ContentView {
         return unifiedStatus.live ? .green : .gray
     }
 
-    /// 모델 삭제 권한 게이트 (T-228): off 차단, ask 확인 후 삭제.
-    func deleteModelWithPermission(id: String) async {
-        let perm = GlobalPermission.current()
-        guard GlobalPermission.allows(perm, confirmed: true) else {
-            DebugLogger.shared.error(code: "E-MAC-PERM-0011", feature: "권한", "삭제 차단 (권한 꺼짐)")
-            return
-        }
-        if GlobalPermission.needsConfirm(perm) {
-            let alert = NSAlert()
-            alert.messageText = "이 모델을 삭제할까요?"
-            alert.informativeText = id
-            alert.addButton(withTitle: "삭제")
-            alert.addButton(withTitle: "취소")
-            guard alert.runModal() == .alertFirstButtonReturn else { return }
-        }
-        DebugLogger.shared.info(feature: "권한", "삭제 확인됨: \(id)")
-        _ = await models.delete(id: id)
-    }
+    /// 모델 삭제는 모델 관리 창·내 모델 탭으로 일원화 (T-247).
+    /// 권한 게이트+확인은 관리 창의 삭제 대화상자가 담당한다.
 
 }
 

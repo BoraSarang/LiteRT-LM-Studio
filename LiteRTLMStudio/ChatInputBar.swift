@@ -21,7 +21,6 @@ struct ChatInputBar: View {
     @ObservedObject var daemon: DaemonManager
     @ObservedObject var models: ModelStore
     @Binding var selectedModelID: String?
-    @AppStorage("globalPermission") private var permissionRaw = GlobalPermission.ask.rawValue
     @Binding var input: String
     var focusNonce: Int = 0 // T-137 드래프트 시작 신호 (선언 순서=호출 순서)
     @FocusState private var editorFocused: Bool
@@ -128,7 +127,7 @@ struct ChatInputBar: View {
                             Text(mode.title).tag(mode)
                         }
                     }.pickerStyle(.menu)
-                        .help("이번 전송에 쓸 경로. 데몬=서버 경유, 네이티브=프로세스 내 직접 추론.")
+                        .help("이번 전송에 쓸 경로. 데몬=서버 경유, 앱 내 엔진=프로세스 내 직접 추론.")
                         .disabled(chat.streaming)
                     Spacer()
                     if chat.streaming {
@@ -167,15 +166,7 @@ struct ChatInputBar: View {
     }
 
     private func submit() {
-        let perm = GlobalPermission(rawValue: permissionRaw) ?? .ask
-        guard GlobalPermission.allows(perm, confirmed: true) else {
-            logger.error(code: "E-MAC-PERM-0011", feature: "권한", "전송 차단 (권한 꺼짐)")
-            return
-        }
-        if GlobalPermission.needsConfirm(perm) {
-            logger.info(feature: "권한", "전송 확인 요청")
-            guard confirmSend() else { return }
-        }
+        // T-255: 전송은 항상 허용. 권한 게이트는 모델 도구 실행용 (실행 지점 생기면 부착).
         let txt = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !txt.isEmpty else { return }
         input = ""
@@ -183,16 +174,6 @@ struct ChatInputBar: View {
         attachedImage = nil
         attachedName = nil
         chat.send(txt, image: image)
-    }
-
-    /// 매번 묻기 확인 (T-113/T-139 선례: AppKit 단발 모달).
-    private func confirmSend() -> Bool {
-        let alert = NSAlert()
-        alert.messageText = "이 모델로 전송할까요?"
-        alert.informativeText = ModelAlias.display(id: selectedModelID ?? "")
-        alert.addButton(withTitle: "전송")
-        alert.addButton(withTitle: "취소")
-        return alert.runModal() == .alertFirstButtonReturn
     }
 
     private func pickImage() {

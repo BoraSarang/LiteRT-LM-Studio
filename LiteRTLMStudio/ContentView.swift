@@ -82,8 +82,107 @@ struct ContentView: View {
 
     var body: some View {
         // 하단 로그는 chatPane 하단 (사이드바 제외, T-039).
+        rootEvents(rootDialogs(
+            mainSplit
+                .background { WindowTitleSync(title: roomTitle) }
+                .toolbar { mainToolbar }
+        ))
+    }
+
+    /// 시트·다이얼로그·task·선택 동기 체인 (T-232: body 타입 추론 부하 분산용 분리).
+    private func rootDialogs<T: View>(_ view: T) -> some View {
+        view
+            .sheet(isPresented: $showPalette) { palette }
+            .sheet(isPresented: aliasBinding) {
+                AliasSheetView(targetID: aliasTarget ?? "", text: $aliasText) {
+                    if let id = aliasTarget { ModelAlias.setAlias(id: id, name: aliasText) }
+                    logger.info(feature: "별칭", "\(aliasTarget ?? "") 표시 이름 저장")
+                    aliasTarget = nil
+                } onCancel: {
+                    aliasTarget = nil
+                }
+            }
+            .confirmationDialog("외부 데몬 인수", isPresented: $showTakeoverConfirm,
+                                titleVisibility: .visible) {
+                Button("종료 후 앱 데몬으로 재시작", role: .destructive) {
+                    Task { await daemon.takeOverAndRestart() }
+                }
+                Button("설정만 저장 (직접 재시작)") {
+                    config.externalRestartPending = true
+                }
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("터미널에서 실행 중인 데몬을 종료하고 앱이 직접 띄운 데몬으로 바꿉니다. 터미널 쪽 연결은 끊어집니다.")
+            }
+            .task {
+                await restoreState()
+            }
+            .onChange(of: selectedModelID) { _, v in
+                if let v {
+                    chat.model = v
+                    config.load(modelID: v)
+                }
+            }
+            .onChange(of: daemon.status) { _, _ in
+                monitor.invalidateDaemonCache()
+                monitor.daemonRunning = daemon.status == .running
+            }
+            .onChange(of: appearanceRaw) { _, _ in
+                AppearanceMode.apply(appearanceMode)
+            }
+    }
+
+    /// 알림 체인 (T-232: body 타입 추론 부하 분산용 분리).
+    private func rootEvents<T: View>(_ view: T) -> some View {
+        view
+            .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
+                chat.clear()
+                focusChatInput()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .serverStart)) { _ in
+                Task { await daemon.start() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .serverStop)) { _ in daemon.stop() }
+            .onReceive(NotificationCenter.default.publisher(for: .toggleDebug)) { _ in openWindow(id: "debug") }
+            .onReceive(NotificationCenter.default.publisher(for: .openAbout)) { _ in openWindow(id: "about") }
+            .onReceive(NotificationCenter.default.publisher(for: .openBenchmark)) { _ in openWindow(id: "benchmark") }
+            .onReceive(NotificationCenter.default.publisher(for: .openModelManager)) { _ in
+                openWindow(id: "modelManager")
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .requestAlias)) { n in
+                if let id = n.object as? String {
+                    aliasTarget = id
+                    aliasText = ModelAlias.display(id: id)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .selectChatModel)) { n in
+                if let id = n.object as? String {
+                    selectedModelID = id
+                    DebugLogger.shared.info(feature: "모델관리", "채팅 모델 선택: \(id)")
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .runBenchmarkModel)) { n in
+                guard let id = n.object as? String else { return }
+                guard !bench.running else {
+                    DebugLogger.shared.info(feature: "벤치마크", "측정 중이라 예약 무시: \(id)")
+                    return
+                }
+                runBenchmark(id: id)
+            }
+            .onReceive(zoomNotes) { n in applyZoomNote(n) }
+            .onReceive(NotificationCenter.default.publisher(for: .toggleInspector)) { _ in toggleInspectorColumn() }
+            .onReceive(NotificationCenter.default.publisher(for: .toggleLogPanel)) { _ in toggleLogPanel() }
+            .onReceive(NotificationCenter.default.publisher(for: .focusChatInput)) { _ in focusChatInput() }
+    }
+
+    /// 별칭 시트 바인딩 (T-232 분리).
+    private var aliasBinding: Binding<Bool> {
+        Binding(get: { aliasTarget != nil }, set: { if !$0 { aliasTarget = nil } })
+    }
+    /// 3분할 본체 (T-232: body 타입 추론 부하 분산용 분리).
+    /// 3번째 칸 숨김은 visibility가 아니라 레이아웃 분기로 (.doubleColumn은 사이드바를 숨기므로 사용 금지).
+    private var mainSplit: some View {
         Group {
-            // 3번째 칸 숨김은 visibility가 아니라 레이아웃 분기로 (.doubleColumn은 사이드바를 숨기므로 사용 금지).
             if inspectorColumnShown {
                 NavigationSplitView {
                     sidebar
@@ -104,103 +203,53 @@ struct ContentView: View {
                 .navigationSplitViewStyle(.balanced)
             }
         }
-        .background { WindowTitleSync(title: roomTitle) }
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button { showPalette = true } label: {
-                    Image(systemName: "command").font(.system(size: 16, weight: .semibold))
-                }.help("명령 팔레트 (⌘K)")
-            }
-            ToolbarItem(placement: .principal) {
-                VStack(spacing: 1) {
-                    Text(headerTitle)
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(headerSubtitle)
-                        .font(DS.captionFont).foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 2)
-            }
-            ToolbarItem(placement: .primaryAction) {
-                // 독립 캡슐: 그룹 캡슐 재계산 시 정지 버튼 이탈 방지. 고정폭으로 글리프 너비차 흡수.
-                Button { toggleServer() } label: {
-                    Image(systemName: serverIcon).font(.system(size: 16, weight: .semibold))
-                        .frame(width: 28)
-                }
-                .help(serverHelp)
-                .disabled(serverDisabled)
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button { toggleLogPanel() } label: {
-                    Image(systemName: "terminal").font(.system(size: 16, weight: .semibold))
-                }
-                .help(daemon.status == .running ? "하단 패널 토글 (⌘J)" : "서버 실행 중에만 볼 수 있어요 (⌘J)")
-                .disabled(daemon.status != .running)
-            }
-            ToolbarItem(placement: .primaryAction) {
-                // 인스펙터 3섹션 on/off 분할 컨트롤 (진실원천).
-                SectionSegments(system: $showSystem, backend: $showBackend,
-                                generate: $showGenerate)
-            }
-            ToolbarItem(placement: .primaryAction) {
-                // 인스펙터 전체 보이기/숨기기 (맨 오른쪽 끝).
-                Button { toggleInspectorColumn() } label: {
-                    Image(systemName: "sidebar.right").font(.system(size: 16, weight: .semibold))
-                }.help(anySectionVisible ? "인스펙터 토글 (⌥⌘I)" : "인스펙터 보이기 (⌥⌘I)")
-            }
+    }
+
+    /// 툴바 본체 (T-232: body 타입 추론 부하 분산용 분리).
+    @ToolbarContentBuilder
+    private var mainToolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Button { showPalette = true } label: {
+                Image(systemName: "command").font(.system(size: 16, weight: .semibold))
+            }.help("명령 팔레트 (⌘K)")
         }
-        .sheet(isPresented: $showPalette) { palette }
-        .sheet(isPresented: Binding(get: { aliasTarget != nil }, set: { if !$0 { aliasTarget = nil } })) {
-            AliasSheetView(targetID: aliasTarget ?? "", text: $aliasText) {
-                if let id = aliasTarget { ModelAlias.setAlias(id: id, name: aliasText) }
-                logger.info(feature: "별칭", "\(aliasTarget ?? "") 표시 이름 저장")
-                aliasTarget = nil
-            } onCancel: {
-                aliasTarget = nil
+        ToolbarItem(placement: .principal) {
+            VStack(spacing: 1) {
+                Text(headerTitle)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(headerSubtitle)
+                    .font(DS.captionFont).foregroundStyle(.secondary)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 2)
         }
-        .confirmationDialog("외부 데몬 인수", isPresented: $showTakeoverConfirm, titleVisibility: .visible) {
-            Button("종료 후 앱 데몬으로 재시작", role: .destructive) {
-                Task { await daemon.takeOverAndRestart() }
+        ToolbarItem(placement: .primaryAction) {
+            // 독립 캡슐: 그룹 캡슐 재계산 시 정지 버튼 이탈 방지. 고정폭으로 글리프 너비차 흡수.
+            Button { toggleServer() } label: {
+                Image(systemName: serverIcon).font(.system(size: 16, weight: .semibold))
+                    .frame(width: 28)
             }
-            Button("설정만 저장 (직접 재시작)") {
-                config.externalRestartPending = true
+            .help(serverHelp)
+            .disabled(serverDisabled)
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button { toggleLogPanel() } label: {
+                Image(systemName: "terminal").font(.system(size: 16, weight: .semibold))
             }
-            Button("취소", role: .cancel) {}
-        } message: {
-            Text("터미널에서 실행 중인 데몬을 종료하고 앱이 직접 띄운 데몬으로 바꿉니다. 터미널 쪽 연결은 끊어집니다.")
+            .help(daemon.status == .running ? "하단 패널 토글 (⌘J)" : "서버 실행 중에만 볼 수 있어요 (⌘J)")
+            .disabled(daemon.status != .running)
         }
-        .task {
-            await restoreState()
+        ToolbarItem(placement: .primaryAction) {
+            // 인스펙터 3섹션 on/off 분할 컨트롤 (진실원천).
+            SectionSegments(system: $showSystem, backend: $showBackend,
+                            generate: $showGenerate)
         }
-        .onChange(of: selectedModelID) { _, v in
-            if let v {
-                chat.model = v
-                config.load(modelID: v)
-            }
+        ToolbarItem(placement: .primaryAction) {
+            // 인스펙터 전체 보이기/숨기기 (맨 오른쪽 끝).
+            Button { toggleInspectorColumn() } label: {
+                Image(systemName: "sidebar.right").font(.system(size: 16, weight: .semibold))
+            }.help(anySectionVisible ? "인스펙터 토글 (⌥⌘I)" : "인스펙터 보이기 (⌥⌘I)")
         }
-        .onChange(of: daemon.status) { _, _ in
-            monitor.invalidateDaemonCache()
-            monitor.daemonRunning = daemon.status == .running
-        }
-        .onChange(of: appearanceRaw) { _, _ in
-            AppearanceMode.apply(appearanceMode)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
-            chat.clear()
-            focusChatInput()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .serverStart)) { _ in
-            Task { await daemon.start() }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .serverStop)) { _ in daemon.stop() }
-        .onReceive(NotificationCenter.default.publisher(for: .toggleDebug)) { _ in openWindow(id: "debug") }
-        .onReceive(NotificationCenter.default.publisher(for: .openAbout)) { _ in openWindow(id: "about") }
-        .onReceive(NotificationCenter.default.publisher(for: .openBenchmark)) { _ in openWindow(id: "benchmark") }
-        .onReceive(zoomNotes) { n in applyZoomNote(n) }
-        .onReceive(NotificationCenter.default.publisher(for: .toggleInspector)) { _ in toggleInspectorColumn() }
-        .onReceive(NotificationCenter.default.publisher(for: .toggleLogPanel)) { _ in toggleLogPanel() }
-        .onReceive(NotificationCenter.default.publisher(for: .focusChatInput)) { _ in focusChatInput() }
     }
 
     /// 입력 포커스 (T-137): 다음 런루프에 신호 증가 (ChatInputBar가 감지해 포커스).

@@ -116,6 +116,9 @@ enum NativeMarkdown {
         var rows: [[String]] = []
         var header = false
         var blankRun = false
+        var htmlRows: [[String]]?
+        var htmlCurrent: [String] = []
+        var htmlHeader = false
     }
 
     /// 문단 줄 분류 (순수, 테스트 가능, T-151/T-152/T-155): 제목·목록·표·구분선·문단 판정.
@@ -137,8 +140,9 @@ enum NativeMarkdown {
         acc.pending = []
     }
 
-    /// 누적 flush 3종 (T-156 분리).
+    /// 누적 flush 3종 (T-156 분리). HTML 표도 함께 확정 (T-237).
     nonisolated static func flushTable(acc: inout ProseAccumulator) {
+        flushHtmlTable(acc: &acc)
         guard !acc.rows.isEmpty else { return }
         acc.out.append(.table(rows: acc.rows, header: acc.header))
         acc.rows = []
@@ -161,6 +165,9 @@ enum NativeMarkdown {
             acc.blankRun = true
             return
         }
+        // HTML 표·태그 줄 (T-237, 본체는 NativeMarkdownHTML).
+        if consumeHtmlLine(t, acc: &acc) { return }
+        if consumeTagLine(line, t, acc: &acc) { return }
         if let q = quoteOf(t) {
             emit(q, to: &acc)
             return
