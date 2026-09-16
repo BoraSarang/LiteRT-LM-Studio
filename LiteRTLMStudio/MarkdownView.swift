@@ -24,12 +24,15 @@ struct MarkdownView: View, Equatable {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(NativeMarkdown.splitFences(text).enumerated()), id: \.offset) { _, block in
+            ForEach(Array(NativeMarkdown.splitFences(text).enumerated()), id: \.offset) { i, block in
                 switch block {
                 case .prose(let p):
                     proseBody(p)
                 case .code(let c):
-                    codeBody(c)
+                    codeBody(c, salt: i)
+                case .codePending(let c):
+                    // T-201 미닫힘은 평문 강제 (부분 하이라이트 시도 없음).
+                    codeBody(c, pending: true, salt: i)
                 }
             }
         }
@@ -135,11 +138,16 @@ struct MarkdownView: View, Equatable {
     }
 
     /// 코드 블록 렌더 (T-158/T-160): 첫 페인트는 단색, 하이라이트는 비동기 승격.
-    func codeBody(_ c: String) -> some View {
+    /// T-201 pending이면 스트리밍과 무관하게 평문 (미완성 하이라이트 고착 원천 차단).
+    /// 안정 id로 오부착 방지 (내용 해시 기반, salt는 쌍둥이 블록 구분용).
+    func codeBody(_ c: String, pending: Bool = false, salt: Int = 0) -> some View {
         let part = NativeMarkdown.splitCode(c)
+        let live = isStreaming || pending
         return CodeBlockView(code: part.body, lang: part.lang,
                              dark: scheme != .light, fontSize: 13 * fontScale,
-                             isStreaming: isStreaming)
+                             isStreaming: live)
+            .id(CodeBlockView.stableID(code: part.body, lang: part.lang,
+                                       isStreaming: live, salt: salt))
     }
 
     /// 인라인 서식 텍스트: 실패 시 원문 폴백 (빈 화면 방지).
@@ -172,6 +180,14 @@ struct CodeBlockView: View {
         isStreaming ? "streaming" : code
     }
 
+    /// 코드 블록 안정 식별자 (순수, 테스트 가능, T-201): 내용 해시 기반.
+    /// ForEach offset 재사용 시 엉뚱한 @State가 붙던 오부착 방지.
+    /// salt는 동일 내용 쌍둥이 블록 구분용 (위치 보조, 내용 판정 아님).
+    nonisolated static func stableID(code: String, lang: String?,
+                                     isStreaming: Bool, salt: Int) -> String {
+        "\(isStreaming ? "live" : "done")-\(lang ?? "auto")-\(salt)-\(code.hashValue)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
@@ -200,7 +216,8 @@ struct CodeBlockView: View {
             }
             .textSelection(.enabled)
             .padding(8)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // T-201 빈 코드 높이 예약 (펜스 직후 빈 박스 invisibility 방지, 한 줄분).
+            .frame(maxWidth: .infinity, minHeight: fontSize, alignment: .leading)
         }
         .background(Color(.textBackgroundColor))
         .clipShape(.rect(cornerRadius: 8))

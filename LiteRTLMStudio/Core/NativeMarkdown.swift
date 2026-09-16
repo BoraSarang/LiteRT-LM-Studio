@@ -4,9 +4,12 @@ import SwiftUI
 /// 호출부는 `NativeMarkdown.xxx` (테스트 무영향).
 enum NativeMarkdown {
     /// 렌더 블록 (순수, 테스트 가능, T-150): 펜스 안/밖 분리.
+    /// T-201 codePending 추가: 닫는 울타리 없이 끝나면 꼬리를 코드로 단정하지 않고
+    /// 별도 표시 (스트리밍 중 경계 진동·상태 오부착 방지).
     enum Block: Equatable {
         case prose(String)
         case code(String)
+        case codePending(String)
     }
 
     /// 문단 내 줄 블록 (순수, 테스트 가능, T-151/T-152/T-155/T-169).
@@ -28,10 +31,13 @@ enum NativeMarkdown {
     }
 
     /// 펜스 코드 블록 분리 (순수, 테스트 가능, T-150): ``` 울타리 기준 교대 분할.
+    /// T-201: 미닫힘 꼬리는 codePending (닫힘 케이스 동작 불변).
     nonisolated static func splitFences(_ s: String) -> [Block] {
         let parts = s.components(separatedBy: "```")
         return parts.enumerated().map { i, part in
-            i.isMultiple(of: 2) ? .prose(part) : .code(part)
+            if i.isMultiple(of: 2) { return .prose(part) }
+            if i == parts.count - 1 { return .codePending(part) }
+            return .code(part)
         }
     }
 

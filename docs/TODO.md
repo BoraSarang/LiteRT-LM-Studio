@@ -197,6 +197,6 @@
 * [x] T-198 빈 영역 보정: 문서 밖 오프셋만 수렴 (PLAN_v29)
 * [x] T-199 진입 보정 상시화: 폴링 매 회차+5초 연장 (PLAN_v29)
 * [x] T-200 진입·펜스 계측: finder 부착·verdict·블록 수 로그, 동작 불변 (PLAN_v30)
-* [ ] T-201 렌더 분리: 미닫힘 펜스 케이스+블록 해시 id+빈 코드 예약 (PLAN_v30)
+* [x] T-201 렌더 분리: 미닫힘 펜스 케이스+블록 해시 id+빈 코드 예약 (PLAN_v30)
 * [ ] T-202 스크롤 단일화: works 분리+epoch+양측 보정 (PLAN_v30)
 * [ ] T-203 검증·문서: full+lint+build+DESIGN·CHANGELOG 현행화 (PLAN_v30)

@@ -42,6 +42,24 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         XCTAssertFalse(closed.hasPending)
     }
 
+    /// 미닫힘 펜스 분리+안정 id (T-201): 꼬리 오분류·상태 오부착 방지.
+    func testPendingFenceAndStableID() {
+        XCTAssertEqual(NativeMarkdown.splitFences("앞\n```swift\nlet a = 1"),
+                       [.prose("앞\n"), .codePending("swift\nlet a = 1")])
+        XCTAssertEqual(NativeMarkdown.splitFences("a```b```c"),
+                       [.prose("a"), .code("b"), .prose("c")])
+        let live = CodeBlockView.stableID(code: "let a = 1", lang: "swift",
+                                          isStreaming: true, salt: 1)
+        XCTAssertEqual(live, CodeBlockView.stableID(code: "let a = 1", lang: "swift",
+                                                    isStreaming: true, salt: 1))
+        XCTAssertNotEqual(live, CodeBlockView.stableID(code: "let a = 2", lang: "swift",
+                                                       isStreaming: true, salt: 1))
+        XCTAssertNotEqual(live, CodeBlockView.stableID(code: "let a = 1", lang: "swift",
+                                                       isStreaming: false, salt: 1))
+        XCTAssertNotEqual(live, CodeBlockView.stableID(code: "let a = 1", lang: "swift",
+                                                       isStreaming: true, salt: 3))
+    }
+
     /// 호버 팁 표시 판정 (T-171): 정지 유지 0.6초 이상이면 표시.
     func testHoverTipVisible() {
         XCTAssertTrue(hoverTipVisible(hovering: true, elapsed: 0.6))
