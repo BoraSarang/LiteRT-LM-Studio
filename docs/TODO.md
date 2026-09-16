@@ -200,3 +200,4 @@
 * [x] T-201 렌더 분리: 미닫힘 펜스 케이스+블록 해시 id+빈 코드 예약 (PLAN_v30)
 * [x] T-202 스크롤 단일화: works 분리+epoch+양측 보정 (PLAN_v30)
 * [x] T-203 검증·문서: full+lint+build+DESIGN·CHANGELOG 현행화 (PLAN_v30)
+* [x] T-204 종료 후 문서 붕괴 보정: finishDocH+지연works 재수렴 (PLAN_v31)

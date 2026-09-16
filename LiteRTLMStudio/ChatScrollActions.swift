@@ -36,6 +36,8 @@ extension ContentView {
         followGate.entryWorks.forEach { $0.cancel() }
         followGate.entryWorks.removeAll()
         followGate.entryEpoch += 1 // T-202 낡은 폴링 세대 폐기
+        followGate.finishDocH = 0 // T-204 종료 기준 리셋
+        followGate.finishOffset = 0
         followGate.entrySince = Date()
         followGate.lastDocHeights = []
         followGate.kickDone = false
@@ -74,13 +76,17 @@ extension ContentView {
         // T-202: clampWorks 분리 — finish가 폴링만 취소해도 보정은 살아남음. 다음 전환 시 취소.
         followGate.clampWorks.forEach { $0.cancel() }
         followGate.clampWorks.removeAll()
-        for delay in [1.5, 3.0, 5.0] {
+        for (i, delay) in [1.5, 3.0, 5.0].enumerated() {
             let sessionID = session ?? chat.currentSessionID
+            let isLast = i == 2
             let work = DispatchWorkItem { [weak followGate] in
                 guard followGate != nil,
                       sessionID == nil || sessionID == self.chat.currentSessionID else { return }
                 self.clampToDocument()
                 self.clampTopStuck() // T-202 위 고착 보정 (휠 없으면만)
+                self.correctCollapsedBottom() // T-204 붕괴 보정 (이동량 가드)
+                self.correctStuckBottom() // T-204 고착 보정 (이동량 가드)
+                if isLast { self.reseatBottomViaProxy() } // T-204 최후 수단
             }
             followGate.clampWorks.append(work)
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
@@ -96,6 +102,11 @@ extension ContentView {
         guard attempt < maxAttempts else {
             pendingSessionJump = false
             self.jumpToBottom() // T-104 미정착 종료 시 최선 1회
+            // T-204 상한 종료도 기준 기록 (이후 붕괴·고착 판정용).
+            if let sv = self.chatScrollView, let doc = sv.documentView {
+                self.followGate.finishDocH = doc.bounds.height
+                self.followGate.finishOffset = sv.contentView.bounds.origin.y
+            }
             reconcilePin()
             logger.info(feature: "진입", "종료: 상한")
             return
@@ -161,6 +172,9 @@ extension ContentView {
             // T-167 종료 시 클램프 점프 확정 (데드밴드로 수렴 시 무동작, 미수렴만 교정).
             self.jumpToBottom()
             self.pendingSessionJump = false
+            // T-204 종료 기준 기록 (이후 붕괴·고착 판정용).
+            gate.finishDocH = snap.docH
+            gate.finishOffset = snap.offsetY
             gate.entryWorks.forEach { $0.cancel() }
             gate.entryWorks.removeAll()
             // T-200 종료 맥락 추가 (회차·문서·위치, 무거운 방 미수렴 분석용).
@@ -176,39 +190,6 @@ extension ContentView {
         pinnedToBottom = Self.isAtBottomOffset(offset: sv.contentView.bounds.origin.y,
                                                content: doc.bounds.height,
                                                container: sv.contentView.bounds.height)
-    }
-
-    /// 빈 영역 판정 (순수, 테스트 가능, T-198): 문서 끝 초과면 보정 대상.
-    /// 방 전환 잔재 등 오프셋이 문서 밖에 있으면 타임라인이 휑하게 보임.
-    nonisolated static func blankOffset(cur: CGFloat, docHeight: CGFloat, clipHeight: CGFloat,
-                                        threshold: CGFloat = 8) -> Bool {
-        cur > max(0, docHeight - clipHeight) + threshold
-    }
-
-    /// 빈 영역 보정 (T-198): 문서 밖 오프셋만 하단으로 수렴.
-    /// 정상 위치(읽는 중 포함)는 절대 건드리지 않음.
-    func clampToDocument() {
-        guard let sv = chatScrollView, let doc = sv.documentView else { return }
-        guard Self.blankOffset(cur: sv.contentView.bounds.origin.y,
-                               docHeight: doc.bounds.height,
-                               clipHeight: sv.contentView.bounds.height) else { return }
-        let maxY = max(0, doc.bounds.height - sv.contentView.bounds.height)
-        sv.contentView.setBoundsOrigin(NSPoint(x: 0, y: maxY))
-        sv.reflectScrolledClipView(sv.contentView)
-        reconcilePin()
-        logger.info(feature: "스크롤", "빈 영역 보정 → 하단")
-    }
-
-    /// 위 고착 보정 (T-202): 진입 후 휠 입력 없이 상단에 머물면 하단으로.
-    /// 문서 밖 오버슛과 달리 문서 안이라 휠 가드 필수 (읽는 중 위치 불변).
-    func clampTopStuck() {
-        guard let sv = chatScrollView, let doc = sv.documentView else { return }
-        guard followGate.lastWheel < followGate.entrySince else { return }
-        guard Self.topStuck(offset: sv.contentView.bounds.origin.y,
-                            docHeight: doc.bounds.height,
-                            clipHeight: sv.contentView.bounds.height) else { return }
-        jumpToBottom()
-        logger.info(feature: "스크롤", "위 고착 보정 → 하단")
     }
 
     /// 하단 중앙 점프 버튼 (T-064): 텍스트 대신 아래 화살표 원형.

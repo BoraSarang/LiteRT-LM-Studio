@@ -88,6 +88,31 @@ extension ContentView {
         return maxY > minScrollable && offset < maxY - threshold
     }
 
+    /// 문서 붕괴 판정 (순수, 테스트 가능, T-204): 종료 후 200pt 초과 축소면 추정 팽창 붕괴.
+    nonisolated static func docCollapsed(
+        finish: CGFloat,
+        current: CGFloat,
+        threshold: CGFloat = 200
+    ) -> Bool {
+        finish > 0 && finish - current > threshold
+    }
+
+    /// 하단 고착 판정 (순수, 테스트 가능, T-204): 종료 후 거의 안 움직였는데 하단 미가시.
+    nonisolated static func stuckBottom(
+        offset: CGFloat,
+        finishOffset: CGFloat,
+        docHeight: CGFloat,
+        clipHeight: CGFloat,
+        minScrollable: CGFloat = 120,
+        bottomTol: CGFloat = 60,
+        moveTol: CGFloat = 60
+    ) -> Bool {
+        let maxY = max(0, docHeight - clipHeight)
+        return maxY > minScrollable
+            && offset < maxY - bottomTol
+            && abs(offset - finishOffset) < moveTol
+    }
+
     /// 문서 높이 안정 판정 (순수, 테스트 가능, T-080): 최근 3회 1pt 이내.
     nonisolated static func docStable(
         _ heights: [CGFloat],

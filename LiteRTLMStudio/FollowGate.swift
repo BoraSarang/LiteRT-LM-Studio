@@ -19,6 +19,8 @@ final class FollowGate: ObservableObject {
     var lastJumpSession: UUID? // T-112 이중 발사 제거용 (마지막 점프 세션)
     var lastJumpAt = Date.distantPast // T-112 이중 발사 제거용 (마지막 점프 시각)
     var entryEpoch = 0 // T-202 진입 세대 (낡은 폴링 폐기용)
+    var finishDocH: CGFloat = 0 // T-204 종료 시점 문서 높이 (붕괴·고착 판정 기준)
+    var finishOffset: CGFloat = 0 // T-204 종료 시점 오프셋 (이동량 가드 기준)
 }
 
 /// 상위 NSScrollView 탐색 (T-047): 절대좌표 점프용 AppKit 진입점. 렌더 없음(AIModelTalk 이식).
@@ -52,4 +54,86 @@ struct ScrollViewFinder: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+// MARK: - 보정 (파일 길이 관리용 분리, T-204)
+
+extension ContentView {
+    /// 빈 영역 판정 (순수, 테스트 가능, T-198): 문서 끝 초과면 보정 대상.
+    /// 방 전환 잔재 등 오프셋이 문서 밖에 있으면 타임라인이 휑하게 보임.
+    nonisolated static func blankOffset(cur: CGFloat, docHeight: CGFloat, clipHeight: CGFloat,
+                                        threshold: CGFloat = 8) -> Bool {
+        cur > max(0, docHeight - clipHeight) + threshold
+    }
+
+    /// 빈 영역 보정 (T-198): 문서 밖 오프셋만 하단으로 수렴.
+    /// 정상 위치(읽는 중 포함)는 절대 건드리지 않음.
+    func clampToDocument() {
+        guard let sv = chatScrollView, let doc = sv.documentView else { return }
+        guard Self.blankOffset(cur: sv.contentView.bounds.origin.y,
+                               docHeight: doc.bounds.height,
+                               clipHeight: sv.contentView.bounds.height) else { return }
+        let maxY = max(0, doc.bounds.height - sv.contentView.bounds.height)
+        sv.contentView.setBoundsOrigin(NSPoint(x: 0, y: maxY))
+        sv.reflectScrolledClipView(sv.contentView)
+        reconcilePin()
+        logger.info(feature: "스크롤", "빈 영역 보정 → 하단")
+    }
+
+    /// 위 고착 보정 (T-202): 진입 후 휠 입력 없이 상단에 머물면 하단으로.
+    /// 문서 밖 오버슛과 달리 문서 안이라 휠 가드 필수 (읽는 중 위치 불변).
+    func clampTopStuck() {
+        guard let sv = chatScrollView, let doc = sv.documentView else { return }
+        guard followGate.lastWheel < followGate.entrySince else { return }
+        guard Self.topStuck(offset: sv.contentView.bounds.origin.y,
+                            docHeight: doc.bounds.height,
+                            clipHeight: sv.contentView.bounds.height) else { return }
+        jumpToBottom()
+        logger.info(feature: "스크롤", "위 고착 보정 → 하단")
+    }
+
+    /// 붕괴 보정 (T-204): 종료 후 문서가 크게 줄면 종료 시점 오프셋이 허공에 남음.
+    /// LazyVStack 추정 팽창 후 실측 수렴이 원인. 종료 후 거의 안 움직였을 때만 (읽기 보호).
+    func correctCollapsedBottom() {
+        guard let sv = chatScrollView, let doc = sv.documentView else { return }
+        guard followGate.finishDocH > 0 else { return }
+        let offset = sv.contentView.bounds.origin.y
+        guard abs(offset - followGate.finishOffset) < 60 else { return }
+        let cur = doc.bounds.height
+        guard Self.docCollapsed(finish: followGate.finishDocH, current: cur) else { return }
+        jumpToBottom()
+        followGate.finishDocH = cur // 반복 점프 방지 (1회성)
+        logger.info(feature: "스크롤", "문서 붕괴 보정 → 하단")
+    }
+
+    /// 고착 보정 (T-204): 종료 후 거의 안 움직였는데 하단이 안 보이면 하단으로.
+    /// 휠 시각 대신 오프셋 이동량을 봐서 헛스크롤 오염에 강함.
+    func correctStuckBottom() {
+        guard let sv = chatScrollView, let doc = sv.documentView else { return }
+        guard !chat.streaming, !chat.preparing else { return }
+        guard !pinnedToBottom else { return }
+        guard followGate.finishDocH > 0 else { return }
+        guard Self.stuckBottom(offset: sv.contentView.bounds.origin.y,
+                               finishOffset: followGate.finishOffset,
+                               docHeight: doc.bounds.height,
+                               clipHeight: sv.contentView.bounds.height) else { return }
+        jumpToBottom()
+        logger.info(feature: "스크롤", "고착 보정 → 하단")
+    }
+
+    /// 프록시 재착지 (T-204, 최후 수단): 추정치 고착 시 앵커 기준으로 실측 강제 후 확정 점프.
+    /// 스트리밍·준비 중·핀ON·이동 큼이면 스킵 (추종·읽기 우선).
+    func reseatBottomViaProxy() {
+        guard let sv = chatScrollView, let doc = sv.documentView else { return }
+        guard !chat.streaming, !chat.preparing else { return }
+        guard !pinnedToBottom else { return }
+        guard followGate.finishDocH > 0,
+              Self.stuckBottom(offset: sv.contentView.bounds.origin.y,
+                               finishOffset: followGate.finishOffset,
+                               docHeight: doc.bounds.height,
+                               clipHeight: sv.contentView.bounds.height) else { return }
+        scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { self.jumpToBottom() }
+        logger.info(feature: "스크롤", "프록시 재착지")
+    }
 }

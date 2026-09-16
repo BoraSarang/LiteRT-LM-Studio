@@ -1,5 +1,13 @@
 # CHANGELOG — LiteRT-LM Studio
 
+## [0.7.139] - 2026-09-16 (macos)
+
+* 종료 후 고착 보정 (T-204, PLAN_v31): 종료 기준(finishDocH·finishOffset) 기록,
+  지연 works에 붕괴·고착 보정 추가 (휠 시각 대신 오프셋 이동량 가드).
+  5초 시점에 프록시 재착지 (앵커 실측 강제 후 확정 점프, 최후 수단).
+  보정 5종 `FollowGate.swift`로 분리. [macos]
+* 테스트 111/111 통과. 신규 lint 경고 0건 (기존 수용분 유지). [macos]
+
 ## [0.7.138] - 2026-09-16 (macos)
 
 * 스크롤 단일화 (T-202, PLAN_v30): 지연 보정 `clampWorks` 분리(finish가

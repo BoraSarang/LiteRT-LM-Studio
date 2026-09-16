@@ -60,6 +60,21 @@ final class LiteRTLMStudioViewTests: XCTestCase {
                                                        isStreaming: true, salt: 3))
     }
 
+    /// 문서 붕괴·하단 고착 판정 (T-204): 종료 후 가만히 있으면 하단 보장.
+    func testDocCollapsedAndStuckBottom() {
+        XCTAssertTrue(ContentView.docCollapsed(finish: 14183, current: 9611))
+        XCTAssertFalse(ContentView.docCollapsed(finish: 14183, current: 14000))
+        XCTAssertFalse(ContentView.docCollapsed(finish: 0, current: 0))
+        XCTAssertTrue(ContentView.stuckBottom(offset: 5000, finishOffset: 5000,
+                                              docHeight: 10000, clipHeight: 467))
+        XCTAssertFalse(ContentView.stuckBottom(offset: 9500, finishOffset: 9500,
+                                               docHeight: 10000, clipHeight: 467))
+        XCTAssertFalse(ContentView.stuckBottom(offset: 5000, finishOffset: 9000,
+                                               docHeight: 10000, clipHeight: 467))
+        XCTAssertFalse(ContentView.stuckBottom(offset: 0, finishOffset: 0,
+                                               docHeight: 500, clipHeight: 467))
+    }
+
     /// 호버 팁 표시 판정 (T-171): 정지 유지 0.6초 이상이면 표시.
     func testHoverTipVisible() {
         XCTAssertTrue(hoverTipVisible(hovering: true, elapsed: 0.6))
