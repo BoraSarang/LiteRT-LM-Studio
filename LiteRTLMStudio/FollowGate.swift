@@ -22,6 +22,7 @@ final class FollowGate: ObservableObject {
     var finishDocH: CGFloat = 0 // T-204 종료 시점 문서 높이 (붕괴·고착 판정 기준)
     var finishOffset: CGFloat = 0 // T-204 종료 시점 오프셋 (이동량 가드 기준)
     var anchorMaxY: CGFloat = 0 // T-206 하단 앵커 실측 (AppKit 추정과 대조용, @State 아님)
+    var entryCorrections = 0 // T-211 진입당 보정 점프 예산 (진동자 차단)
 }
 
 /// 상위 NSScrollView 탐색 (T-047): 절대좌표 점프용 AppKit 진입점. 렌더 없음(AIModelTalk 이식).
@@ -107,6 +108,7 @@ extension ContentView {
         guard Self.blankOffset(cur: sv.contentView.bounds.origin.y,
                                docHeight: doc.bounds.height,
                                clipHeight: sv.contentView.bounds.height) else { return }
+        guard claimCorrectionBudget() else { return } // T-211 진동자 차단
         let maxY = max(0, doc.bounds.height - sv.contentView.bounds.height)
         sv.contentView.setBoundsOrigin(NSPoint(x: 0, y: maxY))
         sv.reflectScrolledClipView(sv.contentView)
@@ -123,6 +125,7 @@ extension ContentView {
         guard Self.topStuck(offset: sv.contentView.bounds.origin.y,
                             docHeight: doc.bounds.height,
                             clipHeight: sv.contentView.bounds.height) else { return }
+        guard claimCorrectionBudget() else { return } // T-211 진동자 차단
         jumpToBottom()
         refreshFinishMark() // T-205 보정 후 기준 갱신 (자기차단 방지)
         logger.info(feature: "스크롤", "위 고착 보정 → 하단")
@@ -136,6 +139,14 @@ extension ContentView {
         followGate.finishOffset = sv.contentView.bounds.origin.y
     }
 
+    /// 보정 예산 차감 (T-211): 진입당 최대 2회. 초과분은 영구 조용 (진동자 차단).
+    /// settleToBottom(진입 확정)은 예산 외.
+    func claimCorrectionBudget() -> Bool {
+        guard followGate.entryCorrections < 2 else { return false }
+        followGate.entryCorrections += 1
+        return true
+    }
+
     /// 붕괴 보정 (T-204): 종료 후 문서가 크게 줄면 종료 시점 오프셋이 허공에 남음.
     /// LazyVStack 추정 팽창 후 실측 수렴이 원인. 종료 후 거의 안 움직였을 때만 (읽기 보호).
     func correctCollapsedBottom() {
@@ -145,6 +156,7 @@ extension ContentView {
         guard abs(offset - followGate.finishOffset) < 60 else { return }
         let cur = doc.bounds.height
         guard Self.docCollapsed(finish: followGate.finishDocH, current: cur) else { return }
+        guard claimCorrectionBudget() else { return } // T-211 진동자 차단
         jumpToBottom()
         refreshFinishMark() // T-205 반복 점프 방지 + 후속 판정 기준
         logger.info(feature: "스크롤", "문서 붕괴 보정 → 하단")
@@ -161,6 +173,7 @@ extension ContentView {
                                finishOffset: followGate.finishOffset,
                                docHeight: doc.bounds.height,
                                clipHeight: sv.contentView.bounds.height) else { return }
+        guard claimCorrectionBudget() else { return } // T-211 진동자 차단
         jumpToBottom()
         refreshFinishMark() // T-205 후속 판정 기준
         logger.info(feature: "스크롤", "고착 보정 → 하단")
@@ -179,30 +192,6 @@ extension ContentView {
         }
     }
 
-    /// 스윕 복구 (T-208): 얼어붙은 추정치를 깨는 해머. 맨 위로 갔다가 하단으로.
-    /// 점프만으로는 추정치 공간을 못 벗어나서 실측 강제용. 고착 방에서만 1회.
-    func sweepBottomRecover() {
-        guard let sv = chatScrollView, let doc = sv.documentView else { return }
-        guard !chat.streaming, !chat.preparing else { return }
-        guard followGate.finishDocH > 0, followGate.anchorMaxY > 0 else { return }
-        let offset = sv.contentView.bounds.origin.y
-        let clipH = sv.contentView.bounds.height
-        guard abs(offset - followGate.finishOffset) < 60 else { return }
-        let stuck = Self.stuckBottom(offset: offset, finishOffset: followGate.finishOffset,
-                                     docHeight: doc.bounds.height, clipHeight: clipH)
-        let trueMaxY = Self.anchorTrueMaxY(anchorMaxY: followGate.anchorMaxY,
-                                           offset: offset, clipHeight: clipH)
-        guard stuck || Self.pastTrueEnd(offset: offset, trueMaxY: trueMaxY) else { return }
-        guard let firstID = chat.messages.first?.id else { return }
-        scrollProxy?.scrollTo(firstID, anchor: .top)
-        // 0.4초: 위쪽 실측이 끝난 뒤 하단으로 (바로 이으면 실측이 뭉개짐).
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            self.jumpToBottom()
-            self.refreshFinishMark()
-        }
-        logger.info(feature: "스크롤", "스윕 복구")
-    }
-
     /// 최종 확정 (T-208): 7초 시점 고착 가드 절대 점프. 스윕 후 착지 교정.
     func finalVerifyJump() {
         guard let sv = chatScrollView, let doc = sv.documentView else { return }
@@ -213,6 +202,7 @@ extension ContentView {
                                finishOffset: followGate.finishOffset,
                                docHeight: doc.bounds.height,
                                clipHeight: sv.contentView.bounds.height) else { return }
+        guard claimCorrectionBudget() else { return } // T-211 진동자 차단
         jumpToBottom()
         refreshFinishMark()
         logger.info(feature: "스크롤", "최종 확정 → 하단")
@@ -231,6 +221,7 @@ extension ContentView {
                                            offset: offset,
                                            clipHeight: sv.contentView.bounds.height)
         guard Self.pastTrueEnd(offset: offset, trueMaxY: trueMaxY, threshold: 40) else { return }
+        guard claimCorrectionBudget() else { return } // T-211 진동자 차단
         sv.contentView.setBoundsOrigin(NSPoint(x: 0, y: trueMaxY))
         sv.reflectScrolledClipView(sv.contentView)
         reconcilePin()

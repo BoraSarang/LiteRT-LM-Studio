@@ -39,6 +39,7 @@ extension ContentView {
         followGate.finishDocH = 0 // T-204 종료 기준 리셋
         followGate.finishOffset = 0
         followGate.anchorMaxY = 0 // T-207 앵커 신선도 보장 (stale 차단)
+        followGate.entryCorrections = 0 // T-211 보정 예산 리셋
         followGate.entrySince = Date()
         followGate.lastDocHeights = []
         followGate.kickDone = false
@@ -79,7 +80,6 @@ extension ContentView {
         followGate.clampWorks.removeAll()
         for (i, delay) in [1.5, 3.0, 5.0, 7.0].enumerated() {
             let sessionID = session ?? chat.currentSessionID
-            let isSweep = i == 2
             let isLast = i == 3
             let work = DispatchWorkItem { [weak followGate] in
                 guard followGate != nil,
@@ -90,7 +90,6 @@ extension ContentView {
                 self.correctStuckBottom() // T-204 고착 보정 (이동량 가드)
                 self.recoverPastTrueEnd() // T-206 앵커 재수렴 (핀ON 사각지대)
                 self.diagnoseRulerMismatch() // T-207 자 불일치 진단 (로그만)
-                if isSweep { self.sweepBottomRecover() } // T-208 실측 강제
                 if isLast { self.finalVerifyJump() } // T-208 착지 교정
             }
             followGate.clampWorks.append(work)

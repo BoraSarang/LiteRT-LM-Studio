@@ -25,7 +25,7 @@
   - 스크롤: Sticky-Pin (하단 고정 시만 추종) + 진입 절대점프 일원화 (T-167).
     종료 후 보정 5종 (빈 영역·위 고착·붕괴·고착·프록시 재착지, 이동량 가드, T-198~204).
     앵커 실측 재수렴 (핀ON 사각지대, T-206). 교체 감지+자 진단 (T-207).
-    스윕 복구+7초 확정 (T-208). 프록시 우선 착지 (T-209).
+    스윕 삭제+보정 예산 2회 (T-211). 프록시 우선 착지 (T-209).
 * 우측 인스펙터 (240px): backend(CPU/GPU), MTP, temperature/topK/topP, max tokens, thinking budget(미지원 시 비활성화), vision/audio backend.
 * 실행 설정 확장 (T-175/T-177, PLAN_v22): Audio 실행(오디오 모델만)·CPU 스레드(CPU 모드만)·캐시·KV 토큰·Thinking 기본값/예산 + 고급 접기(Metal residency·Visual 예산·정밀도).
 * 생성 설정 확장 (T-176, PLAN_v22): Temperature(기본 1.0)·TopK(64)·TopP(0.95)·Max 토큰·Seed·시스템 프롬프트(네이티브만)·Thinking 토글/예산.
