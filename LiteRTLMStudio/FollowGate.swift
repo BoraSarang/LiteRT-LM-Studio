@@ -23,6 +23,7 @@ final class FollowGate: ObservableObject {
     var finishOffset: CGFloat = 0 // T-204 종료 시점 오프셋 (이동량 가드 기준)
     var anchorMaxY: CGFloat = 0 // T-206 하단 앵커 실측 (AppKit 추정과 대조용, @State 아님)
     var entryCorrections = 0 // T-211 진입당 보정 점프 예산 (진동자 차단)
+    var entryDone = false // T-213 폴링 종료 여부 (종료 전 보정 정당화 차단)
 }
 
 /// 상위 NSScrollView 탐색 (T-047): 절대좌표 점프용 AppKit 진입점. 렌더 없음(AIModelTalk 이식).
@@ -133,7 +134,9 @@ extension ContentView {
 
     /// 종료 기준 갱신 (T-205): 보정 점프 후 현재 위치를 새 기준으로.
     /// 안 하면 보정 점프 자체가 이동량 가드를 오염시켜 후속 보정이 영구 스킵됨.
+    /// T-213 종료 전에는 갱신 금지 (폴링 중 보정이 wake 등을 정당화하는 캐스케이드 차단).
     func refreshFinishMark() {
+        guard followGate.entryDone else { return }
         guard let sv = chatScrollView, let doc = sv.documentView else { return }
         followGate.finishDocH = doc.bounds.height
         followGate.finishOffset = sv.contentView.bounds.origin.y
@@ -151,7 +154,7 @@ extension ContentView {
     /// LazyVStack 추정 팽창 후 실측 수렴이 원인. 종료 후 거의 안 움직였을 때만 (읽기 보호).
     func correctCollapsedBottom() {
         guard let sv = chatScrollView, let doc = sv.documentView else { return }
-        guard followGate.finishDocH > 0 else { return }
+        guard followGate.entryDone, followGate.finishDocH > 0 else { return }
         let offset = sv.contentView.bounds.origin.y
         guard abs(offset - followGate.finishOffset) < 60 else { return }
         let cur = doc.bounds.height
@@ -168,7 +171,7 @@ extension ContentView {
         guard let sv = chatScrollView, let doc = sv.documentView else { return }
         guard !chat.streaming, !chat.preparing else { return }
         guard !pinnedToBottom else { return }
-        guard followGate.finishDocH > 0 else { return }
+        guard followGate.entryDone, followGate.finishDocH > 0 else { return }
         guard Self.stuckBottom(offset: sv.contentView.bounds.origin.y,
                                finishOffset: followGate.finishOffset,
                                docHeight: doc.bounds.height,
@@ -183,9 +186,12 @@ extension ContentView {
     /// AppKit 직접 점프만으로는 동결된 추정치를 못 깨고 허공에 남음.
     /// 프록시는 SwiftUI 레이아웃을 깨우고, 확정 점프가 실측 기준으로 교정
     /// (T-167 오버슛은 여기서 흡수, 지연 보정 6종 유지).
+    /// T-213 프록시는 앵커 0일 때만 (정상 경로 간섭으로 최초 페인트를 지우는 일 방지).
     func settleToBottom() {
         jumpToBottom()
-        scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
+        if followGate.anchorMaxY == 0 {
+            scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             self.jumpToBottom()
             self.refreshFinishMark()
@@ -197,7 +203,7 @@ extension ContentView {
         guard let sv = chatScrollView, let doc = sv.documentView else { return }
         guard !chat.streaming, !chat.preparing else { return }
         guard !pinnedToBottom else { return }
-        guard followGate.finishDocH > 0 else { return }
+        guard followGate.entryDone, followGate.finishDocH > 0 else { return }
         guard Self.stuckBottom(offset: sv.contentView.bounds.origin.y,
                                finishOffset: followGate.finishOffset,
                                docHeight: doc.bounds.height,
@@ -214,7 +220,7 @@ extension ContentView {
     func recoverPastTrueEnd() {
         guard let sv = chatScrollView, sv.documentView != nil else { return }
         guard !chat.streaming, !chat.preparing else { return }
-        guard followGate.finishDocH > 0, followGate.anchorMaxY > 0 else { return }
+        guard followGate.entryDone, followGate.finishDocH > 0, followGate.anchorMaxY > 0 else { return }
         let offset = sv.contentView.bounds.origin.y
         guard abs(offset - followGate.finishOffset) < 60 else { return }
         let trueMaxY = Self.anchorTrueMaxY(anchorMaxY: followGate.anchorMaxY,
@@ -233,6 +239,7 @@ extension ContentView {
     /// 프록시 스크롤로 SwiftUI 레이아웃을 강제 기상 (점프만으로는 안 깨어남).
     func wakeFrozenLayout() {
         guard !chat.streaming, !chat.preparing else { return }
+        guard followGate.entryDone else { return } // T-213 종료 전 난사 금지
         guard followGate.finishDocH > 0, followGate.anchorMaxY == 0 else { return }
         scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
         logger.info(feature: "스크롤", "레이아웃 깨움")

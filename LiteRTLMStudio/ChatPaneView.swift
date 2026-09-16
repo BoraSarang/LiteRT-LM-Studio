@@ -87,7 +87,9 @@ extension ContentView {
                         .id("chatBottom") // T-081 프록시 강제 생성용
                         .background {
                             GeometryReader { geo in
-                                Color.clear.onChange(of: geo.frame(in: .named("chatScroll")).maxY) { _, maxY in
+                                // T-213 initial:true — 최초 레이아웃 즉시 보고 (미발화면 영원히 0).
+                                Color.clear.onChange(of: geo.frame(in: .named("chatScroll")).maxY,
+                                                     initial: true) { _, maxY in
                                     followGate.anchorMaxY = maxY // T-206 앵커 실측 저장 (재렌더 없음)
                                     pinnedToBottom = Self.isPinnedToBottom(
                                         bottomMaxY: maxY, viewportHeight: viewportHeight)
