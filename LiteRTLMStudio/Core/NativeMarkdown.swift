@@ -35,6 +35,13 @@ enum NativeMarkdown {
         }
     }
 
+    /// 펜스 통계 (순수, 테스트 가능, T-200): 블록 수+미닫힘 여부. 진입·스트리밍 계측용.
+    /// 닫는 울타리 없이 끝나면 꼬리가 code로 오분류되므로 별도 표시 (T-201 처방 근거).
+    nonisolated static func fenceStats(_ s: String) -> (blocks: Int, hasPending: Bool) {
+        let parts = s.components(separatedBy: "```")
+        return (parts.count, parts.count.isMultiple(of: 2))
+    }
+
     /// 본문 AttributedString 변환 (T-150/T-151): 인라인만 해석해 개행 보존, 실패 시 nil.
     nonisolated static func attributed(_ s: String) -> AttributedString? {
         let options = AttributedString.MarkdownParsingOptions(

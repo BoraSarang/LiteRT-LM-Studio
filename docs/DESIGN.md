@@ -50,6 +50,8 @@
 * 콘텐츠: `ContentView`(툴바·task) + `FollowGate` + `SidebarView` + `InspectorView` + `ChatPaneView` + `ChatScrollActions` + `PaletteViews`. 순수 스크롤 수학은 `ScrollMath(ContentView ext)` 유지.
 * 채팅: `SessionListView` + `MessageBubbles` + `ChatInputBar` + `BottomPanelView`.
 * 마크다운: `MarkdownView`(네이티브 렌더) + `NativeMarkdown`(순수 파서) + `CodeHighlight`(Highlightr 래퍼) + `CodeBlockView`(헤더·복사·비동기 승격).
+  - 스트리밍 미닫힘 펜스 별도 처리+블록 해시 식별 (T-201, PLAN_v30): 꼬리 뒤집힘·상태 오부착 방지.
+* 스크롤: 진입 폴링/지연보정 works 분리+epoch+양측 보정 (T-202, PLAN_v30).
 * 코어: `ChatStore(+Session/+Native)` + `SystemMonitor(+Sampling/+Daemon)` + `PasteboardUtil` + `TimeFormat` + `ImageUtil`.
 * 공용 UI: `DSComponents`(CardBox·CopyFlag·HistoryLineChart·HoverTip) + `MeterRow` + `ChatStore.ChatImage`.
 * 네이티브 엔진 (T-010/PLAN_v7): `EngineVendor`(바이너리 래퍼) + `Core/LiteRTLM`(벤더 소스 13종, 수정 금지)

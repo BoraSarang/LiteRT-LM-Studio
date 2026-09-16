@@ -30,6 +30,18 @@ final class LiteRTLMStudioViewTests: XCTestCase {
                        [.table(rows: [["a"], ["1"]], header: true)])
     }
 
+    /// 펜스 통계 (T-200): 블록 수+미닫힘 여부. 스트리밍 꼬리 오분류 계측 근거.
+    func testFenceStats() {
+        XCTAssertEqual(NativeMarkdown.fenceStats("plain").blocks, 1)
+        XCTAssertFalse(NativeMarkdown.fenceStats("plain").hasPending)
+        let pending = NativeMarkdown.fenceStats("앞\n```swift\nlet a = 1")
+        XCTAssertEqual(pending.blocks, 2)
+        XCTAssertTrue(pending.hasPending)
+        let closed = NativeMarkdown.fenceStats("앞\n```swift\nlet a = 1\n```\n뒤")
+        XCTAssertEqual(closed.blocks, 3)
+        XCTAssertFalse(closed.hasPending)
+    }
+
     /// 호버 팁 표시 판정 (T-171): 정지 유지 0.6초 이상이면 표시.
     func testHoverTipVisible() {
         XCTAssertTrue(hoverTipVisible(hovering: true, elapsed: 0.6))

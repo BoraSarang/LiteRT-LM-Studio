@@ -38,10 +38,11 @@ extension ContentView {
         followGate.entrySince = Date()
         followGate.lastDocHeights = []
         followGate.kickDone = false
-        // T-084 진입 진단 (시작 1줄).
+        // T-084 진입 진단 (시작 1줄). T-200 finder 부착 여부 추가 (재부착 레이스 계측).
         let docH0 = chatScrollView?.documentView?.bounds.height ?? -1
         let off0 = chatScrollView.map { Int($0.contentView.bounds.origin.y) } ?? -1
-        logger.info(feature: "진입", "시작 메시지=\(chat.messages.count) 문서=\(Int(docH0)) 오프셋=\(off0)")
+        let finder = chatScrollView == nil ? "없음" : "있음"
+        logger.info(feature: "진입", "시작 메시지=\(chat.messages.count) 문서=\(Int(docH0)) 오프셋=\(off0) finder=\(finder)")
         entryPoll(session: session, attempt: 0)
     }
 
@@ -157,7 +158,8 @@ extension ContentView {
             self.pendingSessionJump = false
             gate.entryWorks.forEach { $0.cancel() }
             gate.entryWorks.removeAll()
-            self.logger.info(feature: "진입", "종료: \(reason)")
+            // T-200 종료 맥락 추가 (회차·문서·위치, 무거운 방 미수렴 분석용).
+            self.logger.info(feature: "진입", "종료: \(reason) 회차=\(attempt) 문서=\(Int(docH)) 오프셋=\(Int(snap.offsetY))")
             return false
         }
         return true
