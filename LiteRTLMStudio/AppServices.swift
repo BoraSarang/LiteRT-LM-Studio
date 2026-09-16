@@ -16,6 +16,8 @@ final class AppServices: ObservableObject {
     /// T-216: 벤치마크 창에서 모델 목록·현재 채팅 모델(분석용)을 공유.
     let chat = ChatStore()
     let models = ModelStore()
+    /// T-262: 새소식 누적 캐시 (웰컴 빈 화면이 공유, 창 닫아도 유지).
+    let releases = ReleaseNotes()
 
     private let logger = DebugLogger.shared
 

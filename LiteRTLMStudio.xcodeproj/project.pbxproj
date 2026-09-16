@@ -73,6 +73,8 @@
 				500000000000000000000122,
 				500000000000000000000123,
 				500000000000000000000124,
+				500000000000000000000125,
+				500000000000000000000126,
 				500000000000000000000024,
 				500000000000000000000027,
 				500000000000000000000028,
@@ -266,6 +268,8 @@
 				400000000000000000000122,
 				400000000000000000000123,
 				400000000000000000000124,
+				400000000000000000000125,
+				400000000000000000000126,
 				400000000000000000000012,
 				400000000000000000000013,
 				400000000000000000000052,
@@ -418,6 +422,8 @@
 		400000000000000000000122 = { isa = PBXBuildFile; fileRef = 500000000000000000000122; };
 		400000000000000000000123 = { isa = PBXBuildFile; fileRef = 500000000000000000000123; };
 		400000000000000000000124 = { isa = PBXBuildFile; fileRef = 500000000000000000000124; };
+		400000000000000000000125 = { isa = PBXBuildFile; fileRef = 500000000000000000000125; };
+		400000000000000000000126 = { isa = PBXBuildFile; fileRef = 500000000000000000000126; };
 		400000000000000000000012 = { isa = PBXBuildFile; fileRef = 500000000000000000000022; };
 		400000000000000000000013 = { isa = PBXBuildFile; fileRef = 500000000000000000000023; };
 		400000000000000000000052 = { isa = PBXBuildFile; fileRef = 500000000000000000000064; };
@@ -527,6 +533,8 @@
 		500000000000000000000122 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentViewState.swift"; sourceTree = "<group>"; };
 		500000000000000000000123 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatOutlineView.swift"; sourceTree = "<group>"; };
 		500000000000000000000124 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FollowUpSuggest.swift"; sourceTree = "<group>"; };
+		500000000000000000000125 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WelcomeView.swift"; sourceTree = "<group>"; };
+		500000000000000000000126 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/ReleaseNotes.swift"; sourceTree = "<group>"; };
 		500000000000000000000111 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CatalogBrowserView.swift"; sourceTree = "<group>"; };
 		500000000000000000000112 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CatalogBrowserSections.swift"; sourceTree = "<group>"; };
 		500000000000000000000022 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkView.swift"; sourceTree = "<group>"; };

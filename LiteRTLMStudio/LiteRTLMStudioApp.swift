@@ -16,7 +16,8 @@ struct LiteRTLMStudioApp: App {
             if onboardingDone {
                 ContentView(models: services.models, daemon: services.daemon, monitor: services.monitor,
                             nativeEngine: services.nativeEngine, chat: services.chat,
-                            bench: services.bench, benchHistory: services.benchHistory)
+                            bench: services.bench, benchHistory: services.benchHistory,
+                            releases: services.releases)
                     .frame(minWidth: 1000, minHeight: 640)
                     .background {
                         WindowAccessor { $0?.setFrameAutosaveName("LiteRTLMStudioMain") }

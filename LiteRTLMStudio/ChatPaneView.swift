@@ -17,13 +17,9 @@ extension ContentView {
     var chatPane: some View {
         VStack(spacing: 0) {
             if chat.messages.isEmpty {
-                // 정렬 규칙: 데이터 없음 → 가로·세로 중앙 정렬
-                let copy = Self.emptyStateCopy(isRunning: daemon.status == .running)
-                ContentUnavailableView(
-                    copy.title,
-                    systemImage: "bubble.left.and.bubble.right",
-                    description: Text(copy.message)
-                )
+                // T-262: 빈 화면은 웰컴 (새소식+업데이트+추천 링크, 가로·세로 중앙).
+                WelcomeView(notes: releases, uv: uv,
+                            daemonRunning: daemon.status == .running)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 messageListView

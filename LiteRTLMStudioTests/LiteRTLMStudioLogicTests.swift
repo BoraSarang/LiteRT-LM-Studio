@@ -458,4 +458,66 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         let chips = FollowUpSuggest.suggestFollowUps(for: "", max: 3)
         XCTAssertEqual(chips.count, 3)
     }
+
+    /// 새소식 파싱 (T-262): 정상 2건+빈 태그 제외.
+    func testReleaseParse() {
+        let json = """
+        [{"tag_name":"v0.15.0","name":"0.15.0","body":"## New\\n- faster\\n",
+        "html_url":"https://example.com/r1","published_at":"2026-09-01T00:00:00Z",
+        "prerelease":false},
+        {"tag_name":"","name":"bad","body":"","html_url":"","prerelease":false}]
+        """
+        let list = ReleaseNotesParser.parse(Data(json.utf8))
+        XCTAssertEqual(list.count, 1)
+        XCTAssertEqual(list[0].tag, "v0.15.0")
+        XCTAssertNotNil(list[0].publishedAt)
+    }
+
+    /// 새소식 파싱 실패 (T-262): 손상 JSON은 빈 배열.
+    func testReleaseParseBroken() {
+        XCTAssertTrue(ReleaseNotesParser.parse(Data("nope".utf8)).isEmpty)
+    }
+
+    /// What's New 요약 (T-262): 기호 제거+최대 3줄.
+    func testReleaseSummary() {
+        let body = "# 제목\n\n- 첫째\n* 둘째\n> 셋째\n\n넷째"
+        XCTAssertEqual(ReleaseNotesParser.summaryLines(body),
+                       ["제목", "첫째", "둘째"])
+    }
+
+    /// 버전 비교 (T-262): 선행 v·동등·구간 부족.
+    func testReleaseCompare() {
+        XCTAssertEqual(ReleaseNotesParser.compare("v0.15.0", "0.14.0"), .orderedDescending)
+        XCTAssertEqual(ReleaseNotesParser.compare("0.14.0", "0.14.0"), .orderedSame)
+        XCTAssertEqual(ReleaseNotesParser.compare("0.13.9", "0.14.0"), .orderedAscending)
+        XCTAssertEqual(ReleaseNotesParser.displayVersion("v0.15.0"), "0.15.0")
+    }
+
+    /// 신버전 판정 (T-262): 프리릴리즈 제외+최신 선택.
+    func testReleaseNewerStable() {
+        let rels = [
+            AppRelease(tag: "v0.16.0-rc1", name: "", body: "", url: "", prerelease: true),
+            AppRelease(tag: "v0.14.0", name: "", body: "", url: ""),
+            AppRelease(tag: "v0.15.0", name: "", body: "", url: ""),
+        ]
+        XCTAssertEqual(ReleaseNotesParser.newerStable(rels, installed: "0.14.0")?.tag, "v0.15.0")
+        XCTAssertNil(ReleaseNotesParser.newerStable(rels, installed: "0.15.0"))
+        XCTAssertNil(ReleaseNotesParser.newerStable(rels, installed: nil))
+    }
+
+    /// 새소식 누적 (T-262): 태그 중복 제거+20건 cap.
+    @MainActor
+    func testReleaseMerge() {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("releases-test-\(UUID().uuidString).json")
+        let store = ReleaseNotes(storageURL: tmp)
+        let rels = (0 ..< 25).map {
+            AppRelease(tag: "v0.\($0).0", name: "", body: "", url: "")
+        }
+        store.merge(rels)
+        XCTAssertEqual(store.releases.count, 20)
+        store.merge([AppRelease(tag: "v0.1.0", name: "", body: "", url: "")])
+        XCTAssertEqual(store.releases.count, 20)
+        try? FileManager.default.removeItem(at: tmp)
+    }
 }

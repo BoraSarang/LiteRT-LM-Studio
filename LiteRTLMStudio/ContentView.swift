@@ -17,6 +17,8 @@ struct ContentView: View {
     @ObservedObject var chat: ChatStore
     @ObservedObject var bench: BenchmarkStore
     @ObservedObject var benchHistory: BenchmarkHistoryStore
+    /// T-262: 웰컴 새소식 공유 (AppServices 단일 인스턴스).
+    @ObservedObject var releases: ReleaseNotes
     @StateObject var config = ConfigStore()
     @StateObject var logger = DebugLogger.shared
 
