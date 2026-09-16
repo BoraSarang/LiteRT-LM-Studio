@@ -320,7 +320,7 @@ struct ModelManagerView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
                     .frame(width: 24, height: 20).contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
@@ -361,7 +361,7 @@ struct ModelManagerView: View {
                 Button("파일 삭제", role: .destructive) { deleteStagedDialog(entry: s) }
             } label: {
                 Image(systemName: "ellipsis")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
                     .frame(width: 24, height: 20).contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)

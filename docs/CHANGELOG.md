@@ -70,6 +70,10 @@
 * 웹 검색 도구 (T-269, PLAN_v62): wigolo 우선→DDG→Wikipedia 체인+web_search·web_fetch+
   WigoloManager 데몬 관리+채팅 설정 토글. 에러코드 E-MAC-NET-0015 추가.
   wigolo CLI 설치는 사용자 몫. [macos]
+* 설정 도구 탭 (T-271, PLAN_v63 후속): 등록 도구 전수 목록+개별 ON/OFF (기본·웹·시스템 분류).
+  새 Tool은 카탈로그 1행으로 자동 표시. [macos]
+* 셸·파일 도구 (T-272, PLAN_v64): run_shell(차단 8종+jail+출력 8K·30초)+save_code
+  (작업폴더 한정+덮어쓰기 표시+512K)+read_file. 작업폴더 선택 설정. [macos]
 * 파일로 설치 (T-254, PLAN_v52): 내 모델 헤더 버튼+NSOpenPanel→스테이징 복사 (원본 유지). [macos]
 * 전송 확인 제거 (T-255, PLAN_v52): 전송 항상 허용, 권한은 모델 삭제·가져오기·설치+
   장래 도구 실행용으로 재정의. [macos]

@@ -72,7 +72,7 @@ struct BenchmarkListView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary)
                         .frame(width: 24, height: 20)
                         .contentShape(Rectangle())
                 }

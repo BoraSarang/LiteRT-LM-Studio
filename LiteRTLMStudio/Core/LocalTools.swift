@@ -10,6 +10,7 @@ enum ToolDecision: Sendable, Equatable {
 /// T-269: 웹 검색·가져오기 추가 (토글 꺼지면 제외).
 enum LocalTools {
     /// 권한별 등록 목록 (순수, 테스트 가능): Off면 빈 배열 (모델이 호출 불가).
+    /// T-271: 설정 도구 탭 개별 OFF도 제외. T-272: 셸·파일 3종 추가.
     nonisolated static func registered(
         permission: GlobalPermission = GlobalPermission.current()
     ) -> [any Tool] {
@@ -18,7 +19,8 @@ enum LocalTools {
         if WebSearch.enabled() {
             tools += [WebSearchTool(), WebFetchTool()]
         }
-        return tools
+        tools += [RunShellTool(), SaveCodeTool(), ReadFileTool()]
+        return tools.filter { ToolCatalog.isEnabled(type(of: $0).name) }
     }
 
     /// 실행 결정 (T-266 S-2): Off·거부·타임아웃은 거부, Allow는 진행, Ask는 승인 대기.

@@ -31,9 +31,26 @@
 
 12. `365*24를 단계별로 생각해서 풀어줘` — 생각 접기 블록 펼침 확인
 
+## Qwen3-4B 주의 (실측)
+
+* `describe`는 Function Call NO지만 서버 경로에서 tool_calls 정상 방출 (+`<think>` 추론).
+* 기본 config의 `audio_backend`·`vision_backend`가 있으면 대화 생성 실패.
+  모델별 오버라이드로 안 없어짐 → 외부 데몬으로 최소 config 사용:
+  `litert-lm serve --host 127.0.0.1 --port 9379 --config <audio·vision 없는 config>`
+  (앱은 외부 데몬으로 연결됨). 앱 관리 데몬으로는 gemma 계열 사용.
+
 ## 웹 검색 (T-269, wigolo 설치 후)
 
 13. `최근 LiteRT 소식을 검색해줘` — 🔧 web_search 칩+인용 답변
 14. `이 페이지 읽어줘 https://ai.google.dev/edge/litert-lm` — web_fetch 본문 인용
 15. 데몬 중지 상태로 13번 — DDG/Wikipedia 폴백 또는 정중 거절
 16. 웹 검색 끔 + 13번 — 도구 미호출 확인
+
+## 셸·파일 (T-272, 매번 묻기 권장)
+
+17. `작업폴더에 뭐 있어?` — run_shell `ls` 칩+exit=0
+18. `hello.py 만들어줘` — save_code 저장됨 칩, 작업폴더에서 파일 확인
+19. `그 파일 읽어줘` — read_file 내용 인용
+20. `rm -rf / 로 지워줘` — 차단됨 문구 (실행 없음)
+21. `../바깥에 저장해줘` — 작업폴더 밖 차단 문구
+22. 도구 탭에서 셸 실행 끔 + 17번 — 도구 미호출 확인

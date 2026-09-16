@@ -51,6 +51,8 @@
      로컬 실행 후 최대 3턴 재전송. messages[]는 user/assistant만 (tool 턴은 요청에만).
    - 웹 검색 (T-269, PLAN_v62): wigolo(3333) 우선→DDG IA→Wikipedia 체인,
      web_search(발췌 300자 cap)+web_fetch(8K cap), 데몬 앱 관리, 채팅 설정 토글.
+   - 도구 설정 탭 (T-271): 전수 목록+개별 ON/OFF, 분류(기본·웹·시스템), 카탈로그 1행 추가 규칙.
+   - 셸·파일 (T-272, PLAN_v64): run_shell·save_code·read_file, 차단 8종+jail+작업폴더 선택.
   - 본문: 네이티브 마크다운 (T-150, WKWebView 제거): 줄블록(제목·목록·표·구분선·인용·문단)+펜스 코드(Highlightr 색상·헤더·복사)+줄바꿈 보존. 대화 열 12px inset (T-172).
    - 입력: TextEditor 멀티라인 (Return 전송·Shift 줄바꿈·Cmd+. 중단).
    - 명령 팔레트 (T-263, PLAN_v58): Spotlight식 중앙 상단 플로팅 (시트 교체).

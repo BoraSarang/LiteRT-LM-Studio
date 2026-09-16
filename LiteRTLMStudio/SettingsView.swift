@@ -13,6 +13,8 @@ struct SettingsView: View {
     @AppStorage("chatOutlineEnabled") private var outlineEnabled = true // T-258 대화 목차
     @AppStorage("followUpEnabled") private var followUpEnabled = true // T-261 후속질문 칩
     @AppStorage("webSearchEnabled") private var webSearchEnabled = true // T-269 웹 검색 도구
+    @AppStorage("workspaceRoot") private var workspaceRoot = "" // T-272 작업폴더 (빈값=기본값)
+    @State private var toolFlags: [String: Bool] = [:] // T-271 도구 개별 ON/OFF
     @State private var loginError: String?
 
     var body: some View {
@@ -103,11 +105,59 @@ struct SettingsView: View {
                 }
             }.formStyle(.grouped).padding()
                 .tabItem { Label("채팅", systemImage: "bubble.left.and.bubble.right") }
+            Form {
+                ForEach(ToolInfo.Category.allCases, id: \.rawValue) { category in
+                    Section(category.rawValue) {
+                        ForEach(ToolCatalog.all.filter { $0.category == category }) { info in
+                            Toggle(info.title, isOn: toolBinding(for: info.name))
+                                .help(info.detail)
+                        }
+                    }
+                }
+                Text("꺼진 도구는 모델에게 전달되지 않습니다. 실행 여부는 일반 탭의 권한(사용 안 함·매번 묻기·모두 허용)이 정합니다.")
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Text("작업폴더: \(workspaceRoot.isEmpty ? "기본값" : workspaceRoot)")
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                    Button("선택") { pickWorkspace() }
+                    if !workspaceRoot.isEmpty {
+                        Button("기본값") { workspaceRoot = "" }
+                    }
+                }.help("셸·파일 도구가 접근할 수 있는 폴더. 밖은 차단됩니다.")
+            }.formStyle(.grouped).padding()
+                .tabItem { Label("도구", systemImage: "wrench") }
         }.frame(minWidth: 580, minHeight: 420)
+            .onAppear { reloadToolFlags() }
     }
 
-    private func setLoginItem(_ on: Bool) {
-        do {
+    /// 도구 개별 토글 바인딩 (T-271): UserDefaults 저장+로그.
+    private func toolBinding(for name: String) -> Binding<Bool> {
+        Binding(get: { toolFlags[name] ?? ToolCatalog.isEnabled(name) },
+                set: {
+                    ToolCatalog.setEnabled(name, $0)
+                    toolFlags[name] = $0
+                    DebugLogger.shared.info(feature: "도구설정", "\(name) \($0 ? "켜짐" : "꺼짐")")
+                })
+    }
+
+    /// 저장된 플래그 일괄 로드.
+    private func reloadToolFlags() {
+        toolFlags = Dictionary(uniqueKeysWithValues:
+            ToolCatalog.all.map { ($0.name, ToolCatalog.isEnabled($0.name)) })
+    }
+
+    /// 작업폴더 선택 (T-272): NSOpenPanel 폴더 1개.
+    private func pickWorkspace() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        workspaceRoot = url.path
+        DebugLogger.shared.info(feature: "도구설정", "작업폴더: \(url.path)")
+    }
+
+    private func setLoginItem(_ on: Bool) {        do {
             if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             loginError = nil
             DebugLogger.shared.info(feature: "로그인항목", on ? "등록" : "해제")

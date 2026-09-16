@@ -264,4 +264,7 @@
 * [x] T-267 Tool calling S-2 실행 네이티브: 로컬 도구+권한 게이트 (PLAN_v61)
 * [x] T-268 Tool calling S-3 실행 서버: tools 전송+tool 응답 루프 (PLAN_v61)
 * [x] T-269 웹 검색 도구: wigolo 우선 체인+검색/가져오기+데몬 관리 (PLAN_v62)
+* [ ] T-270 macOS 시스템 도구팩: 읽기 4+쓰기 5+날짜 파서+allowlist (PLAN_v63)
+* [x] T-271 설정 도구 탭: 전수 목록+개별 ON/OFF (PLAN_v63 후속)
+* [x] T-272 셸 실행 + 파일 저장 도구: 차단+jail+확인 (PLAN_v64)
 * [ ] T-215 잔여 간헐 미도달 방: 재현 조건 특정 후 처방 (추후 개선, PLAN_v31~v40 경위 참조)
