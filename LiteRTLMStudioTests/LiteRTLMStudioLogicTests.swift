@@ -148,6 +148,13 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertFalse(ContentView.blankOffset(cur: 0, docHeight: 0, clipHeight: 800))
     }
 
+    /// 위 고착 판정 (T-202): 여지 있는데 상단이면 보정, 하단·짧은 문서는 제외.
+    func testTopStuck() {
+        XCTAssertTrue(ContentView.topStuck(offset: 0, docHeight: 2000, clipHeight: 800))
+        XCTAssertFalse(ContentView.topStuck(offset: 1150, docHeight: 2000, clipHeight: 800))
+        XCTAssertFalse(ContentView.topStuck(offset: 0, docHeight: 600, clipHeight: 800))
+    }
+
     /// 삭제 액션 중복 발사 가드 (T-113): 동일 ID 1초 내 재호출만 무시.
     func testAllowDelete() {
         let id = UUID()

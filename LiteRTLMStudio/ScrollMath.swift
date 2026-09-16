@@ -75,6 +75,19 @@ extension ContentView {
         return maxY > minScrollable && offsetY >= maxY - threshold
     }
 
+    /// 위 고착 판정 (순수, 테스트 가능, T-202): 스크롤 여지 있는데 상단이면 보정 대상.
+    /// entryConverged의 여집합 방향 (하단 미도달 + 짧지 않음).
+    nonisolated static func topStuck(
+        offset: CGFloat,
+        docHeight: CGFloat,
+        clipHeight: CGFloat,
+        minScrollable: CGFloat = 120,
+        threshold: CGFloat = 60
+    ) -> Bool {
+        let maxY = max(0, docHeight - clipHeight)
+        return maxY > minScrollable && offset < maxY - threshold
+    }
+
     /// 문서 높이 안정 판정 (순수, 테스트 가능, T-080): 최근 3회 1pt 이내.
     nonisolated static func docStable(
         _ heights: [CGFloat],

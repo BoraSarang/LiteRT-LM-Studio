@@ -11,12 +11,14 @@ final class FollowGate: ObservableObject {
     var lastContent: CGFloat = 0 // T-048 마지막 관측 문서 높이 (증가 감지용)
     var maxTextLen: Int = 0 // T-106 마지막 응답 텍스트 길이 최대치 (stale 높이 무관 추종용)
     var entryWorks: [DispatchWorkItem] = [] // T-078 진입 점프 독립 예약
+    var clampWorks: [DispatchWorkItem] = [] // T-202 지연 보정 독립 예약 (finish 취소와 분리)
     var entrySince = Date.distantPast // T-078 진입 시작 시각 (휠 존중용)
     var wheelAccum: CGFloat = 0 // T-080 휠 누적 (미세 접촉 무시용)
     var lastDocHeights: [CGFloat] = [] // T-080 진입 수렴 안정 판정용
     var kickDone = false // T-083 진입 킥 1회 플래그
     var lastJumpSession: UUID? // T-112 이중 발사 제거용 (마지막 점프 세션)
     var lastJumpAt = Date.distantPast // T-112 이중 발사 제거용 (마지막 점프 시각)
+    var entryEpoch = 0 // T-202 진입 세대 (낡은 폴링 폐기용)
 }
 
 /// 상위 NSScrollView 탐색 (T-047): 절대좌표 점프용 AppKit 진입점. 렌더 없음(AIModelTalk 이식).
