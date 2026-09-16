@@ -166,23 +166,43 @@ extension ContentView {
         logger.info(feature: "스크롤", "고착 보정 → 하단")
     }
 
-    /// 프록시 재착지 (T-204, 최후 수단): 추정치 고착 시 앵커 기준으로 실측 강제 후 확정 점프.
-    /// 스트리밍·준비 중·핀ON·이동 큼이면 스킵 (추종·읽기 우선).
-    func reseatBottomViaProxy() {
+    /// 스윕 복구 (T-208): 얼어붙은 추정치를 깨는 해머. 맨 위로 갔다가 하단으로.
+    /// 점프만으로는 추정치 공간을 못 벗어나서 실측 강제용. 고착 방에서만 1회.
+    func sweepBottomRecover() {
+        guard let sv = chatScrollView, let doc = sv.documentView else { return }
+        guard !chat.streaming, !chat.preparing else { return }
+        guard followGate.finishDocH > 0, followGate.anchorMaxY > 0 else { return }
+        let offset = sv.contentView.bounds.origin.y
+        let clipH = sv.contentView.bounds.height
+        guard abs(offset - followGate.finishOffset) < 60 else { return }
+        let stuck = Self.stuckBottom(offset: offset, finishOffset: followGate.finishOffset,
+                                     docHeight: doc.bounds.height, clipHeight: clipH)
+        let trueMaxY = Self.anchorTrueMaxY(anchorMaxY: followGate.anchorMaxY,
+                                           offset: offset, clipHeight: clipH)
+        guard stuck || Self.pastTrueEnd(offset: offset, trueMaxY: trueMaxY) else { return }
+        guard let firstID = chat.messages.first?.id else { return }
+        scrollProxy?.scrollTo(firstID, anchor: .top)
+        // 0.4초: 위쪽 실측이 끝난 뒤 하단으로 (바로 이으면 실측이 뭉개짐).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            self.jumpToBottom()
+            self.refreshFinishMark()
+        }
+        logger.info(feature: "스크롤", "스윕 복구")
+    }
+
+    /// 최종 확정 (T-208): 7초 시점 고착 가드 절대 점프. 스윕 후 착지 교정.
+    func finalVerifyJump() {
         guard let sv = chatScrollView, let doc = sv.documentView else { return }
         guard !chat.streaming, !chat.preparing else { return }
         guard !pinnedToBottom else { return }
-        guard followGate.finishDocH > 0,
-              Self.stuckBottom(offset: sv.contentView.bounds.origin.y,
+        guard followGate.finishDocH > 0 else { return }
+        guard Self.stuckBottom(offset: sv.contentView.bounds.origin.y,
                                finishOffset: followGate.finishOffset,
                                docHeight: doc.bounds.height,
                                clipHeight: sv.contentView.bounds.height) else { return }
-        scrollProxy?.scrollTo("chatBottom", anchor: .bottom)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            self.jumpToBottom()
-            self.refreshFinishMark() // T-205 후속 판정 기준
-        }
-        logger.info(feature: "스크롤", "프록시 재착지")
+        jumpToBottom()
+        refreshFinishMark()
+        logger.info(feature: "스크롤", "최종 확정 → 하단")
     }
 
     /// 앵커 재수렴 (T-206): 핀ON인데 오프셋이 앵커 실측 끝을 초과하면 실측으로 복귀.

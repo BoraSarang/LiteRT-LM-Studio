@@ -77,9 +77,10 @@ extension ContentView {
         // T-202: clampWorks 분리 — finish가 폴링만 취소해도 보정은 살아남음. 다음 전환 시 취소.
         followGate.clampWorks.forEach { $0.cancel() }
         followGate.clampWorks.removeAll()
-        for (i, delay) in [1.5, 3.0, 5.0].enumerated() {
+        for (i, delay) in [1.5, 3.0, 5.0, 7.0].enumerated() {
             let sessionID = session ?? chat.currentSessionID
-            let isLast = i == 2
+            let isSweep = i == 2
+            let isLast = i == 3
             let work = DispatchWorkItem { [weak followGate] in
                 guard followGate != nil,
                       sessionID == nil || sessionID == self.chat.currentSessionID else { return }
@@ -89,7 +90,8 @@ extension ContentView {
                 self.correctStuckBottom() // T-204 고착 보정 (이동량 가드)
                 self.recoverPastTrueEnd() // T-206 앵커 재수렴 (핀ON 사각지대)
                 self.diagnoseRulerMismatch() // T-207 자 불일치 진단 (로그만)
-                if isLast { self.reseatBottomViaProxy() } // T-204 최후 수단
+                if isSweep { self.sweepBottomRecover() } // T-208 실측 강제
+                if isLast { self.finalVerifyJump() } // T-208 착지 교정
             }
             followGate.clampWorks.append(work)
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
