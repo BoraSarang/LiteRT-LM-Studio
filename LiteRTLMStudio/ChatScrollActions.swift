@@ -86,6 +86,7 @@ extension ContentView {
             let work = DispatchWorkItem { [weak followGate] in
                 guard followGate != nil,
                       sessionID == nil || sessionID == self.chat.currentSessionID else { return }
+                if isLast { self.followGate.finalPass = true } // T-214 최종 슬롯 예산 우회
                 self.clampToDocument()
                 self.clampTopStuck() // T-202 위 고착 보정 (휠 없으면만)
                 self.correctCollapsedBottom() // T-204 붕괴 보정 (이동량 가드)
@@ -94,6 +95,7 @@ extension ContentView {
                 self.diagnoseRulerMismatch() // T-207 자 불일치 진단 (로그만)
                 self.wakeFrozenLayout() // T-212 동결 깨움 (앵커 보고 없음)
                 if isLast { self.finalVerifyJump() } // T-208 착지 교정
+                self.followGate.finalPass = false // T-214 우회 종료 (다음 진입 혼선 방지)
             }
             followGate.clampWorks.append(work)
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)

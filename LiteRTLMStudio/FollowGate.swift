@@ -24,6 +24,7 @@ final class FollowGate: ObservableObject {
     var anchorMaxY: CGFloat = 0 // T-206 하단 앵커 실측 (AppKit 추정과 대조용, @State 아님)
     var entryCorrections = 0 // T-211 진입당 보정 점프 예산 (진동자 차단)
     var entryDone = false // T-213 폴링 종료 여부 (종료 전 보정 정당화 차단)
+    var finalPass = false // T-214 최종 슬롯 여부 (예산 우회 1회)
 }
 
 /// 상위 NSScrollView 탐색 (T-047): 절대좌표 점프용 AppKit 진입점. 렌더 없음(AIModelTalk 이식).
@@ -143,8 +144,10 @@ extension ContentView {
     }
 
     /// 보정 예산 차감 (T-211): 진입당 최대 2회. 초과분은 영구 조용 (진동자 차단).
-    /// settleToBottom(진입 확정)은 예산 외.
+    /// settleToBottom(진입 확정)은 예산 외. T-214 최종 슬롯은 전량 우회
+    /// (이후 works 없어 진동 불가, 각 함수가 점프 후 상태로 재평가).
     func claimCorrectionBudget() -> Bool {
+        if followGate.finalPass { return true }
         guard followGate.entryCorrections < 2 else { return false }
         followGate.entryCorrections += 1
         return true
