@@ -291,4 +291,16 @@ final class LiteRTLMStudioModelTests: XCTestCase {
         XCTAssertFalse(ModelStore.isInstallableFile(name: "m.task"))
         XCTAssertFalse(ModelStore.isInstallableFile(name: ""))
     }
+
+    /// 온보딩 버전 파싱·최소비교 (T-257).
+    func testOnboardingGate() {
+        XCTAssertEqual(OnboardingGate.parseVersion("litert-lm, version 0.17.0"), "0.17.0")
+        XCTAssertEqual(OnboardingGate.parseVersion("uv 0.11.29 (Homebrew)"), "0.11.29")
+        XCTAssertNil(OnboardingGate.parseVersion("없음"))
+        XCTAssertTrue(OnboardingGate.meetsMinimum("0.17.0"))
+        XCTAssertTrue(OnboardingGate.meetsMinimum("0.14.0"))
+        XCTAssertFalse(OnboardingGate.meetsMinimum("0.13.9"))
+        XCTAssertFalse(OnboardingGate.meetsMinimum(nil))
+        XCTAssertFalse(OnboardingGate.meetsMinimum("없음"))
+    }
 }

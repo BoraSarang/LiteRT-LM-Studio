@@ -69,6 +69,8 @@
 				500000000000000000000112,
 				500000000000000000000115,
 				500000000000000000000118,
+				500000000000000000000121,
+				500000000000000000000122,
 				500000000000000000000024,
 				500000000000000000000027,
 				500000000000000000000028,
@@ -118,6 +120,7 @@
 				500000000000000000000114,
 				500000000000000000000116,
 				500000000000000000000117,
+				500000000000000000000120,
 				500000000000000000000023,
 				500000000000000000000064,
 				500000000000000000000025,
@@ -256,6 +259,9 @@
 				400000000000000000000116,
 				400000000000000000000117,
 				400000000000000000000118,
+				400000000000000000000120,
+				400000000000000000000121,
+				400000000000000000000122,
 				400000000000000000000012,
 				400000000000000000000013,
 				400000000000000000000052,
@@ -403,6 +409,9 @@
 		400000000000000000000117 = { isa = PBXBuildFile; fileRef = 500000000000000000000117; };
 		400000000000000000000118 = { isa = PBXBuildFile; fileRef = 500000000000000000000118; };
 		400000000000000000000119 = { isa = PBXBuildFile; fileRef = 500000000000000000000119; };
+		400000000000000000000120 = { isa = PBXBuildFile; fileRef = 500000000000000000000120; };
+		400000000000000000000121 = { isa = PBXBuildFile; fileRef = 500000000000000000000121; };
+		400000000000000000000122 = { isa = PBXBuildFile; fileRef = 500000000000000000000122; };
 		400000000000000000000012 = { isa = PBXBuildFile; fileRef = 500000000000000000000022; };
 		400000000000000000000013 = { isa = PBXBuildFile; fileRef = 500000000000000000000023; };
 		400000000000000000000052 = { isa = PBXBuildFile; fileRef = 500000000000000000000064; };
@@ -503,10 +512,13 @@
 		500000000000000000000114 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NativeMarkdownHTML.swift"; sourceTree = "<group>"; };
 		500000000000000000000116 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelDownloader.swift"; sourceTree = "<group>"; };
 		500000000000000000000117 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelStoreStaging.swift"; sourceTree = "<group>"; };
+		500000000000000000000120 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OnboardingGate.swift"; sourceTree = "<group>"; };
 		500000000000000000000108 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelManagerView.swift"; sourceTree = "<group>"; };
 		500000000000000000000109 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelManagerSections.swift"; sourceTree = "<group>"; };
 		500000000000000000000115 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DownloadRowView.swift"; sourceTree = "<group>"; };
 		500000000000000000000118 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ImportSheetView.swift"; sourceTree = "<group>"; };
+		500000000000000000000121 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LandingView.swift"; sourceTree = "<group>"; };
+		500000000000000000000122 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentViewState.swift"; sourceTree = "<group>"; };
 		500000000000000000000111 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CatalogBrowserView.swift"; sourceTree = "<group>"; };
 		500000000000000000000112 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CatalogBrowserSections.swift"; sourceTree = "<group>"; };
 		500000000000000000000022 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BenchmarkView.swift"; sourceTree = "<group>"; };

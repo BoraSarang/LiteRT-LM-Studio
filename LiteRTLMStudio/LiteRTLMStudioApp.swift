@@ -5,19 +5,25 @@ import SwiftUI
 struct LiteRTLMStudioApp: App {
     @StateObject private var services = AppServices()
     @AppStorage("showInDock") private var showInDock = false
+    @AppStorage("onboardingDone") private var onboardingDone = false
 
     // 주의: init에서 NSApp 호출 금지 (테스트 부트스트랩 크래시).
     // 정책 적용은 ContentView.task + 설정 토글에서 수행.
     var body: some Scene {
         // 단일 창: openWindow(id:)가 기존 창을 앞으로 올림 (중복 생성 방지).
         Window("LiteRT-LM Studio", id: "main") {
-            ContentView(models: services.models, daemon: services.daemon, monitor: services.monitor,
-                        nativeEngine: services.nativeEngine, chat: services.chat,
-                        bench: services.bench, benchHistory: services.benchHistory)
-                .frame(minWidth: 1000, minHeight: 640)
-                .background {
-                    WindowAccessor { $0?.setFrameAutosaveName("LiteRTLMStudioMain") }
-                }
+            // T-257 온보딩 게이트: 미통과 시 랜딩, 통과 후 메인.
+            if onboardingDone {
+                ContentView(models: services.models, daemon: services.daemon, monitor: services.monitor,
+                            nativeEngine: services.nativeEngine, chat: services.chat,
+                            bench: services.bench, benchHistory: services.benchHistory)
+                    .frame(minWidth: 1000, minHeight: 640)
+                    .background {
+                        WindowAccessor { $0?.setFrameAutosaveName("LiteRTLMStudioMain") }
+                    }
+            } else {
+                LandingView(done: $onboardingDone)
+            }
         }
         .defaultSize(width: 1340, height: 800) // T-092 계산치: 사이드바 220+열 768+여백 32+인스펙터 320
         .windowToolbarStyle(.unified)
