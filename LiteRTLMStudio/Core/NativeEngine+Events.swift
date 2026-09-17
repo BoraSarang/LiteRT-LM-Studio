@@ -74,13 +74,36 @@ extension NativeEngine {
         }
     }
 
+    /// 세션 대화 제거: 해당 모델+방의 풀 항목 삭제 (옵션 무관).
+    /// 재시도(꼬리 제거 후 재생성)·1회성 호출 정리에 사용.
+    func evictSession(modelID: String, sessionID: String) {
+        conversations = conversations.filter {
+            !($0.key.modelID == modelID && $0.key.sessionID == sessionID)
+        }
+        conversationAccessOrder.removeAll {
+            $0.modelID == modelID && $0.sessionID == sessionID
+        }
+        if activeKey?.modelID == modelID && activeKey?.sessionID == sessionID {
+            activeConversation = nil
+            activeKey = nil
+        }
+    }
+
+    /// 진행 중 추론 중단 (T-191, D2): 풀에 남은 끊긴 Conversation 재사용을 막기
+    /// 위해 activeKey 세션을 먼저 제거하고 대화만 취소한다.
+    func cancel() {
+        if let key = activeKey {
+            evictSession(modelID: key.modelID, sessionID: key.sessionID)
+        }
+        try? activeConversation?.cancel()
+    }
+
     /// 재사용 무효화 (T-277): 시작 실패 시 새 대화로 재시도.
     /// 실패한 대화는 풀에서도 제거 — 깨진 KV/핸들이 남아 재시도마다 즉시 실패하는
     /// 오염 루프(INTERNAL state 7 등) 방지. 다음 전송은 새로 생성해 복구한다.
     func invalidateReuse() {
         if let key = activeKey {
-            conversations[key] = nil
-            conversationAccessOrder.removeAll { $0 == key }
+            evictSession(modelID: key.modelID, sessionID: key.sessionID)
         }
         activeConversation = nil
         activeKey = nil

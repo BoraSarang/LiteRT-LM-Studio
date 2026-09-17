@@ -260,6 +260,14 @@ final class ChatStore: ObservableObject {
         messages.last(where: { $0.role == "user" })?.text
     }
 
+    /// 앱 내 엔진 방 KV 제거 (T-301): 기록이 잘리는 경로(재시도·재작성)에서
+    /// 남은 Conversation을 버려 잘린 기록이 재생성을 오염시키는 것을 방지.
+    /// CLI는 매 요청이 전체 기록 재전송이라 불필요.
+    func evictNativeSession() {
+        guard usesNative() else { return }
+        inferenceEngine?.evictSession(modelID: model, sessionID: currentSessionID?.uuidString ?? "")
+    }
+
     /// 마지막 요청 재시도: 꼬리(user+assistant) 제거 후 마지막 프롬프트 재전송 (중복 표시 없음).
     func retry() {
         guard !streaming else { return }
@@ -267,6 +275,7 @@ final class ChatStore: ObservableObject {
         if messages.last?.role == "assistant" { messages.removeLast() }
         guard messages.last?.role == "user", let prompt = messages.last?.text else { return }
         messages.removeLast()
+        evictNativeSession()
         send(prompt)
     }
 

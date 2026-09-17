@@ -277,7 +277,8 @@ extension BenchmarkStore {
                                       slotID: BenchmarkRecord.ID?) async throws {
         let text: String
         if request.route == .native, let engine = request.engine {
-            text = try await collectNative(engine: engine, prompt: request.prompt,
+            text = try await collectNative(engine: engine, modelID: request.model,
+                                           prompt: request.prompt,
                                            options: request.options)
         } else {
             text = try await requestCLI(baseURL: request.baseURL,
@@ -291,8 +292,10 @@ extension BenchmarkStore {
         store?.logger.info(feature: "벤치마크", "AI 분석 완료 \(text.count)자")
     }
 
-    private static func collectNative(engine: any InferenceEngine, prompt: String,
+    private static func collectNative(engine: any InferenceEngine, modelID: String,
+                                      prompt: String,
                                       options: GenerationOptions) async throws -> String {
+        defer { engine.evictSession(modelID: modelID, sessionID: "") }
         var acc = ""
         let stream = await engine.stream(prompt: prompt, image: nil, history: [],
                                          options: options, sessionID: "")

@@ -148,11 +148,13 @@ protocol InferenceEngine: AnyObject {
     func benchmark(modelID: String) async throws -> EngineBenchmark
     /// 진행 중 추론 중단.
     func cancel()
+    /// 세션 대화 제거 (재시도 꼬리 정리·1회성 호출 정리용). 기본 no-op.
+    func evictSession(modelID: String, sessionID: String)
 }
 
-/// 이벤트 스트림 기본값 (T-266 S-1): 문자열 스트림을 텍스트 이벤트로 매핑.
-/// 채널·도구를 아는 엔진(NativeEngine)은 오버라이드.
+/// 엔진 기본값: 이벤트 스트림 매핑 (T-266 S-1), 세션 제거 no-op.
 extension InferenceEngine {
+    func evictSession(modelID: String, sessionID: String) {}
     func streamEvents(
         prompt: String,
         image: ChatStore.ChatImage?,

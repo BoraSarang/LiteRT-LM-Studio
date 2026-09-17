@@ -192,6 +192,11 @@ final class FakeEngine: InferenceEngine {
 
     func cancel() { cancelled = true }
 
+    var evictedSessions: [(modelID: String, sessionID: String)] = []
+    func evictSession(modelID: String, sessionID: String) {
+        evictedSessions.append((modelID, sessionID))
+    }
+
     var benchmarkResult = EngineBenchmark(initTime: 1.5, ttft: 2.5,
                                           prefillTokens: 10, prefillSpeed: 20,
                                           decodeTokens: 30, decodeSpeed: 15)
@@ -304,6 +309,49 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         XCTAssertEqual(fake.lastHistory.count, 2)
         XCTAssertEqual(fake.lastSessionID, store.currentSessionID?.uuidString ?? "")
         XCTAssertFalse(fake.lastSessionID.isEmpty)
+    }
+
+    /// 세션 제거 (T-301): 해당 방 풀 항목+활성 포인터 정리, 타방 유지.
+    func testEvictSessionClearsActive() {
+        let engine = NativeEngine()
+        let key = ConvKey(modelID: "m", sessionID: "s", options: GenerationOptions())
+        engine.activeKey = key
+        engine.evictSession(modelID: "m", sessionID: "s")
+        XCTAssertNil(engine.activeKey)
+        XCTAssertNil(engine.activeConversation)
+        engine.activeKey = key
+        engine.evictSession(modelID: "m", sessionID: "other")
+        XCTAssertEqual(engine.activeKey, key)
+    }
+
+    /// 중단 시 방 KV 제거 (D2): 흐름이 끊긴 Conversation이 풀에 남으면
+    /// 다음 전송이 끊긴 KV를 재사용 — cancel이 세션 항목까지 제거해야 함.
+    func testCancelEvictsActiveSession() {
+        let engine = NativeEngine()
+        let key = ConvKey(modelID: "m", sessionID: "s", options: GenerationOptions())
+        engine.activeKey = key
+        engine.cancel()
+        XCTAssertNil(engine.activeKey)
+        XCTAssertNil(engine.activeConversation)
+        XCTAssertFalse(engine.conversationAccessOrder.contains(key))
+    }
+
+    /// 재작성(KV 정리) (D1): editMessage로 기록을 잘라낸 뒤 native 세션 제거.
+    func testEditMessageEvictsNativeSession() async {
+        let store = makeStore()
+        let fake = FakeEngine()
+        fake.preparedModelID = "gemma4-12b"
+        store.inferenceEngine = fake
+        store.route = .native
+        store.send("질문")
+        await waitStreaming(store)
+        let userID = store.messages.first(where: { $0.role == "user" })!
+            .id
+        let whole = store.currentSessionID
+        _ = store.editMessage(userID)
+        XCTAssertEqual(fake.evictedSessions.map(\.modelID), ["gemma4-12b"])
+        XCTAssertEqual(fake.evictedSessions.map(\.sessionID), [whole?.uuidString ?? ""])
+        XCTAssertTrue(store.messages.isEmpty)
     }
 
     /// 엔진 모드 기본값 (T-130): 미설정 시 CLI.

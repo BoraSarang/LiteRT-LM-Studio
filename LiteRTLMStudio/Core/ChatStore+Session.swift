@@ -60,12 +60,15 @@ import Foundation
     /// 질문 다시 요청용 잘라내기 (순수 조회+적용, 테스트 가능, T-165):
     /// 해당 user 메시지와 이후 내역을 세션에서 지우고 질문 원문 반환.
     /// user 메시지 아니거나 스트리밍 중이면 nil (호출 측에서 비활성화).
+    /// 잘려나간 메시지가 앱 내 엔진 KV에 남으면 새 질문에 이전 답이 박히므로
+    /// 방 KV도 함께 버린다 (D1, retry와 동일 처리).
     func editMessage(_ id: UUID) -> String? {
         guard !streaming,
               let idx = messages.firstIndex(where: { $0.id == id }),
               messages[idx].role == "user" else { return nil }
         let text = messages[idx].text
         messages = Array(messages.prefix(upTo: idx))
+        evictNativeSession()
         persistCurrent()
         logger.info(feature: "채팅기록", "질문 다시 요청 (잔여 \(messages.count)개)")
         return text

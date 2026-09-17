@@ -264,13 +264,7 @@ final class FollowUpStore: ObservableObject {
         } catch { return nil }
         let opts = GenerationOptions(temperature: 0.7, maxTokens: FollowUpSuggest.followUpMaxTokens)
         let sid = "후속질문-\(UUID().uuidString)"
-        defer {
-            if let native = engine as? NativeEngine {
-                let key = ConvKey(modelID: modelID, sessionID: sid, options: opts)
-                native.conversations[key] = nil
-                native.conversationAccessOrder.removeAll { $0 == key }
-            }
-        }
+        defer { engine.evictSession(modelID: modelID, sessionID: sid) }
         let stream = engine.stream(prompt: prompt, image: nil, history: [],
                                    options: opts, sessionID: sid)
         var acc = ""
@@ -278,7 +272,10 @@ final class FollowUpStore: ObservableObject {
             for try await chunk in stream {
                 if Task.isCancelled { engine.cancel(); return nil }
                 acc += chunk
-                if FollowUpSuggest.hasEnoughQuestions(acc) { break }
+                if FollowUpSuggest.hasEnoughQuestions(acc) {
+                    engine.cancel() // D3: 조기 중단 시 남은 디코드 멈춤 (GPU 낭비 방지)
+                    break
+                }
             }
         } catch { return nil }
         return acc.isEmpty ? nil : acc

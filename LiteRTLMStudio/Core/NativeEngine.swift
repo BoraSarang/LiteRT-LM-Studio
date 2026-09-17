@@ -1,9 +1,7 @@
 import Foundation
 
-/// 대화 재사용 키 (T-191): 채팅방당 고정 키.
-/// 히스토리는 매 턴 늘어나므로 키에 포함하면 매번 새 Conversation이 생겨
-/// KV 캐시가 재사용되지 않음 → 모델+방ID+옵션만으로 고정.
-/// 같은 방의 후속 턴은 동일 Conversation 객체를 이어써 KV를 그대로 잇는다.
+/// 대화 재사용 키 (T-191): 모델+방ID+옵션으로 고정 — 히스토리를 키에 넣으면
+/// 매 턴 새 Conversation이 생겨 KV 재사용이 깨진다.
 struct ConvKey: Equatable, Hashable {
     var modelID: String
     /// 채팅방 식별자 (ChatStore.currentSessionID). 방이 다르면 KV 공유 금지.
@@ -129,11 +127,25 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         } catch {
             // T-273: 인코더 없는 모델은 모달 제외하고 1회 재시도.
             guard let fallback = Self.modalFallback(config) else {
+                // R2-15: config 실패 지점에서 state가 .preparing에 멈췄던 결함 → 실패 확정.
+                markInitFailed("\(error)")
                 throw EngineError.initFailed("\(error)")
             }
             logger.info(feature: "앱내엔진", "vision·audio 제외 폴백 초기화 (\(modelID))")
-            try await boot(modelID: modelID, backends: fallback)
+            do {
+                try await boot(modelID: modelID, backends: fallback)
+            } catch {
+                markInitFailed("\(error)")
+                throw EngineError.initFailed("\(error)")
+            }
         }
+    }
+
+    /// 준비 실패 확정 (R2-15): 에러·상태를 failed로 고정.
+    private func markInitFailed(_ message: String) {
+        state = .failed
+        lastError = EngineError.initFailed("").code
+        logger.error(code: "E-MAC-ENG-0001", feature: "앱내엔진", "초기화 실패: \(message)")
     }
 
     /// 백엔드/플래그 캐시 조회 (P0-3): 최초 1회만 디스크 I/O.
@@ -218,6 +230,8 @@ final class NativeEngine: InferenceEngine, ObservableObject {
             activeConversation = nil
             activeKey = nil
         }
+        // R2-17: 마지막 엔진 방출 시 .ready 잔존 → .idle 갱신 (UI 표시 불일치 방지).
+        if preparedModelIDs.isEmpty { state = .idle }
     }
 
     /// 전체 해제 (중지 버튼): 모든 구조물 반납+idle. 모델별은 releaseModel() 사용.
@@ -245,10 +259,8 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         try await prepare(modelID: modelID)
     }
 
-    /// 이벤트 스트림은 NativeEngine+Events 분리 (T-266, 본문 길이 관리).
-
     /// 평문 스트림: 이벤트 스트림 단일 경로 위임 (본문만 추출).
-    /// 모델 선택·재시도·무효화 로직 중복 제거 — streamEvents가 유일한 추론 경로.
+    /// 재시도·무효화는 streamEvents가 담당 — 단일 추론 경로.
     func stream(
         prompt: String,
         image: ChatStore.ChatImage?,
@@ -279,9 +291,8 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         let reused: Bool
     }
 
-    /// 스트림 준비물 (T-191 분리, P0-2 Conversation 풀 사용).
-    /// 키는 모델+방ID+옵션으로 턴 수와 무관하게 고정 → 같은 방의 후속 턴은
-    /// 동일 Conversation 객체를 이어써 KV를 그대로 잇는다 (프리필 생략).
+    /// 스트림 준비물 (T-191, P0-2 풀 사용): 키는 모델+방ID+옵션 고정이라
+    /// 같은 방의 후속 턴은 동일 Conversation을 이어써 KV를 잇는다 (프리필 생략).
     func preparedStream(engine: Engine, modelID: String, past: [Message],
                         sessionID: String, opts: GenerationOptions, allowReuse: Bool = true)
     async throws -> PreparedSetup {
@@ -336,14 +347,18 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         }
     }
 
-    /// 재사용·도구 게이트는 NativeEngine+Events 분리 (T-290, 본문 길이 관리).
-
-    func cancel() {
-        // T-191: 중단 시 KV/본문 어긋남 가능 → 다음 전송은 새로 생성.
-        activeKey = nil
-        try? activeConversation?.cancel()
+    /// 실험 플래그 1회 설치 (MTP·벤치마크·도구 스트리밍).
+    private static func installFlags() {
+        guard !flagsInstalled else { return }
+        flagsInstalled = true
+        ExperimentalFlags.optIntoExperimentalAPIs()
+        ExperimentalFlags.enableBenchmark = true
+        ExperimentalFlags.enableConversationToolCallStreaming = true
     }
+}
 
+/// 앱 내 엔진 벤치마크 확장 (준비·측정·정리 단계, T-216).
+extension NativeEngine {
     /// 벤치마크 측정 (T-132): 고정 프롬프트 1턴 실측 후 BenchmarkInfo 매핑.
     /// CLI `benchmark`(256/256 고정)와 조건이 달라 근사 비교용.
     func benchmark(modelID: String) async throws -> EngineBenchmark {
@@ -381,14 +396,5 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         } catch {
             throw EngineError.inferenceFailed("\(error)")
         }
-    }
-
-    /// 실험 플래그 1회 설치 (MTP·벤치마크·도구 스트리밍).
-    private static func installFlags() {
-        guard !flagsInstalled else { return }
-        flagsInstalled = true
-        ExperimentalFlags.optIntoExperimentalAPIs()
-        ExperimentalFlags.enableBenchmark = true
-        ExperimentalFlags.enableConversationToolCallStreaming = true
     }
 }
