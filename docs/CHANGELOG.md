@@ -2,6 +2,19 @@
 
 ## [Unreleased] (macos)
 
+* 네이티브 대화 KV 재사용 복구 (PLAN_v84 후속): 재사용 키를 히스토리 기반에서
+  모델+방ID+옵션 고정 키로 교체. 같은 방의 후속 턴은 동일 Conversation을
+  이어써 KV를 잇는다 (턴 수 무관, 프리필 생략). `keyHistory` 파라미터 제거,
+  `InferenceEngine.stream/streamEvents`에 `sessionID` 추가. [macos]
+* 후속질문 생성 단축: 출력 상한 100→64토큰, 프롬프트 Q 600자·A 500자로 축소,
+  3개 완성 시 스트리밍 조기 중단 (`hasEnoughQuestions`). [macos]
+* 깨진 대화 오염 루프 수정: 추론 실패 시 풀에서 해당 Conversation 제거
+  (`invalidateReuse`가 풀 항목까지 삭제). `INTERNAL state 7` 후 재시도마다
+  즉시 실패하던 현상 해소 — 다음 전송이 새로 만들어 복구. [macos]
+* 후속질문 격리 복원: 메인 대화 공유 시 후속 지시·짧은 목록이 본 대화 KV에
+  박혀 이후 답변이 40자 목록처럼 짧아지는 오염 확인 → 1회성 분리 대화로
+  복귀 (사용 후 풀에서 제거). 본 대화 답변 길이 정상화. [macos]
+* 테스트 244/244 통과. 신규 lint 경고 0건 (기존 수용분 유지). [macos]
 * 모델 관리 별도창 (T-232, PLAN_v47): `Window(id:modelManager)`,
   가져오기 시트(추천 프리셋+직접입력·HF API 파일 목록·로컬ID·토큰),
   진행률 바+퍼센트+경과+남은시간+취소, 스테이징 `~/Documents/.LiteRT-LM` 숨김 유지
