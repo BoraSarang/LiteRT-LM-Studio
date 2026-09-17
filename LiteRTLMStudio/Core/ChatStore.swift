@@ -93,11 +93,22 @@ final class ChatStore: ObservableObject {
     }
 
     @Published var sessions: [Session] = []
-    @Published var currentSessionID: UUID?
+    @Published var currentSessionID: UUID? {
+        // T-302 첫터치 프리필: 방 전환·복구·생성 시점에 엔진 준비를 미리 진행.
+        // 방 KV 프리필은 전송 옵션 확정 후라 제외 — prepare 선행만으로 init 구간 제거.
+        didSet { warmupForNextSend() }
+    }
     @Published var messages: [Message] = []
     @Published var streaming = false
     @Published var preparing = false // 첫 토큰 전 엔진 준비 상태
     @Published var lastError: String?
+    /// 첫터치 프리필 토글 (T-302, 기본 OFF): UserDefaults "prefillWarmup".
+    @Published var prefillWarmupEnabled: Bool {
+        didSet { warmupDefaults.set(prefillWarmupEnabled, forKey: Self.prefillWarmupKey) }
+    }
+    private var warmupDefaults: UserDefaults = .standard
+    /// T-302 예열 진행 Task (동일 모듈 확장 파일에서 접근 — internal 유지).
+    var warmupTask: Task<Void, Never>?
 
     var baseURL = URL(string: "http://127.0.0.1:9379")!
     var model = "gemma4-12b"
@@ -136,6 +147,9 @@ final class ChatStore: ObservableObject {
                 logger.info(feature: "채팅기록", "구 기록 이사 완료")
             }
         }
+        // T-302: 토글 저장소는 routeDefaults와 동일 주입 (테스트 분리), @AppStorage와 .standard 공유.
+        warmupDefaults = routeDefaults
+        prefillWarmupEnabled = routeDefaults.bool(forKey: Self.prefillWarmupKey)
         route = EngineMode(rawValue: routeDefaults.string(forKey: "engineMode") ?? "") ?? .cli
         load()
         if sessions.isEmpty { startDraft() }

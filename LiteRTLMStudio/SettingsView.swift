@@ -15,6 +15,7 @@ struct SettingsView: View {
     @AppStorage("chatOutlineEnabled") private var outlineEnabled = true // T-258 대화 목차
     @AppStorage("followUpEnabled") private var followUpEnabled = true // T-261 후속질문 칩
     @AppStorage("webSearchEnabled") private var webSearchEnabled = true // T-269 웹 검색 도구
+    @AppStorage("prefillWarmup") private var prefillWarmup = false // T-302 첫터치 프리필
     @AppStorage("workspaceRoot") private var workspaceRoot = "" // T-272 작업폴더 (빈값=기본값)
     @AppStorage("selectedModelID") private var selectedModelID: String? // 모델 ID 저장
     @State private var toolFlags: [String: Bool] = [:] // T-271 도구 개별 ON/OFF
@@ -127,6 +128,11 @@ if let err = loginError {
                     .help("응답 완료 후 관련 질문 3~4개를 어시스턴트 아래 우측에 표시. 끄면 숨겨집니다.")
                     .onChange(of: followUpEnabled) { _, on in
                         DebugLogger.shared.info(feature: "후속질문", on ? "켜짐" : "꺼짐")
+                    }
+                Toggle("첫터치 프리필", isOn: $prefillWarmup)
+                    .help("방을 열람하면 기반 모델을 미리 준비해 첫 응답의 준비 구간을 줄입니다. 켜두면 발열·배터리를 조금 더 사용합니다.")
+                    .onChange(of: prefillWarmup) { _, on in
+                        DebugLogger.shared.info(feature: "프리필", on ? "켜짐" : "꺼짐")
                     }
                 Toggle("웹 검색 사용", isOn: $webSearchEnabled)
                     .help("모델이 web_search·web_fetch 도구를 쓸 수 있게 합니다. wigolo 설치 필요.")

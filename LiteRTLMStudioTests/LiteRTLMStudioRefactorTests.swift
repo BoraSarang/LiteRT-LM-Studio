@@ -589,4 +589,106 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         XCTAssertEqual(json?["seed"] as? Int, 7)
         XCTAssertNil(json?["top_k"])
     }
+
+    }
+
+/// 첫터치 프리필 (T-302): 판정·토글·발동. NativeTests 본문 길이 분리.
+@MainActor
+final class LiteRTLMStudioPrefillTests: XCTestCase {
+    private func makeStore() -> ChatStore {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-prefill-\(UUID().uuidString).json")
+        let suite = UserDefaults(suiteName: "test-prefill-suite-\(UUID().uuidString)")!
+        return ChatStore(storageURL: url, routeDefaults: suite)
+    }
+
+    /// 예열 실행 판정: 토글 OFF·비네이티브·이미 준비·스트리밍·진행 중이면 false.
+    func testWarmupWanted() {
+        typealias C = ChatStore
+        XCTAssertTrue(C.warmupWanted(enabled: true, nativeRoute: true,
+                                     alreadyPrepared: false,
+                                     streaming: false, warming: false))
+        XCTAssertFalse(C.warmupWanted(enabled: false, nativeRoute: true,
+                                      alreadyPrepared: false,
+                                      streaming: false, warming: false))
+        XCTAssertFalse(C.warmupWanted(enabled: true, nativeRoute: false,
+                                      alreadyPrepared: false,
+                                      streaming: false, warming: false))
+        XCTAssertFalse(C.warmupWanted(enabled: true, nativeRoute: true,
+                                      alreadyPrepared: true,
+                                      streaming: false, warming: false))
+        XCTAssertFalse(C.warmupWanted(enabled: true, nativeRoute: true,
+                                      alreadyPrepared: false,
+                                      streaming: true, warming: false))
+        XCTAssertFalse(C.warmupWanted(enabled: true, nativeRoute: true,
+                                      alreadyPrepared: false,
+                                      streaming: false, warming: true))
+    }
+
+    /// 토글 저장 라운드트립 (T-302): 기본 OFF, 켜면 주입 defaults에 기록·복원.
+    func testPrefillToggleRoundtrip() {
+        let name = "test-prefill-\(UUID().uuidString)"
+        let suite = UserDefaults(suiteName: name)!
+        defer { suite.removePersistentDomain(forName: name) }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-pf-\(UUID().uuidString).json")
+        let store = ChatStore(storageURL: url, routeDefaults: suite)
+        XCTAssertFalse(store.prefillWarmupEnabled, "기본 OFF 정책")
+        store.prefillWarmupEnabled = true
+        XCTAssertTrue(suite.bool(forKey: ChatStore.prefillWarmupKey))
+        let reloaded = ChatStore(storageURL: url, routeDefaults: suite)
+        XCTAssertTrue(reloaded.prefillWarmupEnabled)
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    /// 방 열람 발동 (T-302): native+토글 ON+미준비이면 didSet이 prepare 호출.
+    func testWarmupTriggersOnSessionSelect() async {
+        let store = makeStore()
+        let fake = FakeEngine()
+        store.inferenceEngine = fake
+        store.route = .native
+        store.prefillWarmupEnabled = true
+        store.model = "gemma4-12b"
+        store.streaming = false
+        let session = ChatStore.Session(title: "warm")
+        store.sessions = [session]
+        store.currentSessionID = session.id
+        let deadline = Date().addingTimeInterval(5)
+        while fake.prepareCalls.isEmpty, Date() < deadline {
+            await Task.yield()
+        }
+        XCTAssertEqual(fake.prepareCalls, ["gemma4-12b"])
+        XCTAssertEqual(fake.preparedModelID, "gemma4-12b")
+    }
+
+    /// 기본 OFF (T-302): 토글 미설정이면 방 전환해도 예열 없음.
+    func testWarmupStaysOffByDefault() async {
+        let store = makeStore()
+        let fake = FakeEngine()
+        store.inferenceEngine = fake
+        store.route = .native
+        store.currentSessionID = nil
+        let session = ChatStore.Session(title: "warm-off")
+        store.sessions = [session]
+        store.currentSessionID = session.id
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertTrue(fake.prepareCalls.isEmpty)
+        XCTAssertEqual(fake.preparedModelID, nil)
+    }
+
+    /// 스트리밍 중 가드 (T-302): 진행 중에는 예열 시작 금지.
+    func testWarmupSkippedWhileStreaming() async {
+        let store = makeStore()
+        let fake = FakeEngine()
+        store.inferenceEngine = fake
+        store.route = .native
+        store.prefillWarmupEnabled = true
+        store.streaming = true
+        store.currentSessionID = nil
+        let session = ChatStore.Session(title: "warm-stream")
+        store.sessions = [session]
+        store.currentSessionID = session.id
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertTrue(fake.prepareCalls.isEmpty)
+    }
 }

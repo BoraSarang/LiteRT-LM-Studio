@@ -30,6 +30,44 @@ struct NativeStreamState: Sendable {
 
 /// 앱 내 엔진 전송 확장 (T-130): 분기·토큰·실패 매핑.
 extension ChatStore {
+    /// 첫터치 프리필 토글 저장 키 (T-302): @AppStorage(SettingsView)와 동일.
+    nonisolated static var prefillWarmupKey: String { "prefillWarmup" }
+
+    /// 예열 실행 판정 (순수, 테스트 가능, T-302).
+    /// 이미 대상 모델이 준비됨(alreadyPrepared)·스트리밍·진행 중이면 false.
+    nonisolated static func warmupWanted(enabled: Bool, nativeRoute: Bool,
+                                         alreadyPrepared: Bool,
+                                         streaming: Bool, warming: Bool) -> Bool {
+        enabled && nativeRoute && !alreadyPrepared && !streaming && !warming
+    }
+
+    /// 방 열람 예열 (T-302): currentSessionID didSet에서 자동 호출.
+    /// 엔진 init(1~2s)을 전송 전에 선소비해 첫 턴 준비 구간을 제거.
+    /// 방 대화 프리필은 옵션 확정 전이라 키 불일치 위험 → prepare 선행까지만.
+    /// 실패는 조용히 로그만 (사용자 흐름 무방해, E-MAC-PERF-0001).
+    func warmupForNextSend() {
+        guard let engine = inferenceEngine else { return }
+        guard Self.warmupWanted(enabled: prefillWarmupEnabled,
+                                nativeRoute: usesNative(),
+                                alreadyPrepared: engine.preparedModelID == model,
+                                streaming: streaming,
+                                warming: warmupTask != nil) else { return }
+        logger.info(feature: "프리필", "방 열람 예열 시작 model=\(model)")
+        warmupTask = Task { [weak self] in
+            let started = Date()
+            guard let self else { return }
+            do {
+                try await engine.prepare(modelID: self.model)
+                let elapsed = Date().timeIntervalSince(started)
+                self.logger.perf(feature: "프리필", "예열 완료 \(String(format: "%.1f", elapsed))s")
+            } catch is CancellationError {
+            } catch {
+                self.logger.error(code: "E-MAC-PERF-0001", feature: "프리필", "예열 실패: \(error)")
+            }
+            self.warmupTask = nil
+        }
+    }
+
     /// 앱 내 엔진 분기 판정 (T-130, 테스트 가능): 선택 경로+주입 모두 필요.
     /// T-186부터 전역 설정 대신 입력창 route를 본다.
     func usesNative() -> Bool {
