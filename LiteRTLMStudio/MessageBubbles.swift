@@ -232,7 +232,8 @@ struct AssistantBubbleView: View {    let message: ChatStore.Message
     }
 }
 
-/// 생각 과정 접기 블록 (T-266): 회색 박스, 스트리밍 중 펼침·완료 후 접힘 기본.
+/// 추론 과정 블록 (T-266/T-276): 타이틀은 박스 밖 대화 시작점 정렬, 내용은 기존 박스 유지.
+/// 스트리밍 중 펼침·완료 후 접힘 기본.
 struct ThinkingBlockView: View {
     let thinking: String
     var expanded: Bool = false
@@ -252,7 +253,7 @@ struct ThinkingBlockView: View {
                         .font(.system(size: 10)).foregroundStyle(.tertiary)
                     Spacer()
                 }
-                .padding(.horizontal, 10).padding(.vertical, 6)
+                .padding(.vertical, 6)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -262,12 +263,14 @@ struct ThinkingBlockView: View {
                     .font(DS.captionFont).foregroundStyle(.secondary)
                     .textSelection(.enabled)
                     .padding(.horizontal, 10).padding(.bottom, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
+                    .clipShape(.rect(cornerRadius: 10))
             }
         }
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
-        .clipShape(.rect(cornerRadius: 10))
         .onChange(of: expanded) { _, streaming in
-            if streaming { open = true } // 스트리밍 시작 시 펼침
+            // T-289: 시작 시 펼침, 완료 시 리셋 (수동 토글은 다음 스트림까지 유지).
+            open = streaming ? true : nil
         }
     }
 }

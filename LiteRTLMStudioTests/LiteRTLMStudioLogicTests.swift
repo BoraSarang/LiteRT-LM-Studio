@@ -346,6 +346,17 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(K.entries([(role: "user", text: "hi")]), ["user\nhi"])
     }
 
+    /// 도구 마커 키 (T-282): 도구 턴 표식+재사용 제외.
+    func testToolMarkerKey() {
+        typealias K = NativeEngine.ConvKey
+        XCTAssertEqual(K.entries([ConvKeyEntry(role: "user", text: "hi", tools: true)]),
+                       ["user\nhi" + K.toolMarker])
+        XCTAssertEqual(K.entries([ConvKeyEntry(role: "user", text: "hi", tools: false)]), ["user\nhi"])
+        XCTAssertTrue(K.allowsReuse(history: ["user\nhi"]))
+        XCTAssertFalse(K.allowsReuse(history: ["user\nhi" + K.toolMarker]))
+        XCTAssertTrue(K.allowsReuse(history: []))
+    }
+
     /// Ollama식 통합 상태 (T-183): 대화 가능 = 데몬 실행 중 OR 네이티브 준비됨.
     func testUnifiedStatus() {
         typealias U = UnifiedStatus
@@ -746,11 +757,20 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
             }
         }
         names.forEach { ToolCatalog.setEnabled($0, true) }
+        let prevBin = UserDefaults.standard.string(forKey: WigoloManager.binOverrideKey)
+        defer {
+            if let prevBin {
+                UserDefaults.standard.set(prevBin, forKey: WigoloManager.binOverrideKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: WigoloManager.binOverrideKey)
+            }
+        }
+        UserDefaults.standard.set("/tmp/fake-wigolo-bin", forKey: WigoloManager.binOverrideKey)
         XCTAssertTrue(LocalTools.registered(permission: .off).isEmpty)
-        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 7)
-        XCTAssertEqual(LocalTools.registered(permission: .ask).count, 7)
+        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 9)
+        XCTAssertEqual(LocalTools.registered(permission: .ask).count, 9)
         ToolCatalog.setEnabled("calculate", false)
-        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 6)
+        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 8)
     }
 
     /// wigolo 응답 파싱 (T-269): url 없는 항목 제외.
@@ -767,20 +787,6 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(hits[1].title, "https://c.example")
     }
 
-    /// DDG·위키 파싱 (T-269).
-    func testParseDDGWiki() {
-        let ddg = """
-        {"AbstractText":"초록","AbstractURL":"https://d.example",
-        "RelatedTopics":[{"Text":"관련","FirstURL":"https://r.example"},{"Text":""}]}
-        """
-        XCTAssertEqual(WebSearch.parseDDG(Data(ddg.utf8)).count, 2)
-        let wiki = #"["q",["제목"],["설명"],["https://w.example"]]"#
-        let hits = WebSearch.parseWiki(Data(wiki.utf8))
-        XCTAssertEqual(hits.count, 1)
-        XCTAssertEqual(hits[0].title, "제목")
-        XCTAssertTrue(WebSearch.parseWiki(Data("[]".utf8)).isEmpty)
-    }
-
     /// 모델 포맷 cap (T-269): 발췌 300자.
     func testFormatForModel() {
         let hits = [WebHit(title: "T", url: "https://u.example",
@@ -791,12 +797,6 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(out.count, "[1] T\nhttps://u.example\n".count + 300)
     }
 
-    /// HTML 제거 (T-269): 스크립트·태그 제거.
-    func testStripHTML() {
-        let html = "<html><head><script>var a=1;</script></head><body><h1>제목</h1><p>본문</p></body></html>"
-        XCTAssertEqual(WebSearch.stripHTML(html), "제목 본문")
-    }
-
     /// 웹 검색 토글 (T-269): 기본 켜짐.
     func testWebSearchEnabled() {
         let defaults = UserDefaults(suiteName: "websearch-test-\(UUID().uuidString)")!
@@ -805,11 +805,68 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertFalse(WebSearch.enabled(defaults))
     }
 
+    /// 미사용 안내문 (T-286): 설정 유도 포함.
+    func testWigoloUnavailableMessage() {
+        XCTAssertTrue(WebSearch.unavailableMessage.contains("설정"))
+    }
+
     /// wigolo 바이너리 탐색 (T-269): override 우선.
     func testResolveWigoloBinary() {
         XCTAssertEqual(WigoloManager.resolveBinary(home: "/nonexistent",
                                                    overridePath: "/tmp/fake-wigolo"), "/tmp/fake-wigolo")
         XCTAssertNil(WigoloManager.resolveBinary(home: "/nonexistent", overridePath: nil))
+    }
+
+    /// npm 탐색 (T-284): override 우선 (절대경로 후보는 실행 환경 의존이라 미검증).
+    func testResolveNpm() {
+        XCTAssertEqual(WigoloManager.resolveNpm(home: "/nonexistent",
+                                                overridePath: "/tmp/fake-npm"), "/tmp/fake-npm")
+    }
+
+    /// doctor 파싱 (T-288): 실측 포맷 기준.
+    func testParseDoctor() {
+        let ok = """
+        [wigolo doctor] Browser engine:
+          Browsers:      chromium OK  firefox missing  webkit missing
+        [wigolo doctor] Optional components:
+          Embeddings model:   installed (fastembed BGE-small-en-v1.5)
+        """
+        let parsed = WigoloManager.parseDoctor(ok)
+        XCTAssertTrue(parsed.browser)
+        XCTAssertTrue(parsed.models)
+        let missing = """
+        [wigolo doctor] Browser engine:
+          Installation:  not installed
+          Browsers:      chromium missing
+        [wigolo doctor] Optional components:
+          Embeddings model:   not installed
+        """
+        let parsedMissing = WigoloManager.parseDoctor(missing)
+        XCTAssertFalse(parsedMissing.browser)
+        XCTAssertFalse(parsedMissing.models)
+    }
+
+    /// nvm 전버전 스캔 (T-288): 최신 우선 정렬.
+    func testNvmBinDirs() {
+        let home = FileManager.default.temporaryDirectory
+            .appendingPathComponent("nvmtest-\(UUID().uuidString)").path
+        try? FileManager.default.createDirectory(atPath: "\(home)/.nvm/versions/node/v20.20.2",
+                                                 withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(atPath: "\(home)/.nvm/versions/node/v22.23.1",
+                                                 withIntermediateDirectories: true)
+        let dirs = WigoloManager.nvmBinDirs(home: home)
+        XCTAssertEqual(dirs, ["\(home)/.nvm/versions/node/v22.23.1/bin",
+                              "\(home)/.nvm/versions/node/v20.20.2/bin"])
+        XCTAssertTrue(WigoloManager.nvmBinDirs(home: "/nonexistent-xyz").isEmpty)
+        try? FileManager.default.removeItem(atPath: home)
+    }
+
+    /// 웹 검색 등록 판정 (T-287): 토글 ON + 바이너리 존재.
+    func testShouldRegisterWebSearch() {
+        XCTAssertTrue(LocalTools.shouldRegisterWebSearch(webEnabled: true, binaryFound: true))
+        XCTAssertFalse(LocalTools.shouldRegisterWebSearch(webEnabled: false, binaryFound: true))
+        XCTAssertFalse(LocalTools.shouldRegisterWebSearch(webEnabled: true, binaryFound: false))
+        XCTAssertFalse(LocalTools.shouldRegisterWebSearch(webEnabled: false, binaryFound: false))
     }
 
     /// 셸 차단 패턴 (T-272): 위험 6종 거부.
@@ -862,6 +919,16 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(EngineError.inferenceFailed("y").code, "E-MAC-ENG-0002")
     }
 
+    /// 시작 실패 판정 (T-277): 재사용 핸들 거부만 재시도.
+    func testIsStartStreamFailure() {
+        XCTAssertTrue(NativeEngine.isStartStreamFailure(
+            LiteRTLMError.conversation(.failedToStartStream(status: 13))))
+        XCTAssertFalse(NativeEngine.isStartStreamFailure(
+            LiteRTLMError.conversation(.notAlive)))
+        XCTAssertFalse(NativeEngine.isStartStreamFailure(
+            EngineError.inferenceFailed("x")))
+    }
+
     /// <think> 분리 (T-274): 닫힘·미닫힘·복수·없음.
     func testThinkTag() {
         let closed = ThinkTag.extract("<think>고민</think>답변")
@@ -876,6 +943,19 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         let none = ThinkTag.extract("그냥 답변")
         XCTAssertEqual(none.clean, "그냥 답변")
         XCTAssertEqual(none.thought, "")
+    }
+
+    /// <think> 종료 분리 (T-278): 미닫힘 꼬리 답변 분리, 닫힘은 영향 없음.
+    func testThinkTagFinal() {
+        let unclosed = ThinkTag.extract("<think>고민\n\n최종 답변", final: true)
+        XCTAssertEqual(unclosed.clean, "최종 답변")
+        XCTAssertEqual(unclosed.thought, "고민")
+        let closed = ThinkTag.extract("<think>고민</think>답변", final: true)
+        XCTAssertEqual(closed.clean, "답변")
+        XCTAssertEqual(closed.thought, "고민")
+        let single = ThinkTag.extract("<think>한 덩어리", final: true)
+        XCTAssertEqual(single.clean, "")
+        XCTAssertEqual(single.thought, "한 덩어리")
     }
 
     /// 네이티브 자동 초기화 판정 (T-275).
@@ -895,6 +975,14 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
                                            preparing: true, streaming: false))
         XCTAssertFalse(C.shouldAutoPrepare(route: .native, modelID: "m", preparedID: nil,
                                            preparing: false, streaming: true))
+    }
+
+    /// 스트리밍 추종 길이 (T-276): 본문+추론 합산.
+    func testStreamedLength() {
+        XCTAssertEqual(ContentView.streamedLength(text: nil, thinking: nil), 0)
+        XCTAssertEqual(ContentView.streamedLength(text: "abc", thinking: nil), 3)
+        XCTAssertEqual(ContentView.streamedLength(text: "", thinking: "추론"), 2)
+        XCTAssertEqual(ContentView.streamedLength(text: "ab", thinking: "cd"), 4)
     }
 
     /// 경로 저장소 주입 (T-275): 대입은 주입 저장소에만, 재실행 로드도 동일 저장소.
@@ -921,8 +1009,51 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
     func testToolCatalog() {
         let names = Set(ToolCatalog.all.map(\.name))
         XCTAssertEqual(names, ["get_time", "calculate", "web_search", "web_fetch",
-                               "run_shell", "save_code", "read_file"])
-        XCTAssertEqual(ToolInfo.Category.allCases.count, 3)
+                               "run_shell", "save_code", "read_file",
+                               "mcp_list_tools", "mcp_call"])
+        XCTAssertEqual(ToolInfo.Category.allCases.count, 4)
+    }
+
+    /// MCP 봉투·파서 (T-285).
+    func testMCPEnvelope() {
+        let env = MCPClient.envelope(id: 3, method: "tools/list")
+        XCTAssertEqual(env["jsonrpc"] as? String, "2.0")
+        XCTAssertEqual(env["id"] as? Int, 3)
+        XCTAssertEqual(env["method"] as? String, "tools/list")
+        let raw = #"{"jsonrpc":"2.0","id":3,"result":{"tools":[]}}"#
+        let obj = MCPClient.extractJSON(raw)
+        XCTAssertEqual(obj?["id"] as? Int, 3)
+        let sse = "event: message\ndata: {\"id\": 3, \"result\": {}}\n\n"
+        XCTAssertEqual(MCPClient.extractJSON(sse)?["id"] as? Int, 3)
+        XCTAssertNil(MCPClient.extractJSON("not json"))
+        XCTAssertNil(MCPClient.responseError(["result": [:]]))
+        let err = MCPClient.responseError(["error": ["code": -32601, "message": "nope"]])
+        XCTAssertEqual(err, .serverError(code: -32601, message: "nope"))
+    }
+
+    /// MCP 실행 가능 판정 (T-285).
+    func testMCPServerRunnable() {
+        XCTAssertTrue(MCPServerConfig(name: "a", transport: .stdio, command: "npx").isRunnable)
+        XCTAssertFalse(MCPServerConfig(name: "b", transport: .stdio).isRunnable)
+        XCTAssertTrue(MCPServerConfig(name: "c", transport: .sse,
+                                       url: "https://x.example/mcp").isRunnable)
+        XCTAssertFalse(MCPServerConfig(name: "d", transport: .sse,
+                                        url: "ftp://x.example").isRunnable)
+    }
+
+    /// MCP 인자 파싱 (T-285): 실패 시 빈 객체.
+    func testMCPParseArguments() {
+        XCTAssertEqual(MCPCallTool.parseArguments(#"{"q": "hi"}"#)["q"] as? String, "hi")
+        XCTAssertTrue(MCPCallTool.parseArguments("broken{").isEmpty)
+        XCTAssertTrue(MCPCallTool.parseArguments("[1,2]").isEmpty)
+    }
+
+    /// 스킬 첫 줄·안내 블록 (T-285).
+    func testSkillHelpers() {
+        XCTAssertEqual(SkillsStore.firstLine("# 제목\n본문"), "제목")
+        XCTAssertEqual(SkillsStore.firstLine("   \n두번째"), "")
+        XCTAssertEqual(SkillsStore.mcpBlock(serverNames: []), "")
+        XCTAssertTrue(SkillsStore.mcpBlock(serverNames: ["wigolo"]).contains("mcp_list_tools"))
     }
 
     /// 개별 ON/OFF 저장소 (T-271): 기본 켜짐·라운드트립.
@@ -950,6 +1081,15 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         Task { approval.resolve(false) }
         let result = await approval.request(toolName: "get_time", detail: "d")
         XCTAssertFalse(result)
+        XCTAssertNil(approval.pending)
+    }
+
+    /// 승인 멱등 (T-283): 대기 없으면 무시, 이중 호출 무해.
+    @MainActor
+    func testToolApprovalIdempotent() {
+        let approval = ToolApproval()
+        approval.resolve(true) // 대기 없음 → 무시
+        approval.resolve(false)
         XCTAssertNil(approval.pending)
     }
 

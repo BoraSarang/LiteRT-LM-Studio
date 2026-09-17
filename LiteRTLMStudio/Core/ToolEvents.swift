@@ -192,22 +192,48 @@ struct SSEChoiceChunk: Decodable {
 
 /// 인라인 <think> 분리 (T-274, 순수·테스트 가능): Qwen류가 본문에 섞어 보내는 추론 태그.
 /// 미닫힘은 뒤 전체를 추론으로 (스트리밍 중간 상태).
+/// T-278: 종료 시점(final) 미닫힘은 마지막 빈줄 뒤를 답변으로 분리 (닫기 태그 생략 모델 대응).
+/// T-289: final 분리는 미닫힘 잔여 안에서만 (닫힌 블록 오염 방지).
+/// 쪼갤 곳 없으면 미닫힘 전체를 답변으로 승격 (빈 본문 방지). 공백 조각은 버림.
 enum ThinkTag {
-    nonisolated static func extract(_ text: String) -> (clean: String, thought: String) {
+    nonisolated static func trim(_ s: String) -> String {
+        s.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    nonisolated static func extract(_ text: String, final: Bool = false) -> (clean: String, thought: String) {
         var clean = text
-        var thoughts: [String] = []
+        var closed: [String] = []
+        var tail = ""
+        var leftOpen = false
         while let open = clean.range(of: "<think>") {
             let afterOpen = open.upperBound
             if let close = clean.range(of: "</think>", range: afterOpen ..< clean.endIndex) {
-                thoughts.append(String(clean[afterOpen ..< close.lowerBound]))
+                let part = trim(String(clean[afterOpen ..< close.lowerBound]))
+                if !part.isEmpty { closed.append(part) }
                 clean.removeSubrange(open.lowerBound ..< close.upperBound)
             } else {
-                thoughts.append(String(clean[afterOpen...]))
+                tail = trim(String(clean[afterOpen...]))
                 clean.removeSubrange(open.lowerBound ..< clean.endIndex)
+                leftOpen = true
                 break
             }
         }
-        return (clean.trimmingCharacters(in: .whitespacesAndNewlines),
-                thoughts.joined(separator: "\n"))
+        let base = closed.joined(separator: "\n")
+        let answerHead = trim(clean)
+        guard leftOpen else { return (answerHead, base) }
+        if final, let split = tail.range(of: "\n\n", options: .backwards) {
+            let head = trim(String(tail[..<split.lowerBound]))
+            let last = trim(String(tail[split.upperBound...]))
+            if !last.isEmpty {
+                let thought = base.isEmpty ? head : head.isEmpty ? base : base + "\n" + head
+                let answer = answerHead.isEmpty ? last : answerHead + "\n\n" + last
+                return (answer, thought)
+            }
+        }
+        if final, answerHead.isEmpty {
+            return (tail, base)
+        }
+        let thought = base.isEmpty ? tail : tail.isEmpty ? base : base + "\n" + tail
+        return (answerHead, thought)
     }
 }

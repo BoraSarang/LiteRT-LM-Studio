@@ -17,7 +17,8 @@ struct LiteRTLMStudioApp: App {
                 ContentView(models: services.models, daemon: services.daemon, monitor: services.monitor,
                             nativeEngine: services.nativeEngine, chat: services.chat,
                             bench: services.bench, benchHistory: services.benchHistory,
-                            releases: services.releases)
+                            releases: services.releases,
+                            wigolo: services.wigolo)
                     .frame(minWidth: 1000, minHeight: 640)
                     .background {
                         WindowAccessor { $0?.setFrameAutosaveName("LiteRTLMStudioMain") }
@@ -97,7 +98,7 @@ struct LiteRTLMStudioApp: App {
                 .environmentObject(services)
         }
         .menuBarExtraStyle(.menu)
-        Settings { SettingsView() }
+        Settings { SettingsView(wigolo: services.wigolo) }
     }
 }
 

@@ -19,12 +19,17 @@ struct ContentView: View {
     @ObservedObject var benchHistory: BenchmarkHistoryStore
     /// T-262: 웰컴 새소식 공유 (AppServices 단일 인스턴스).
     @ObservedObject var releases: ReleaseNotes
+    /// T-284: wigolo 공유 (자동 시작용).
+    @ObservedObject var wigolo: WigoloManager
     /// T-266 S-2: 도구 승인 요청 공유 (싱글톤 관찰).
     @ObservedObject var toolApproval = ToolApproval.shared
     @StateObject var config = ConfigStore()
     @StateObject var logger = DebugLogger.shared
 
-    @SceneStorage("selectedModelID")  var selectedModelID: String?
+    // T-279: 모델 선택도 AppStorage (SceneStorage는 메뉴바 상주에서 복원 불안정).
+    // 구 SceneStorage 값은 첫 복원 시 1회 승계.
+    @AppStorage("selectedModelID") var selectedModelID: String?
+    @SceneStorage("selectedModelID") var legacySelectedModelID: String?
     @SceneStorage("logPanelVisible")  var logPanelVisible = false
     // 표시 상태 4종은 재실행 유지가 필요해서 AppStorage (SceneStorage는 메뉴바 상주 생명주기에서 복원 불안정).
     @AppStorage("showSystem")  var showSystem = true
@@ -43,6 +48,8 @@ struct ContentView: View {
     @State var showTakeoverConfirm = false
     @State var input = ""
     @State var showPalette = false
+    @State var showWigoloBanner = false // T-286 설치 제안 배너
+    @State var wigoloBannerShown = false // T-286 세션 1회 제한
     @State var attachedImage: ChatStore.ChatImage?
     @State var attachedName: String?
     @State var pinnedToBottom = false // Sticky-Pin: 하단 고정 시만 추종 (T-212 모름=false, 첫 보고에 정정)
@@ -160,6 +167,8 @@ struct ContentView: View {
         view
             .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
                 chat.clear()
+                wigoloBannerShown = false
+                showWigoloBanner = false
                 focusChatInput()
             }
             .onReceive(NotificationCenter.default.publisher(for: .serverStart)) { _ in

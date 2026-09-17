@@ -26,26 +26,13 @@ extension NativeEngine {
             Message(prompt)
         }
         let opts = options
+        let input = StreamConsumeInput(engine: engine, mid: mid, past: past, message: message,
+                                       keyEntries: keyEntries, opts: opts)
         return AsyncThrowingStream { continuation in
             Task {
                 do {
-                    let setup = try await self.preparedStream(
-                        engine: engine, modelID: mid, past: past,
-                        entries: keyEntries, opts: opts)
-                    let gen = setup.conversation.sendMessageStream(
-                        message, maxOutputTokens: opts.maxTokens, thinkingConfig: setup.thinking)
-                    var loggedChannels = Set<String>()
-                    for try await chunk in gen {
-                        for key in chunk.channels.keys where !loggedChannels.contains(key) {
-                            loggedChannels.insert(key)
-                            DebugLogger.shared.info(feature: "도구", "네이티브 채널 발견: \(key)")
-                        }
-                        for event in Self.events(
-                            from: chunk,
-                            toolChannel: ExperimentalFlags.conversationToolCallStreamingChannelName) {
-                            continuation.yield(event)
-                        }
-                    }
+                    try await self.consumeStream(input, firstReuse: true,
+                                                 continuation: continuation)
                     continuation.finish()
                 } catch is CancellationError {
                     continuation.finish(throwing: CancellationError())
@@ -54,6 +41,60 @@ extension NativeEngine {
                 }
             }
         }
+    }
+
+    /// 스트림 소비 요청 묶음 (T-277, 파라미터 수 린트 회피).
+    struct StreamConsumeInput {
+        let engine: Engine
+        let mid: String
+        let past: [Message]
+        let message: Message
+        let keyEntries: [String]
+        let opts: GenerationOptions
+    }
+
+    /// 스트림 소비 (T-277): 재사용 핸들 거부 시 무효화 후 새 대화로 1회 재시도.
+    private func consumeStream(_ input: StreamConsumeInput, firstReuse: Bool,
+                               continuation: AsyncThrowingStream<StreamEvent, Error>.Continuation
+    ) async throws {
+        var allowReuse = firstReuse
+        while true {
+            let setup = try await preparedStream(engine: input.engine, modelID: input.mid,
+                                                 past: input.past, entries: input.keyEntries,
+                                                 opts: input.opts, allowReuse: allowReuse)
+            do {
+                let gen = setup.conversation.sendMessageStream(
+                    input.message, maxOutputTokens: input.opts.maxTokens,
+                    thinkingConfig: setup.thinking)
+                var loggedChannels = Set<String>()
+                for try await chunk in gen {
+                    for key in chunk.channels.keys where !loggedChannels.contains(key) {
+                        loggedChannels.insert(key)
+                        DebugLogger.shared.info(feature: "도구", "네이티브 채널 발견: \(key)")
+                    }
+                    for event in Self.events(
+                        from: chunk,
+                        toolChannel: ExperimentalFlags.conversationToolCallStreamingChannelName) {
+                        continuation.yield(event)
+                    }
+                }
+                return
+            } catch {
+                // T-289: 취소는 재시도 없이 즉시 전파 (stop 무시 방지).
+                if error is CancellationError { throw error }
+                guard allowReuse, setup.reused, Self.isStartStreamFailure(error) else { throw error }
+                invalidateReuse()
+                DebugLogger.shared.info(feature: "네이티브엔진", "재사용 시작 실패 → 새 대화 재시도")
+                allowReuse = false
+            }
+        }
+    }
+
+    /// 시작 실패 판정 (순수, 테스트 가능, T-277): 재사용 핸들 거부일 때만 재시도.
+    nonisolated static func isStartStreamFailure(_ error: Error) -> Bool {
+        guard let lite = error as? LiteRTLMError,
+              case .conversation(.failedToStartStream) = lite else { return false }
+        return true
     }
 
     /// 청크→이벤트 매핑 (순수, 테스트 가능, T-266 S-1).

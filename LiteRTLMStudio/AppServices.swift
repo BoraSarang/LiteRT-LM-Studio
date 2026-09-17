@@ -18,6 +18,8 @@ final class AppServices: ObservableObject {
     let models = ModelStore()
     /// T-262: 새소식 누적 캐시 (웰컴 빈 화면이 공유, 창 닫아도 유지).
     let releases = ReleaseNotes()
+    /// T-284: wigolo 검색 데몬 공유 (설정·채팅 도구가 같은 인스턴스 사용).
+    let wigolo = WigoloManager()
 
     private let logger = DebugLogger.shared
 
@@ -54,6 +56,7 @@ final class AppServices: ObservableObject {
 
     /// 종료 시 데몬 정리. 외부(터미널) 데몬은 건드리지 않는다.
     func shutdown() {
+        wigolo.stop() // T-284: 앱 소유 wigolo 정리 (외부는 stop()이 건드리지 않음)
         guard Self.shouldStopDaemon(stopOnQuit: stopOnQuit,
                                     external: daemon.external,
                                     status: daemon.status) else {

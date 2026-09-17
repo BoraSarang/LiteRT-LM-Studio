@@ -37,9 +37,10 @@ extension ChatStore {
         return false
     }
 
-    /// 본문·추론 반영 (T-274): 인라인 <think> 분리 후 저장 (덮어쓰기라 중복 없음).
-    func flushText(idx: Int, acc: String, thinkingAcc: String) {
-        let split = ThinkTag.extract(acc)
+    /// 본문·추론 반영 (T-274/T-278): 인라인 <think> 분리 후 저장 (덮어쓰기라 중복 없음).
+    /// final은 스트림 종료 시에만 (미닫힘 꼬리 답변 분리).
+    func flushText(idx: Int, acc: String, thinkingAcc: String, final: Bool = false) {
+        let split = ThinkTag.extract(acc, final: final)
         messages[idx].text = split.clean
         if split.thought.isEmpty {
             messages[idx].thinking = thinkingAcc.isEmpty ? nil : thinkingAcc
@@ -102,11 +103,13 @@ extension ChatStore {
             state.toolAcc = ToolCallAccumulator()
             logger.info(feature: "도구", "서버 \(turn)턴 재전송 (\(calls.count)건 실행)")
         }
+        // T-278: 전체 종료 시 미닫힘 꼬리 답변 분리.
+        flushText(idx: idx, acc: state.acc, thinkingAcc: state.thinkingAcc, final: true)
     }
 
     /// 턴 종료 반영 (T-268): 본문·생각·칩 확정.
-    func flushTurn(state: SSEStreamState, idx: Int) {
-        flushText(idx: idx, acc: state.acc, thinkingAcc: state.thinkingAcc)
+    func flushTurn(state: SSEStreamState, idx: Int, final: Bool = false) {
+        flushText(idx: idx, acc: state.acc, thinkingAcc: state.thinkingAcc, final: final)
         let fresh = state.toolAcc.finalized()
         if !fresh.isEmpty {
             messages[idx].toolCalls = ServerToolHistory.merged(

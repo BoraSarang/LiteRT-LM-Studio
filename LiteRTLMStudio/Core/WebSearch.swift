@@ -7,16 +7,23 @@ struct WebHit: Sendable, Hashable {
     let excerpt: String
 }
 
-/// wigolo search 결과 1건 (T-269, 파일 스코프).
+/// wigolo search 결과 1건 (T-269, T-288 실측: excerpt·snippet 양 대응).
 struct WigoloSearchResult: Decodable {
     var title: String?
     var url: String?
     var excerpt: String?
+    var snippet: String?
     var citationID: String?
 
     enum CodingKeys: String, CodingKey {
-        case title, url, excerpt
+        case title, url, excerpt, snippet
         case citationID = "citation_id"
+    }
+
+    /// 본문 발췌 (순수): excerpt 우선, 없으면 snippet.
+    var body: String {
+        if let excerpt, !excerpt.isEmpty { return excerpt }
+        return snippet ?? ""
     }
 }
 
@@ -25,32 +32,8 @@ struct WigoloSearchResponse: Decodable {
     var results: [WigoloSearchResult]?
 }
 
-/// DDG 관련 주제 1건 (T-269, 파일 스코프).
-struct DDGTopic: Decodable {
-    var text: String? // "Text"
-    var firstURL: String? // "FirstURL"
-
-    enum CodingKeys: String, CodingKey {
-        case text = "Text"
-        case firstURL = "FirstURL"
-    }
-}
-
-/// DuckDuckGo Instant Answer 응답 (T-269, 공식·키없음).
-struct DDGResponse: Decodable {
-    var abstractText: String? // "AbstractText"
-    var abstractURL: String? // "AbstractURL"
-    var relatedTopics: [DDGTopic]? // "RelatedTopics"
-
-    enum CodingKeys: String, CodingKey {
-        case abstractText = "AbstractText"
-        case abstractURL = "AbstractURL"
-        case relatedTopics = "RelatedTopics"
-    }
-}
-
-/// 웹 검색 체인 (T-269): wigolo → DuckDuckGo → Wikipedia, 첫 성공 반환.
-/// 키 불필요 경로만 사용. 전 파서 순수·테스트 가능.
+/// 웹 검색 (T-269, T-284 wigolo 단일화): 폴백 없음.
+/// 전 파서 순수·테스트 가능.
 enum WebSearch {
     nonisolated static var excerptCap: Int { 300 }
     nonisolated static var fetchCap: Int { 8192 }
@@ -72,33 +55,6 @@ enum WebSearch {
         }
     }
 
-    /// DDG IA 파싱 (순수): 초록+관련 주제.
-    nonisolated static func parseDDG(_ data: Data) -> [WebHit] {
-        guard let res = try? JSONDecoder().decode(DDGResponse.self, from: data) else { return [] }
-        var out: [WebHit] = []
-        if let text = res.abstractText, !text.isEmpty, let url = res.abstractURL {
-            out.append(WebHit(title: String(text.prefix(80)), url: url, excerpt: text))
-        }
-        for topic in res.relatedTopics ?? [] {
-            guard let text = topic.text, !text.isEmpty,
-                  let url = topic.firstURL, !url.isEmpty else { continue }
-            out.append(WebHit(title: String(text.prefix(80)), url: url, excerpt: text))
-        }
-        return out
-    }
-
-    /// Wikipedia opensearch 파싱 (순수): [질의, [제목], [설명], [URL]].
-    nonisolated static func parseWiki(_ data: Data) -> [WebHit] {
-        guard let arr = try? JSONDecoder().decode([WikiPart].self, from: data),
-              arr.count == 4,
-              case .strings(let titles) = arr[1],
-              case .strings(let descs) = arr[2],
-              case .strings(let urls) = arr[3] else { return [] }
-        return zip(zip(titles, descs), urls).map { pair, url in
-            WebHit(title: pair.0, url: url, excerpt: pair.1)
-        }
-    }
-
     /// 모델 전달용 포맷 (순수): 번호+제목+URL+발췌 cap.
     nonisolated static func formatForModel(_ hits: [WebHit]) -> String {
         hits.enumerated().map { idx, hit in
@@ -107,50 +63,47 @@ enum WebSearch {
         }.joined(separator: "\n\n")
     }
 
-    /// HTML 태그 제거 (순수, fetch 폴백용).
-    nonisolated static func stripHTML(_ html: String) -> String {
-        var out = html.replacingOccurrences(of: "<script[\\s\\S]*?</script>",
-                                            with: " ", options: .regularExpression)
-        out = out.replacingOccurrences(of: "<style[\\s\\S]*?</style>",
-                                       with: " ", options: .regularExpression)
-        out = out.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
-        let collapsed = out.components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }.joined(separator: " ")
-        return String(collapsed.prefix(fetchCap))
-    }
-
-    /// 검색 체인 실행: wigolo → DDG → Wikipedia.
+    /// 검색 실행 (T-284 wigolo 단일): 미설치·미실행이면 즉시 안내 반환.
     static func search(query: String, maxResults: Int = 5) async throws -> [WebHit] {
         let logger = DebugLogger.shared
-        if let hits = try? await searchViaWigolo(query: query, maxResults: maxResults),
-           !hits.isEmpty {
-            logger.info(feature: "웹검색", "wigolo \(hits.count)건")
-            return Array(hits.prefix(maxResults))
+        do {
+            let hits = try await searchViaWigolo(query: query, maxResults: maxResults)
+            if !hits.isEmpty {
+                logger.info(feature: "웹검색", "wigolo \(hits.count)건")
+                return Array(hits.prefix(maxResults))
+            }
+        } catch {
+            logger.error(code: "E-MAC-NET-0015", feature: "웹검색",
+                         "wigolo 실패: \(error.localizedDescription)")
         }
-        if let hits = try? await searchViaDDG(query: query), !hits.isEmpty {
-            logger.info(feature: "웹검색", "DuckDuckGo 폴백 \(hits.count)건")
-            return Array(hits.prefix(maxResults))
-        }
-        if let hits = try? await searchViaWiki(query: query), !hits.isEmpty {
-            logger.info(feature: "웹검색", "Wikipedia 폴백 \(hits.count)건")
-            return Array(hits.prefix(maxResults))
-        }
-        logger.error(code: "E-MAC-NET-0015", feature: "웹검색", "전체 체인 실패: \(query.prefix(40))")
         throw WebSearchError.allFailed
     }
 
-    /// 페이지 가져오기: wigolo fetch → 직접 GET.
+    /// 페이지 가져오기 (T-284 wigolo 단일).
     static func fetch(url: String) async throws -> String {
-        if let text = try? await fetchViaWigolo(url: url), !text.isEmpty {
-            return String(text.prefix(fetchCap))
+        do {
+            let text = try await fetchViaWigolo(url: url)
+            if !text.isEmpty { return String(text.prefix(fetchCap)) }
+        } catch {
+            DebugLogger.shared.error(code: "E-MAC-NET-0015", feature: "웹검색",
+                                     "가져오기 실패: \(url.prefix(80))")
         }
-        if let text = try? await fetchDirect(url: url), !text.isEmpty {
-            DebugLogger.shared.info(feature: "웹검색", "직접 가져오기 폴백")
-            return text
-        }
-        DebugLogger.shared.error(code: "E-MAC-NET-0015", feature: "웹검색",
-                                 "가져오기 실패: \(url.prefix(80))")
         throw WebSearchError.allFailed
+    }
+
+    /// wigolo 사용 가능 여부 (T-284): 바이너리+헬스. 미설치면 검색 불가.
+    static func available() async -> Bool {
+        guard WigoloManager.resolveBinary() != nil else { return false }
+        var req = URLRequest(url: WigoloManager.baseURL.appendingPathComponent("openapi.json"))
+        req.timeoutInterval = 5
+        guard let (_, resp) = try? await URLSession.shared.data(for: req),
+              (resp as? HTTPURLResponse)?.statusCode == 200 else { return false }
+        return true
+    }
+
+    /// 미사용 안내문 (T-284, T-288 초기 설정 구분, 모델 전달용 정상 응답).
+    nonisolated static var unavailableMessage: String {
+        "웹 검색을 사용할 수 없습니다. 설정 → 도구 → 내장 검색에서 설치·초기 설정을 마쳐 주세요."
     }
 
     /// wigolo search 호출.
@@ -164,36 +117,6 @@ enum WebSearch {
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw WebSearchError.badStatus }
         return parseWigolo(data)
-    }
-
-    /// DDG Instant Answer 호출 (공식·키없음).
-    static func searchViaDDG(query: String) async throws -> [WebHit] {
-        var parts = URLComponents(string: "https://api.duckduckgo.com/")!
-        parts.queryItems = [URLQueryItem(name: "q", value: query),
-                            URLQueryItem(name: "format", value: "json"),
-                            URLQueryItem(name: "no_html", value: "1"),
-                            URLQueryItem(name: "skip_disambig", value: "1")]
-        var req = URLRequest(url: parts.url!)
-        req.timeoutInterval = 15
-        req.setValue("LiteRTLMStudio/1.0 (macOS)", forHTTPHeaderField: "User-Agent")
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw WebSearchError.badStatus }
-        return parseDDG(data)
-    }
-
-    /// Wikipedia opensearch 호출 (공식·키없음).
-    static func searchViaWiki(query: String) async throws -> [WebHit] {
-        var parts = URLComponents(string: "https://ko.wikipedia.org/w/api.php")!
-        parts.queryItems = [URLQueryItem(name: "action", value: "opensearch"),
-                            URLQueryItem(name: "search", value: query),
-                            URLQueryItem(name: "limit", value: "5"),
-                            URLQueryItem(name: "format", value: "json")]
-        var req = URLRequest(url: parts.url!)
-        req.timeoutInterval = 15
-        req.setValue("LiteRTLMStudio/1.0 (macOS)", forHTTPHeaderField: "User-Agent")
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw WebSearchError.badStatus }
-        return parseWiki(data)
     }
 
     /// wigolo fetch 호출.
@@ -215,42 +138,14 @@ enum WebSearch {
         }
         return ""
     }
-
-    /// 직접 GET 폴백 (512KB cap+태그 제거).
-    static func fetchDirect(url: String) async throws -> String {
-        guard let target = URL(string: url) else { throw WebSearchError.badURL }
-        var req = URLRequest(url: target)
-        req.timeoutInterval = 20
-        req.setValue("Mozilla/5.0 (Macintosh)", forHTTPHeaderField: "User-Agent")
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw WebSearchError.badStatus }
-        guard data.count < 512 * 1024,
-              let html = String(data: data, encoding: .utf8) else { throw WebSearchError.tooLarge }
-        return stripHTML(html)
-    }
 }
 
-/// 웹 검색 오류 (T-269).
+/// 웹 검색 오류 (T-269, T-284 단일화).
 enum WebSearchError: Error {
     case allFailed
     case badStatus
     case badURL
     case tooLarge
-}
-
-/// opensearch 혼합 배열 요소 (T-269): 문자열 또는 문자열 배열.
-enum WikiPart: Decodable {
-    case string(String)
-    case strings([String])
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.singleValueContainer()
-        if let s = try? c.decode(String.self) {
-            self = .string(s)
-        } else {
-            self = .strings((try? c.decode([String].self)) ?? [])
-        }
-    }
 }
 
 /// 웹 검색 도구 (T-269): 질의 → 제목·URL·발췌 묶음.
@@ -271,10 +166,21 @@ struct WebSearchTool: Tool {
                                            result: "웹 검색이 꺼져 있습니다.", denied: true)
             return "웹 검색이 꺼져 있습니다. 설정에서 켜 주세요."
         }
+        guard await WebSearch.available() else {
+            await ToolLedger.shared.record(toolName: Self.name, detail: q,
+                                           result: WebSearch.unavailableMessage, denied: true)
+            NotificationCenter.default.post(name: .requestWigoloInstall, object: nil)
+            return WebSearch.unavailableMessage
+        }
         return await LocalTools.runTolled(toolName: Self.name, detail: q) {
-            let hits = try await WebSearch.search(query: q, maxResults: limit)
-            guard !hits.isEmpty else { return "검색 결과 없음" }
-            return WebSearch.formatForModel(hits)
+            do {
+                let hits = try await WebSearch.search(query: q, maxResults: limit)
+                guard !hits.isEmpty else { return "검색 결과 없음" }
+                return WebSearch.formatForModel(hits)
+            } catch WebSearchError.allFailed {
+                // T-283: 결과 없음은 실패가 아님 (벤더 스트림 유지용 정상 응답).
+                return "검색 결과 없음"
+            }
         }
     }
 }
@@ -294,8 +200,20 @@ struct WebFetchTool: Tool {
                                            result: "웹 검색이 꺼져 있습니다.", denied: true)
             return "웹 검색이 꺼져 있습니다. 설정에서 켜 주세요."
         }
+        guard await WebSearch.available() else {
+            await ToolLedger.shared.record(toolName: Self.name, detail: target,
+                                           result: WebSearch.unavailableMessage, denied: true)
+            NotificationCenter.default.post(name: .requestWigoloInstall, object: nil)
+            return WebSearch.unavailableMessage
+        }
         return await LocalTools.runTolled(toolName: Self.name, detail: target) {
-            try await WebSearch.fetch(url: target)
+            do {
+                return try await WebSearch.fetch(url: target)
+            } catch WebSearchError.allFailed {
+                return "페이지를 가져오지 못했습니다"
+            } catch WebSearchError.badURL {
+                return "URL이 올바르지 않습니다"
+            }
         }
     }
 }

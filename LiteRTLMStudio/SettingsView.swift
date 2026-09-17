@@ -3,6 +3,7 @@ import ServiceManagement
 import SwiftUI
 
 struct SettingsView: View {
+    @ObservedObject var wigolo: WigoloManager
     @AppStorage("showInDock") private var showInDock = false
     @AppStorage("quitStopsDaemon") private var quitStopsDaemon = true
     @AppStorage("launchAtLogin") private var launchAtLogin = false
@@ -15,7 +16,13 @@ struct SettingsView: View {
     @AppStorage("webSearchEnabled") private var webSearchEnabled = true // T-269 웹 검색 도구
     @AppStorage("workspaceRoot") private var workspaceRoot = "" // T-272 작업폴더 (빈값=기본값)
     @State private var toolFlags: [String: Bool] = [:] // T-271 도구 개별 ON/OFF
+    @ObservedObject var mcp = MCPStore.shared // T-285 MCP 서버 목록
+    @State var skills: [SkillInfo] = [] // T-285 스킬 목록
+    @State var showMCPAdd = false // T-285 서버 추가 시트
+    @State var mcpDraft = MCPServerConfig(name: "") // T-285 입력 초안
+    @State var mcpTestResult: [UUID: String] = [:] // T-285 연결 결과
     @State private var loginError: String?
+    @State var showInstallConfirm = false // T-284 wigolo 설치 확인 (확장 접근용)
 
     var body: some View {
         TabView {
@@ -92,17 +99,17 @@ struct SettingsView: View {
                         DebugLogger.shared.info(feature: "후속질문", on ? "켜짐" : "꺼짐")
                     }
                 Toggle("웹 검색 사용", isOn: $webSearchEnabled)
-                    .help("모델이 web_search·web_fetch 도구를 쓸 수 있게 합니다. wigolo 우선, 없으면 공개 경로로 폴백.")
+                    .help("모델이 web_search·web_fetch 도구를 쓸 수 있게 합니다. wigolo 설치 필요.")
                     .onChange(of: webSearchEnabled) { _, on in
                         DebugLogger.shared.info(feature: "웹검색", on ? "켜짐" : "꺼짐")
+                        if on {
+                            if WigoloManager.resolveBinary() == nil {
+                                showInstallConfirm = true
+                            } else {
+                                Task { await wigolo.ensureRunning() }
+                            }
+                        }
                     }
-                HStack(spacing: 8) {
-                    Text("wigolo 미설치 시 터미널에서 `npm i -g wigolo` 후 `wigolo serve` 실행")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Button("복사") {
-                        PasteboardUtil.copy("npm i -g wigolo")
-                    }
-                }
             }.formStyle(.grouped).padding()
                 .tabItem { Label("채팅", systemImage: "bubble.left.and.bubble.right") }
             Form {
@@ -111,6 +118,9 @@ struct SettingsView: View {
                         ForEach(ToolCatalog.all.filter { $0.category == category }) { info in
                             Toggle(info.title, isOn: toolBinding(for: info.name))
                                 .help(info.detail)
+                        }
+                        if category == .web {
+                            wigoloRows
                         }
                     }
                 }
@@ -126,8 +136,25 @@ struct SettingsView: View {
                 }.help("셸·파일 도구가 접근할 수 있는 폴더. 밖은 차단됩니다.")
             }.formStyle(.grouped).padding()
                 .tabItem { Label("도구", systemImage: "wrench") }
+            mcpTab
+            skillsTab
         }.frame(minWidth: 580, minHeight: 420)
-            .onAppear { reloadToolFlags() }
+            .onAppear { reloadToolFlags(); reloadSkills() }
+            .confirmationDialog("wigolo 설치", isPresented: $showInstallConfirm,
+                                titleVisibility: .visible) {
+                Button("설치 (패키지+초기화, 약 1.5GB 내려받음)") { wigolo.install() }
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("`npm i -g wigolo` 후 `wigolo init`을 실행합니다. 수 분 걸릴 수 있어요.")
+            }
+            .sheet(isPresented: $showMCPAdd) {
+                MCPAddSheet(draft: $mcpDraft) {
+                    mcp.upsert(mcpDraft)
+                    showMCPAdd = false
+                } onCancel: {
+                    showMCPAdd = false
+                }
+            }
     }
 
     /// 도구 개별 토글 바인딩 (T-271): UserDefaults 저장+로그.

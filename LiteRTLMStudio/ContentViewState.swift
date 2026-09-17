@@ -16,6 +16,10 @@ extension ContentView {
             return
         }
         await models.refresh()
+        // T-279: 구 SceneStorage 선택 1회 승계 (이후 AppStorage 유지).
+        if selectedModelID == nil {
+            selectedModelID = legacySelectedModelID
+        }
         let modelID = selectedModelID ?? models.models.first?.id ?? "gemma4-12b"
         config.load(modelID: modelID)
         if await daemon.isHealthy() {
@@ -24,6 +28,7 @@ extension ContentView {
         }
         chat.model = selectedModelID ?? chat.model
         wireBenchmark()
+        await wigolo.ensureRunning() // T-284: 웹검색 켜짐+설치됨이면 serve 자동 시작
         monitor.start()
         monitor.daemonRunning = daemon.status == .running
         daemon.beginPolling()

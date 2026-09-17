@@ -1,5 +1,12 @@
 import Foundation
 
+/// 대화 재사용 키 항목 (T-282, 파일 스코프): 역할+본문+도구 턴 표식.
+struct ConvKeyEntry: Sendable, Hashable {
+    var role: String
+    var text: String
+    var tools = false
+}
+
 /// SPM LiteRTLM 네이티브 엔진 (T-130). 프로세스 내 추론, 모델당 Engine 1개.
 /// LiteRTLM Swift 소스는 앱 타깃 직접 포함 (EngineVendor는 바이너리만).
 @MainActor
@@ -37,6 +44,19 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         /// 히스토리 키 항목 (순수, 테스트 가능, T-191): 역할+본문 결합.
         nonisolated static func entries(_ history: [(role: String, text: String)]) -> [String] {
             history.map { "\($0.role)\n\($0.text)" }
+        }
+
+        /// 도구 마커 (T-282): 도구 턴 표식. 키에만 쓰고 엔진에는 전달 안 함.
+        nonisolated static var toolMarker: String { "\n🔧" }
+
+        /// 히스토리 키 항목 (T-282 오버로드): 도구 턴에 마커 부착.
+        nonisolated static func entries(_ history: [ConvKeyEntry]) -> [String] {
+            history.map { $0.tools ? "\($0.role)\n\($0.text)" + toolMarker : "\($0.role)\n\($0.text)" }
+        }
+
+        /// 재사용 허용 (순수, 테스트 가능, T-282): 도구 턴 포함 시 스킵.
+        nonisolated static func allowsReuse(history: [String]) -> Bool {
+            !history.contains(where: { $0.contains(toolMarker) })
         }
     }
     private let logger = DebugLogger.shared
@@ -180,10 +200,18 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         }
     }
 
+    /// 스트림 준비물 묶음 (T-277): 대화+설정+재사용 여부 (튜플 3원소 린트 회피).
+    struct PreparedSetup: Sendable {
+        let conversation: Conversation
+        let thinking: ThinkingConfig?
+        let reused: Bool
+    }
+
     /// 스트림 준비물 (T-191 분리, T-266 확장 접근용 internal): 샘플러 묶음 + 대화.
+    /// T-277: allowReuse=false면 재사용 건너뛰고 새로 생성 (시작 실패 시 재시도용).
     func preparedStream(engine: Engine, modelID: String, past: [Message],
-                        entries: [String], opts: GenerationOptions)
-    async throws -> (conversation: Conversation, thinking: ThinkingConfig?) {
+                        entries: [String], opts: GenerationOptions, allowReuse: Bool = true)
+    async throws -> PreparedSetup {
         let sampler = try SamplerConfig(
             topK: opts.topK, topP: Float(opts.topP),
             temperature: Float(opts.temperature), seed: opts.seed ?? 0)
@@ -191,9 +219,10 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         let thinking: ThinkingConfig? = opts.thinkingEnabled
             ? ThinkingConfig(enableThinking: true,
                              thinkingTokenBudget: opts.thinkingBudget) : nil
-        if let live = reusableConversation(modelID: modelID, history: entries, options: opts) {
+        if allowReuse,
+           let live = reusableConversation(modelID: modelID, history: entries, options: opts) {
             logger.info(feature: "네이티브엔진", "대화 재사용 (KV 이어쓰기)")
-            return (live, thinking)
+            return PreparedSetup(conversation: live, thinking: thinking, reused: true)
         }
         let conversation = try await engine.createConversation(
             with: ConversationConfig(
@@ -205,13 +234,21 @@ final class NativeEngine: InferenceEngine, ObservableObject {
                 thinkingConfig: thinking))
         activeConversation = conversation
         activeKey = ConvKey(modelID: modelID, history: entries, options: opts)
-        return (conversation, thinking)
+        return PreparedSetup(conversation: conversation, thinking: thinking, reused: false)
     }
 
-    /// 재사용 대화 확정 (T-191 분리): 저장 키가 현재와 접두사 일치면 live.
+    /// 재사용 무효화 (T-277, 확장 접근용 internal): 시작 실패 시 새 대화로 재시도.
+    func invalidateReuse() {
+        activeConversation = nil
+        activeKey = nil
+    }
+
+    /// 재사용 대화 확정 (T-191 분리, T-282 도구 턴 제외): 저장 키가 현재 앞부분이면 live.
     private func reusableConversation(modelID: String, history: [String],
                                       options: GenerationOptions) -> Conversation? {
         guard let live = activeConversation, let key = activeKey,
+              ConvKey.allowsReuse(history: key.history),
+              ConvKey.allowsReuse(history: history),
               ConvKey.reuses(stored: key, modelID: modelID,
                              history: history, options: options)
         else { return nil }

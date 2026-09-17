@@ -6,6 +6,7 @@ struct ToolInfo: Identifiable, Hashable, Sendable {
         case basic = "기본"
         case web = "웹"
         case system = "시스템"
+        case mcp = "MCP"
     }
 
     let name: String
@@ -28,15 +29,19 @@ enum ToolCatalog {
             ToolInfo(name: CalculatorTool.name, title: "사칙계산",
                      detail: "숫자·+ - * / ( ) 수식 계산", category: .basic),
             ToolInfo(name: WebSearchTool.name, title: "웹 검색",
-                     detail: "최신 정보 검색 (wigolo 우선 폴백)", category: .web),
+                     detail: "최신 정보 검색 (내장 wigolo, 설치 필요)", category: .web),
             ToolInfo(name: WebFetchTool.name, title: "페이지 가져오기",
-                     detail: "URL 본문 읽기", category: .web),
+                     detail: "URL 본문 읽기 (내장 wigolo, 설치 필요)", category: .web),
             ToolInfo(name: RunShellTool.name, title: "셸 실행",
                      detail: "명령 실행 (삭제·관리자 차단)", category: .system),
             ToolInfo(name: SaveCodeTool.name, title: "코드 저장",
                      detail: "작업폴더에 파일 저장", category: .system),
             ToolInfo(name: ReadFileTool.name, title: "파일 읽기",
-                     detail: "작업폴더 파일 읽기", category: .system)
+                     detail: "작업폴더 파일 읽기", category: .system),
+            ToolInfo(name: MCPListToolsTool.name, title: "MCP 목록",
+                     detail: "MCP 서버 도구 목록 조회", category: .mcp),
+            ToolInfo(name: MCPCallTool.name, title: "MCP 호출",
+                     detail: "MCP 서버 도구 실행", category: .mcp)
         ]
     }
 

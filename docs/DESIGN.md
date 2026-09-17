@@ -51,6 +51,10 @@
      로컬 실행 후 최대 3턴 재전송. messages[]는 user/assistant만 (tool 턴은 요청에만).
    - 웹 검색 (T-269, PLAN_v62): wigolo(3333) 우선→DDG IA→Wikipedia 체인,
      web_search(발췌 300자 cap)+web_fetch(8K cap), 데몬 앱 관리, 채팅 설정 토글.
+   - wigolo 설정 통합 (T-284, PLAN_v72): 설치+상태+시작/중지+터미널 로그,
+     앱 생명주기 연동, 폴백 제거 (미설치 시 사용 불가).
+   - MCP·스킬 (T-285, PLAN_v73): 외부 서버(stdio·SSE) 연결+게이트웨이 2종,
+     SKILL.md 폴더+시스템 프롬프트 주입(8KB cap), 설정 MCP·스킬 탭.
    - 도구 설정 탭 (T-271): 전수 목록+개별 ON/OFF, 분류(기본·웹·시스템), 카탈로그 1행 추가 규칙.
    - 셸·파일 (T-272, PLAN_v64): run_shell·save_code·read_file, 차단 8종+jail+작업폴더 선택.
   - 본문: 네이티브 마크다운 (T-150, WKWebView 제거): 줄블록(제목·목록·표·구분선·인용·문단)+펜스 코드(Highlightr 색상·헤더·복사)+줄바꿈 보존. 대화 열 12px inset (T-172).

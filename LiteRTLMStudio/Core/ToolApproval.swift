@@ -58,6 +58,7 @@ final class ToolApproval: ObservableObject {
     private let logger = DebugLogger.shared
 
     /// 승인 요청. 허용 true, 거부·타임아웃·중복 false.
+    /// T-289: 채팅 취소 시 즉시 거부 해제 (120초 고착 방지).
     func request(toolName: String, detail: String) async -> Bool {
         guard pending == nil else {
             logger.info(feature: "도구", "\(toolName) 승인 중복 요청, 거부 처리")
@@ -65,7 +66,25 @@ final class ToolApproval: ObservableObject {
         }
         pending = Request(toolName: toolName, detail: detail)
         logger.info(feature: "도구", "승인 요청: \(toolName) \(detail.prefix(40))")
-        return await withCheckedContinuation { cont in
+        return await withTaskCancellationHandler {
+            await self.suspendApproval(toolName: toolName)
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                guard let self, self.pending != nil else { return }
+                self.logger.info(feature: "도구", "\(toolName) 승인 대기 중 채팅 취소 → 거부 해제")
+                self.finish(with: false)
+            }
+        }
+    }
+
+    /// 승인 대기 서스펜드 (T-289 분리): 취소 선착 시 즉시 거부 반환.
+    private func suspendApproval(toolName: String) async -> Bool {
+        await withCheckedContinuation { cont in
+            guard !Task.isCancelled else {
+                pending = nil
+                cont.resume(returning: false)
+                return
+            }
             continuation = cont
             let work = DispatchWorkItem { [weak self] in
                 MainActor.assumeIsolated {
@@ -78,13 +97,15 @@ final class ToolApproval: ObservableObject {
         }
     }
 
-    /// 사용자 응답 (허용/거부).
+    /// 사용자 응답 (허용/거부). T-283: 멱등 — 팝업 닫힘 시 중복 호출 무시.
     func resolve(_ allow: Bool) {
+        guard pending != nil else { return }
         logger.info(feature: "도구", allow ? "사용자 허용" : "사용자 거부")
         finish(with: allow)
     }
 
     private func finish(with allow: Bool) {
+        guard continuation != nil else { return } // T-289: 이중 재개 방지
         timeoutWork?.cancel()
         timeoutWork = nil
         pending = nil

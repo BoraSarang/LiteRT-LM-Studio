@@ -24,9 +24,15 @@ extension ChatStore {
             userContent = prompt
         }
         let historyPlus = history + [["role": "user", "content": userContent]] + extraHistory
+        // T-285: 스킬+MCP 안내 시스템 메시지 (빈 문자열이면 생략).
+        let extras = SkillsStore.extrasBlock(
+            serverNames: MCPStore.shared.enabledServers.map(\.name))
+        let messagesPlus: [[String: Any]] = extras.isEmpty
+            ? historyPlus
+            : [["role": "system", "content": extras]] + historyPlus
         // top_k는 OpenAI 비표준이라 config 기본으로만 (T-176).
         var body: [String: Any] = [
-            "model": model, "messages": historyPlus,
+            "model": model, "messages": messagesPlus,
             "temperature": temperature, "top_p": topP, "stream": true
         ]
         // T-268: 도구 등록 시 스키마 전송 (Off면 생략, 모델이 호출 불가).
@@ -44,9 +50,13 @@ extension ChatStore {
     }
 
     /// 현재 생성 옵션 묶음 (T-176): 네이티브 어댑터 전달용.
+    /// T-285: 스킬+MCP 안내를 시스템 프롬프트에 합성.
     func generationOptions() -> GenerationOptions {
-        GenerationOptions(temperature: temperature, topK: topK, topP: topP, seed: seed,
-                          maxTokens: maxTokens, thinkingEnabled: thinkingEnabled,
-                          thinkingBudget: thinkingBudget, systemPrompt: systemPrompt)
+        let extras = SkillsStore.extrasBlock(
+            serverNames: MCPStore.shared.enabledServers.map(\.name))
+        let combined = [systemPrompt, extras].filter { !$0.isEmpty }.joined(separator: "\n\n")
+        return GenerationOptions(temperature: temperature, topK: topK, topP: topP, seed: seed,
+                                 maxTokens: maxTokens, thinkingEnabled: thinkingEnabled,
+                                 thinkingBudget: thinkingBudget, systemPrompt: combined)
     }
 }
