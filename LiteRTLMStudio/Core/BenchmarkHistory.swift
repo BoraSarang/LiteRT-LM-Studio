@@ -298,7 +298,7 @@ extension BenchmarkStore {
                                       options: GenerationOptions) async throws -> String {
         var acc = ""
         let stream = await engine.stream(prompt: prompt, image: nil, history: [],
-                                         keyHistory: [], options: options)
+                                         options: options, sessionID: "")
         for try await chunk in stream {
             try Task.checkCancellation()
             acc += chunk

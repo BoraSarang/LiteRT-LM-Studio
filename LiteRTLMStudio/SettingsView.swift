@@ -4,6 +4,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var wigolo: WigoloManager
+    @ObservedObject var config: ConfigStore
     @AppStorage("showInDock") private var showInDock = false
     @AppStorage("quitStopsDaemon") private var quitStopsDaemon = true
     @AppStorage("launchAtLogin") private var launchAtLogin = false
@@ -15,6 +16,7 @@ struct SettingsView: View {
     @AppStorage("followUpEnabled") private var followUpEnabled = true // T-261 후속질문 칩
     @AppStorage("webSearchEnabled") private var webSearchEnabled = true // T-269 웹 검색 도구
     @AppStorage("workspaceRoot") private var workspaceRoot = "" // T-272 작업폴더 (빈값=기본값)
+    @AppStorage("selectedModelID") private var selectedModelID: String? // 모델 ID 저장
     @State private var toolFlags: [String: Bool] = [:] // T-271 도구 개별 ON/OFF
     @ObservedObject var mcp = MCPStore.shared // T-285 MCP 서버 목록
     @State var skills: [SkillInfo] = [] // T-285 스킬 목록
@@ -58,6 +60,14 @@ struct SettingsView: View {
                             feature: "히스토리범위",
                             "전환: \((HistoryWindow(rawValue: raw) ?? .unlimited).title)")
                     }
+                Toggle("MTP(추측적 디코딩) 활성화", isOn: Binding(
+                        get: { config.draftMTP },
+                        set: { config.draftMTP = $0 }
+                    ))
+                    .help("Gemma 4 등 지원 모델에서 디코드 속도 2-3배 향상. 모델 재시작 필요.")
+                    .onChange(of: config.draftMTP) { _, on in
+                        DebugLogger.shared.info(feature: "MTP", on ? "활성화" : "비활성화")
+                    }
                 Picker("벤치마크 기록 보관", selection: $benchmarkRetention) {
                     ForEach(BenchmarkRetention.allCases, id: \.rawValue) { r in
                         Text(r.title).tag(r.rawValue)
@@ -80,13 +90,33 @@ struct SettingsView: View {
                             feature: "권한",
                             "전환: \((GlobalPermission(rawValue: raw) ?? .ask).title)")
                     }
-                if let err = loginError {
-                    Text(err).font(.caption).foregroundStyle(.red)
+if let err = loginError {
+                Text(err).font(.caption).foregroundStyle(.red)
+            }
+            Text("포트는 127.0.0.1:9379 고정, 모델은 ~/.litert-lm/models 참조.")
+                .font(.caption).foregroundStyle(.secondary)
+            // 적용 버튼 (변경사항 저장)
+            Section {
+                HStack {
+                    Spacer()
+                    Button("적용") {
+                        let modelID = selectedModelID
+                            ?? UserDefaults.standard.string(forKey: "selectedModelID")
+                            ?? ""
+                        guard !modelID.isEmpty else {
+                            DebugLogger.shared.info(feature: "설정", "적용 실패: 모델 미선택")
+                            return
+                        }
+                        config.apply(modelID: modelID)
+                        DebugLogger.shared.info(feature: "설정", "적용 완료: \(modelID)")
+                    }
+                    .keyboardShortcut("s", modifiers: .command)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!config.hasChanges)
                 }
-                Text("포트는 127.0.0.1:9379 고정, 모델은 ~/.litert-lm/models 참조.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }.formStyle(.grouped).padding()
-                .tabItem { Label("일반", systemImage: "gear") }
+            }
+        }.formStyle(.grouped).padding()
+            .tabItem { Label("일반", systemImage: "gear") }
             Form {
                 Toggle("대화 목차 사용", isOn: $outlineEnabled)
                     .help("채팅 우측 중앙에 질문 목록 플로팅. 끄면 숨겨집니다.")
@@ -139,7 +169,16 @@ struct SettingsView: View {
             mcpTab
             skillsTab
         }.frame(minWidth: 580, minHeight: 420)
-            .onAppear { reloadToolFlags(); reloadSkills() }
+            .onAppear {
+                let mid = selectedModelID
+                    ?? UserDefaults.standard.string(forKey: "selectedModelID")
+                if let mid, !mid.isEmpty { config.load(modelID: mid) }
+                reloadToolFlags(); reloadSkills()
+            }
+            .onChange(of: selectedModelID) { _, v in
+                let mid = v ?? UserDefaults.standard.string(forKey: "selectedModelID")
+                if let mid, !mid.isEmpty { config.load(modelID: mid) }
+            }
             .confirmationDialog("wigolo 설치", isPresented: $showInstallConfirm,
                                 titleVisibility: .visible) {
                 Button("설치 (패키지+초기화, 약 1.5GB 내려받음)") { wigolo.install() }

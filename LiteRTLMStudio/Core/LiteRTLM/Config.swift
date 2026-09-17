@@ -145,7 +145,7 @@ public struct SamplerConfig {
 }
 
 /// Configuration for thinking/reasoning generation.
-public struct ThinkingConfig: Equatable {
+public struct ThinkingConfig: Equatable, Sendable {
   /// Whether thinking/reasoning generation is enabled.
   public let enableThinking: Bool
   /// The token budget for thinking/reasoning generation. Defaults to -1 (infinite budget).

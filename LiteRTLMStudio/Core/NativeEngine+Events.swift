@@ -5,18 +5,20 @@ import Foundation
 extension NativeEngine {
     /// 이벤트 스트림 (T-266 S-1): 본문·생각 채널·도구 호출 분리.
     /// tool_call 채널 외 채널 내용은 생각으로 취급 (키 로깅으로 관측).
+    /// P1: consumeStream/StreamConsumeInput 제거로 경로 단축.
     func streamEvents(
         prompt: String,
         image: ChatStore.ChatImage?,
         history: [(role: String, text: String)],
-        keyHistory: [String],
-        options: GenerationOptions
+        options: GenerationOptions,
+        sessionID: String
     ) -> AsyncThrowingStream<StreamEvent, Error> {
-        guard let engine else {
+        guard let modelID = preparedModelID,
+              let engine = engines[modelID] else {
             return AsyncThrowingStream { $0.finish(throwing: EngineError.notReady) }
         }
-        let keyEntries = keyHistory
-        let mid = preparedModelID ?? ""
+        let mid = modelID
+        let sid = sessionID
         let past = history.map { turn in
             Message(turn.text, role: turn.role == "user" ? .user : .model)
         }
@@ -26,14 +28,43 @@ extension NativeEngine {
             Message(prompt)
         }
         let opts = options
-        let input = StreamConsumeInput(engine: engine, mid: mid, past: past, message: message,
-                                       keyEntries: keyEntries, opts: opts)
+        let toolChannel = ExperimentalFlags.conversationToolCallStreamingChannelName
+
         return AsyncThrowingStream { continuation in
             Task {
                 do {
-                    try await self.consumeStream(input, firstReuse: true,
-                                                 continuation: continuation)
-                    continuation.finish()
+                    // P1: preparedStream 직접 호출, 재시도 로직 인라인
+                    var allowReuse = true
+                    while true {
+                        let setup = try await self.preparedStream(
+                            engine: engine, modelID: mid, past: past,
+                            sessionID: sid, opts: opts, allowReuse: allowReuse)
+                        do {
+                            let gen = setup.conversation.sendMessageStream(
+                                message, maxOutputTokens: opts.maxTokens,
+                                thinkingConfig: setup.thinking)
+                            var loggedChannels = Set<String>()
+                            for try await chunk in gen {
+                                for key in chunk.channels.keys where !loggedChannels.contains(key) {
+                                    loggedChannels.insert(key)
+                                    DebugLogger.shared.info(feature: "도구", "앱 내 엔진 채널 발견: \(key)")
+                                }
+                                for event in Self.events(from: chunk, toolChannel: toolChannel) {
+                                    continuation.yield(event)
+                                }
+                            }
+                            return
+                        } catch {
+                            // T-289: 취소는 재시도 없이 즉시 전파
+                            if error is CancellationError { throw error }
+                            // 실패한 대화는 풀에서 제거 (오염 루프 방지).
+                            // 시작 실패가 아니면 재시도 없이 전파 — 다음 전송(재시도 버튼)이 새로 만든다.
+                            invalidateReuse()
+                            guard allowReuse, setup.reused, Self.isStartStreamFailure(error) else { throw error }
+                            DebugLogger.shared.info(feature: "앱내엔진", "재사용 시작 실패 → 새 대화 재시도")
+                            allowReuse = false
+                        }
+                    }
                 } catch is CancellationError {
                     continuation.finish(throwing: CancellationError())
                 } catch {
@@ -43,55 +74,14 @@ extension NativeEngine {
         }
     }
 
-    /// 스트림 소비 요청 묶음 (T-277, 파라미터 수 린트 회피).
-    struct StreamConsumeInput {
-        let engine: Engine
-        let mid: String
-        let past: [Message]
-        let message: Message
-        let keyEntries: [String]
-        let opts: GenerationOptions
-    }
-
-    /// 스트림 소비 (T-277): 재사용 핸들 거부 시 무효화 후 새 대화로 1회 재시도.
-    private func consumeStream(_ input: StreamConsumeInput, firstReuse: Bool,
-                               continuation: AsyncThrowingStream<StreamEvent, Error>.Continuation
-    ) async throws {
-        var allowReuse = firstReuse
-        while true {
-            let setup = try await preparedStream(engine: input.engine, modelID: input.mid,
-                                                 past: input.past, entries: input.keyEntries,
-                                                 opts: input.opts, allowReuse: allowReuse)
-            do {
-                let gen = setup.conversation.sendMessageStream(
-                    input.message, maxOutputTokens: input.opts.maxTokens,
-                    thinkingConfig: setup.thinking)
-                var loggedChannels = Set<String>()
-                for try await chunk in gen {
-                    for key in chunk.channels.keys where !loggedChannels.contains(key) {
-                        loggedChannels.insert(key)
-                        DebugLogger.shared.info(feature: "도구", "앱 내 엔진 채널 발견: \(key)")
-                    }
-                    for event in Self.events(
-                        from: chunk,
-                        toolChannel: ExperimentalFlags.conversationToolCallStreamingChannelName) {
-                        continuation.yield(event)
-                    }
-                }
-                return
-            } catch {
-                // T-289: 취소는 재시도 없이 즉시 전파 (stop 무시 방지).
-                if error is CancellationError { throw error }
-                guard allowReuse, setup.reused, Self.isStartStreamFailure(error) else { throw error }
-                invalidateReuse()
-                DebugLogger.shared.info(feature: "앱내엔진", "재사용 시작 실패 → 새 대화 재시도")
-                allowReuse = false
-            }
-        }
-    }
-
     /// 재사용 무효화 (T-277): 시작 실패 시 새 대화로 재시도.
+    /// 실패한 대화는 풀에서도 제거 — 깨진 KV/핸들이 남아 재시도마다 즉시 실패하는
+    /// 오염 루프(INTERNAL state 7 등) 방지. 다음 전송은 새로 생성해 복구한다.
     func invalidateReuse() {
+        if let key = activeKey {
+            conversations[key] = nil
+            conversationAccessOrder.removeAll { $0 == key }
+        }
         activeConversation = nil
         activeKey = nil
     }

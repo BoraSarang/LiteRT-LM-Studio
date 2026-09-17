@@ -23,8 +23,12 @@ final class ConfigStore: ObservableObject {
     @Published var appliedThinking = false // T-175 모델별 thinking 기본값
     @Published var appliedBudget = "" // T-175 빈칸=무제한(-1)
     @Published var appliedPrecision = "" // T-177 빈칸=모델 내장
+    @Published var appliedMaxPrefixTurns = 10 // P1-1 KV 재사용 prefix 턴 수 (기본 10)
+    @Published var appliedMaxTokens = 8192 // P1-2 KV 캐시 크기 제한 (기본 8192)
     /// UI 편집 중인 초안.
     @Published var draftBackend = "gpu"
+    @Published var draftMaxPrefixTurns = 10
+    @Published var draftMaxTokens = 8192
     @Published var draftVision = "gpu"
     @Published var draftMTP = false // T-222 기본 OFF
     @Published var draftAudio = "cpu"
@@ -44,12 +48,13 @@ final class ConfigStore: ObservableObject {
         self.configURL = configURL ?? Self.defaultURL
     }
 
-    var hasChanges: Bool {
+var hasChanges: Bool {
         draftBackend != appliedBackend || draftVision != appliedVision || draftMTP != appliedMTP
             || draftAudio != appliedAudio || draftThreads != appliedThreads
             || draftCache != appliedCache || draftKV != appliedKV
             || draftThinking != appliedThinking || draftBudget != appliedBudget
-            || draftPrecision != appliedPrecision
+            || draftPrecision != appliedPrecision || draftMaxPrefixTurns != appliedMaxPrefixTurns
+            || draftMaxTokens != appliedMaxTokens
     }
 
     /// 숫자 초안 → config 값 (순수, 테스트 가능, T-175): 빈칸·비숫자·하한 미달이면 nil(키 삭제).
@@ -95,6 +100,9 @@ final class ConfigStore: ObservableObject {
             let after = draftPrecision.isEmpty ? "내장" : draftPrecision
             parts.append("정밀도 \(before)→\(after)")
         }
+        if draftMaxPrefixTurns != appliedMaxPrefixTurns {
+            parts.append("Prefix턴 \(appliedMaxPrefixTurns)→\(draftMaxPrefixTurns)")
+        }
         return parts.joined(separator: " · ")
     }
 
@@ -102,6 +110,7 @@ final class ConfigStore: ObservableObject {
         var s = "LLM \(appliedBackend) · Vision \(appliedVision)\(appliedMTP ? " · MTP" : "")"
         if appliedAudio != "cpu" { s += " · Audio \(appliedAudio)" }
         if !appliedKV.isEmpty { s += " · KV \(appliedKV)" }
+        if appliedMaxPrefixTurns != 10 { s += " · Prefix \(appliedMaxPrefixTurns)" }
         return s
     }
 
@@ -123,13 +132,19 @@ final class ConfigStore: ObservableObject {
             appliedCache = def["cache"] as? String ?? appliedCache
             appliedPrecision = def["activation_data_type"] as? String ?? appliedPrecision
             if let t = def["cpu_thread_count"] as? Int { appliedThreads = "\(t)" }
-            if let k = def["max_num_tokens"] as? Int { appliedKV = "\(k)" }
+            if let k = def["max_num_tokens"] as? Int { appliedMaxTokens = k }
+            if let mpt = def["max_prefix_turns"] as? Int { appliedMaxPrefixTurns = mpt }
         }
         if let models = json["models"] as? [String: Any],
            let one = models[modelID] as? [String: Any] {
-            if let spec = one["speculative_decoding"] as? Bool { appliedMTP = spec }
-            if let th = one["thinking"] as? Bool { appliedThinking = th }
-            if let b = one["thinking_budget"] as? Int { appliedBudget = b == -1 ? "" : "\(b)" }
+            if let spec = one["speculative_decoding"] as? Bool { appliedMTP = spec } else { appliedMTP = false }
+            if let th = one["thinking"] as? Bool { appliedThinking = th } else { appliedThinking = false }
+            let budget = one["thinking_budget"] as? Int
+            appliedBudget = budget == nil ? "" : (budget == -1 ? "" : "\(budget!)")
+        } else {
+            appliedMTP = false
+            appliedThinking = false
+            appliedBudget = ""
         }
         revert()
     }
@@ -146,6 +161,8 @@ final class ConfigStore: ObservableObject {
         draftThinking = appliedThinking
         draftBudget = appliedBudget
         draftPrecision = appliedPrecision
+        draftMaxPrefixTurns = appliedMaxPrefixTurns
+        draftMaxTokens = appliedMaxTokens
         logger.info(feature: "설정취소", "초안 되돌림")
     }
 
@@ -159,6 +176,28 @@ final class ConfigStore: ObservableObject {
               let spec = one["speculative_decoding"] as? Bool
         else { return nil }
         return spec
+    }
+
+    /// max_prefix_turns 값 읽기 (P1-1): 없으면 nil (기본 10 사용).
+    @MainActor
+    static func maxPrefixTurnsValue(from url: URL) -> Int? {
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let def = json["default"] as? [String: Any],
+              let mpt = def["max_prefix_turns"] as? Int
+        else { return nil }
+        return mpt
+    }
+
+    /// max_num_tokens 값 읽기 (P1-2): 없으면 nil (엔진 기본값 사용).
+    @MainActor
+    static func maxNumTokensValue(from url: URL) -> Int? {
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let def = json["default"] as? [String: Any],
+              let k = def["max_num_tokens"] as? Int
+        else { return nil }
+        return k
     }
 
     /// default 섹션 쓰기 (T-175 분리): 빈칸 숫자키는 삭제 (엔진 기본 복귀).
@@ -178,10 +217,17 @@ final class ConfigStore: ObservableObject {
         } else {
             def.removeValue(forKey: "cpu_thread_count")
         }
-        if let k = Self.intOrNil(draftKV, min: 1) {
-            def["max_num_tokens"] = k
+        // draftMaxTokens는 이미 Int 타입 (기본 8192)
+        if draftMaxTokens >= 1 {
+            def["max_num_tokens"] = draftMaxTokens
         } else {
-            def.removeValue(forKey: "max_num_tokens")
+            def["max_num_tokens"] = 8192
+        }
+        // draftMaxPrefixTurns는 이미 Int 타입
+        if draftMaxPrefixTurns >= 1 {
+            def["max_prefix_turns"] = draftMaxPrefixTurns
+        } else {
+            def.removeValue(forKey: "max_prefix_turns")
         }
     }
 
@@ -227,6 +273,9 @@ final class ConfigStore: ObservableObject {
             appliedThinking = draftThinking
             appliedBudget = draftBudget
             appliedPrecision = draftPrecision
+            appliedMaxPrefixTurns = draftMaxPrefixTurns
+            appliedMaxTokens = draftMaxTokens
+            NativeEngine.invalidateBackendCache()
             logger.info(feature: "설정적용", "config 저장 완료 (\(summary.isEmpty ? "변경 없음" : summary))")
             return true
         } catch {

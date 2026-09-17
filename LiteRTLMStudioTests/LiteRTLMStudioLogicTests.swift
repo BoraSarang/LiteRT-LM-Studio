@@ -51,7 +51,7 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         store.draftAudio = "gpu"
         store.draftThreads = "8"
         store.draftCache = "memory"
-        store.draftKV = "10000"
+        store.draftMaxTokens = 10000
         store.draftThinking = true
         store.draftBudget = "4096"
         XCTAssertTrue(store.hasChanges)
@@ -62,18 +62,19 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(reloaded.appliedAudio, "gpu")
         XCTAssertEqual(reloaded.appliedThreads, "8")
         XCTAssertEqual(reloaded.appliedCache, "memory")
-        XCTAssertEqual(reloaded.appliedKV, "10000")
+        XCTAssertEqual(reloaded.appliedMaxTokens, 10000)
         XCTAssertTrue(reloaded.appliedThinking)
         XCTAssertEqual(reloaded.appliedBudget, "4096")
         // 빈칸이면 키 삭제 (엔진 기본 복귀).
         reloaded.draftThreads = ""
-        reloaded.draftKV = ""
+        reloaded.draftMaxTokens = 0  // 0이면 기본값 8192 사용
         reloaded.draftBudget = ""
         XCTAssertTrue(reloaded.apply(modelID: "m1"))
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: tmp)) as? [String: Any]
         let def = json?["default"] as? [String: Any]
         XCTAssertNil(def?["cpu_thread_count"])
-        XCTAssertNil(def?["max_num_tokens"])
+        // max_num_tokens는 기본값 8192가 항상 기록됨
+        XCTAssertEqual(def?["max_num_tokens"] as? Int, 8192)
         let one = (json?["models"] as? [String: Any])?["m1"] as? [String: Any]
         XCTAssertEqual(one?["thinking_budget"] as? Int, -1)
         try? FileManager.default.removeItem(at: tmp)
@@ -313,41 +314,22 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertFalse(T.unlinkedRunning(muted: false, healthy: false))
     }
 
-    /// 대화 재사용 키 (T-191): 저장분이 현재 앞부분+동일 모델·옵션이면 KV 이어쓰기.
+    /// 대화 재사용 키 (T-191): 모델+방ID+옵션 고정 — 턴 수와 무관하게
+    /// 같은 방의 후속 턴은 동일 키로 동일 Conversation을 이어쓴다.
     func testConvKeyReuses() {
-        typealias K = NativeEngine.ConvKey
+        typealias K = ConvKey
         let opts = GenerationOptions()
-        let stored = K(modelID: "m", history: ["user\nhi"], options: opts)
-        // 이어진 대화 → 재사용
-        XCTAssertTrue(K.reuses(stored: stored, modelID: "m",
-                               history: ["user\nhi", "assistant\nhello", "user\nmore"], options: opts))
-        // 동일 길이 동일 내용 → 재사용
-        XCTAssertTrue(K.reuses(stored: stored, modelID: "m",
-                               history: ["user\nhi"], options: opts))
-        // 재시도(축소)·모델 변경·옵션 변경 → 재생성
-        XCTAssertFalse(K.reuses(stored: stored, modelID: "m", history: [], options: opts))
-        XCTAssertFalse(K.reuses(stored: stored, modelID: "other",
-                                history: ["user\nhi"], options: opts))
+        let stored = K(modelID: "m", sessionID: "s1", options: opts)
+        // 동일 방·모델·옵션 → 동일 키
+        XCTAssertEqual(stored, K(modelID: "m", sessionID: "s1", options: opts))
+        // 방 변경 → 다른 키 (KV 공유 금지)
+        XCTAssertNotEqual(stored, K(modelID: "m", sessionID: "s2", options: opts))
+        // 모델 변경 → 다른 키
+        XCTAssertNotEqual(stored, K(modelID: "other", sessionID: "s1", options: opts))
+        // 옵션 변경 → 다른 키
         var other = opts
         other.temperature = 0.1
-        XCTAssertFalse(K.reuses(stored: stored, modelID: "m",
-                                history: ["user\nhi"], options: other))
-        // 앞부분 불일치 → 재생성
-        XCTAssertFalse(K.reuses(stored: stored, modelID: "m",
-                                history: ["user\nother"], options: opts))
-        // 항목 결합 형식
-        XCTAssertEqual(K.entries([(role: "user", text: "hi")]), ["user\nhi"])
-    }
-
-    /// 도구 마커 키 (T-282): 도구 턴 표식+재사용 제외.
-    func testToolMarkerKey() {
-        typealias K = NativeEngine.ConvKey
-        XCTAssertEqual(K.entries([ConvKeyEntry(role: "user", text: "hi", tools: true)]),
-                       ["user\nhi" + K.toolMarker])
-        XCTAssertEqual(K.entries([ConvKeyEntry(role: "user", text: "hi", tools: false)]), ["user\nhi"])
-        XCTAssertTrue(K.allowsReuse(history: ["user\nhi"]))
-        XCTAssertFalse(K.allowsReuse(history: ["user\nhi" + K.toolMarker]))
-        XCTAssertTrue(K.allowsReuse(history: []))
+        XCTAssertNotEqual(stored, K(modelID: "m", sessionID: "s1", options: other))
     }
 
     /// Ollama식 통합 상태 (T-183): 대화 가능 = 데몬 실행 중 OR 네이티브 준비됨.
@@ -501,12 +483,20 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(out.first?.count, 30)
     }
 
-    /// 후속질문 프롬프트 절단 (T-291): Q/A 각 절단, T-292 작업 축소(Q 1000·A 800).
+    /// 후속질문 프롬프트 절단 (T-291): Q/A 각 절단, 후속 단축(Q 600·A 500).
     func testFollowUpPromptTruncates() {
         let p = FollowUpSuggest.prompt(question: String(repeating: "q", count: 3000),
                                        answer: String(repeating: "a", count: 3000))
         XCTAssertTrue(p.contains("질문:"))
-        XCTAssertLessThanOrEqual(p.count, 2200)
+        XCTAssertLessThanOrEqual(p.count, 1500)
+    }
+
+    /// 후속질문 조기 중단: 3개 완성 시 스트림 중단.
+    func testFollowUpHasEnoughQuestions() {
+        XCTAssertFalse(FollowUpSuggest.hasEnoughQuestions(""))
+        XCTAssertFalse(FollowUpSuggest.hasEnoughQuestions("1. 첫 질문\n2. 둘째"))
+        XCTAssertTrue(FollowUpSuggest.hasEnoughQuestions("1. 첫 번째 질문이야\n2. 두 번째 질문이야\n3. 세 번째 질문이야"))
+        XCTAssertFalse(FollowUpSuggest.hasEnoughQuestions("1. 첫 번째 질문이야\n2. 두 번째 질문이야\n3. 세"))
     }
 
     /// 후속질문 재호출 판정 (T-292): 300자 초과 또는 절반 초과 성장 시 재호출.
@@ -816,8 +806,8 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         engine.chunks = ["a", "b"]
         var out: [StreamEvent] = []
         for try await event in engine.streamEvents(
-            prompt: "p", image: nil, history: [], keyHistory: [],
-            options: GenerationOptions()) {
+            prompt: "p", image: nil, history: [],
+            options: GenerationOptions(), sessionID: "") {
             out.append(event)
         }
         XCTAssertEqual(out, [.text("a"), .text("b")])

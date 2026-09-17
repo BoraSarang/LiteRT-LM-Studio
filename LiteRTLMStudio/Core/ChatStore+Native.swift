@@ -67,12 +67,8 @@ extension ChatStore {
             // T-190 TTFT 구간 분리: prepare cost vs (대화 생성+프리필) cost.
             let prepareElapsed = Date().timeIntervalSince(started)
             // T-149: 전송 범위 설정 적용 (제한 없음이면 전량, 기존 동작).
-            // T-193: 재사용 키는 전체 전사로 (윈도우 슬라이드와 무관하게 접두사 판정).
-            // T-282: 도구 턴 표식 포함 (키 전용, 엔진 전송분과 분리).
-            let fullPast = Array(messages.dropLast(2)).map {
-                ConvKeyEntry(role: $0.role, text: $0.text,
-                             tools: !($0.toolCalls?.isEmpty ?? true))
-            }
+            // 재사용 키는 방ID 고정 — 같은 방의 후속 턴은 동일 Conversation을
+            // 이어써 KV를 잇는다 (히스토리 길이에 무관).
             let windowed = Self.windowedHistory(Array(messages.dropLast(2)),
                                                 turns: HistoryWindow.currentTurns())
             let past = windowed.map { (role: $0.role, text: $0.text) }
@@ -82,8 +78,8 @@ extension ChatStore {
                             + "히스토리 \(past.count)개 \(histChars)자")
             let stream = engine.streamEvents(prompt: prompt, image: image,
                                                    history: Array(past),
-                                                   keyHistory: NativeEngine.ConvKey.entries(fullPast),
-                                                   options: generationOptions())
+                                                   options: generationOptions(),
+                                                   sessionID: currentSessionID?.uuidString ?? "")
             var state = NativeStreamState()
             var firstTokenAt: Date?
             var lastFlush = started

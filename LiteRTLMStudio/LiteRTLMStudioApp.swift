@@ -98,7 +98,7 @@ struct LiteRTLMStudioApp: App {
                 .environmentObject(services)
         }
         .menuBarExtraStyle(.menu)
-        Settings { SettingsView(wigolo: services.wigolo) }
+        Settings { SettingsView(wigolo: services.wigolo, config: services.config) }
     }
 }
 

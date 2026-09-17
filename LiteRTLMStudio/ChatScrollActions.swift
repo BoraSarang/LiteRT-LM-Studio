@@ -346,12 +346,10 @@ extension ContentView {
             let cur = scrollView.contentView.bounds.origin.y
             switch Self.healDirection(cur: cur, maxY: maxY) {
             case .clampDown:
-                DebugLogger.shared.info(feature: "스크롤", "점프 보정: \(Int(cur))→\(Int(maxY))")
                 scrollView.contentView.setBoundsOrigin(NSPoint(x: 0, y: maxY))
                 scrollView.reflectScrolledClipView(scrollView.contentView)
             case .jumpUp where self.pinnedToBottom
                     && Date().timeIntervalSince(self.followGate.lastWheel) >= 0.8:
-                DebugLogger.shared.info(feature: "스크롤", "점프 치유(미달): \(Int(cur))→\(Int(maxY))")
                 self.jumpToBottom()
             case .jumpUp, .none:
                 break

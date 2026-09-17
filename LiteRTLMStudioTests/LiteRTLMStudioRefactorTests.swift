@@ -164,14 +164,14 @@ final class FakeEngine: InferenceEngine {
         prompt: String,
         image: ChatStore.ChatImage?,
         history: [(role: String, text: String)],
-        keyHistory: [String],
-        options: GenerationOptions
+        options: GenerationOptions,
+        sessionID: String
     ) -> AsyncThrowingStream<String, Error> {
         lastPrompt = prompt
         lastImage = image
         lastHistory = history
-        lastKeyHistory = keyHistory
         lastOptions = options
+        lastSessionID = sessionID
         let chunks = chunks
         let shouldFail = streamShouldFail
         return AsyncThrowingStream { continuation in
@@ -187,8 +187,8 @@ final class FakeEngine: InferenceEngine {
     var lastPrompt: String?
     var lastImage: ChatStore.ChatImage?
     var lastHistory: [(role: String, text: String)] = []
-    var lastKeyHistory: [String] = []
     var lastOptions: GenerationOptions?
+    var lastSessionID = ""
 
     func cancel() { cancelled = true }
 
@@ -275,7 +275,8 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         XCTAssertTrue(store.messages.last?.text.contains("준비되지 않았습니다") == true)
     }
 
-    /// 키 분리 (T-193): 재사용 키는 전체 전사, 초기 메시지는 윈도우 적용분.
+    /// 키 분리: 초기 메시지는 윈도우 적용분, 재사용 식별은 방ID 고정.
+    /// 같은 방의 후속 턴은 동일 Conversation을 이어써 KV를 잇는다.
     func testKeyHistoryIsFullTranscript() async {
         let store = makeStore()
         let fake = FakeEngine()
@@ -301,7 +302,8 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         store.send("see")
         await waitStreaming(store)
         XCTAssertEqual(fake.lastHistory.count, 2)
-        XCTAssertEqual(fake.lastKeyHistory.count, 4)
+        XCTAssertEqual(fake.lastSessionID, store.currentSessionID?.uuidString ?? "")
+        XCTAssertFalse(fake.lastSessionID.isEmpty)
     }
 
     /// 엔진 모드 기본값 (T-130): 미설정 시 CLI.

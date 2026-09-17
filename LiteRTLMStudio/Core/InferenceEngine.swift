@@ -20,7 +20,7 @@ enum EngineMode: String, CaseIterable {
     }
 }
 
-/// 전송 히스토리 범위 (T-149, 전역 설정, 기본 제한 없음).
+/// 전송 히스토리 범위 (T-149, 전역 설정, 기본 10턴).
 /// 1턴 = 사용자 1 + 어시스턴트 1. 0은 제한 없음(기존 동작 그대로).
 enum HistoryWindow: Int, CaseIterable {
     case unlimited = 0
@@ -37,9 +37,10 @@ enum HistoryWindow: Int, CaseIterable {
         }
     }
 
-    /// 저장 키 "historyTurns" 읽기 (미설정 시 0=제한 없음).
+    /// 저장 키 "historyTurns" 읽기 (미설정 시 10=10턴 기본).
     nonisolated static func currentTurns() -> Int {
-        UserDefaults.standard.integer(forKey: "historyTurns")
+        let v = UserDefaults.standard.integer(forKey: "historyTurns")
+        return v == 0 ? 10 : v
     }
 }
 
@@ -80,7 +81,7 @@ struct UnifiedStatus: Equatable {
 }
 /// 생성 옵션 묶음 (T-176): CLI·앱 내 엔진 공통 샘플링+출력 파라미터.
 /// 기본값은 describe 실측·Gallery 대조 (temp 1.0·topK 64·topP 0.95).
-struct GenerationOptions: Equatable {
+struct GenerationOptions: Equatable, Hashable {
     var temperature = 1.0
     var topK = 64
     var topP = 0.95
@@ -133,13 +134,13 @@ protocol InferenceEngine: AnyObject {
     /// 메모리 반납.
     func release()
     /// 스트리밍 추론. history는 현재 제외 과거 turns (윈도우 적용분, 초기 메시지로 사용).
-    /// keyHistory는 전체 전사 키 항목 (T-193, 윈도우 슬라이드와 무관한 재사용 판정용).
+    /// sessionID는 채팅방 식별자 — 같은 방의 후속 턴은 동일 Conversation을 이어써 KV를 잇는다.
     func stream(
         prompt: String,
         image: ChatStore.ChatImage?,
         history: [(role: String, text: String)],
-        keyHistory: [String],
-        options: GenerationOptions
+        options: GenerationOptions,
+        sessionID: String
     ) -> AsyncThrowingStream<String, Error>
     /// 벤치마크 측정 (T-132): 고정 프롬프트 1턴 실측.
     func benchmark(modelID: String) async throws -> EngineBenchmark
@@ -154,11 +155,11 @@ extension InferenceEngine {
         prompt: String,
         image: ChatStore.ChatImage?,
         history: [(role: String, text: String)],
-        keyHistory: [String],
-        options: GenerationOptions
+        options: GenerationOptions,
+        sessionID: String
     ) -> AsyncThrowingStream<StreamEvent, Error> {
         let base = stream(prompt: prompt, image: image, history: history,
-                          keyHistory: keyHistory, options: options)
+                          options: options, sessionID: sessionID)
         return AsyncThrowingStream { continuation in
             Task {
                 do {

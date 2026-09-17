@@ -44,9 +44,10 @@ enum FollowUpSuggest {
 
     /// LLM 요청 프롬프트 (순수, 테스트 가능, T-291): 마지막 Q/A 1턴만.
     /// T-292 작업 축소: Q 1000자·A 800자 (prefill 단축).
+    /// 후속 5초 단축: Q 600자·A 500자로 축소 (질문 3개 생성에 충분).
     nonisolated static func prompt(question: String, answer: String) -> String {
-        let q = String(question.prefix(1000))
-        let a = String(answer.prefix(800))
+        let q = String(question.prefix(600))
+        let a = String(answer.prefix(500))
         return """
         다음 대화를 읽고 사용자가 이어서 물을 만한 후속질문 3개를 각 25자 이내로 한 줄에 하나씩 써줘. \
         번호나 설명 없이 질문만.
@@ -134,6 +135,17 @@ enum FollowUpSuggest {
             if $0.key.count != $1.key.count { return $0.key.count > $1.key.count }
             return $0.key < $1.key
         }.prefix(limit).map(\.key)
+    }
+
+    /// 후속질문 출력 상한: 3개×25자+번호 ≈ 50토큰이면 충분. 100→64로 디코드 시간 단축.
+    nonisolated static var followUpMaxTokens: Int { 64 }
+
+    /// 3개 완성 확인 (순수, 테스트 가능): 비어있지 않은 줄 3개+마지막 줄 8자 이상이면 중단.
+    nonisolated static func hasEnoughQuestions(_ acc: String) -> Bool {
+        let lines = acc.components(separatedBy: .newlines)
+        let nonEmpty = lines.filter { !stripFollowUpMarker($0).isEmpty }
+        guard nonEmpty.count >= 3 else { return false }
+        return stripFollowUpMarker(lines.last ?? "").count >= 8
     }
 }
 
@@ -241,31 +253,32 @@ final class FollowUpStore: ObservableObject {
         return content
     }
 
-    /// 앱 내 엔진 1회성 호출 (T-291): 고유 키로 재사용 강제 회피.
-    /// 본 대화 KV 보존을 위해 호출 전후 대화·키를 복원. 도구 채널은 문자열
-    /// 스트림에 섞이지 않고 파서가 잡라인을 걸러내므로 별도 분리 없음.
+    /// 앱 내 엔진 1회성 호출 (T-291): 본 대화와 분리된 1회성 대화로 생성.
+    /// 후속 프롬프트("질문 3개만")를 메인 대화에서 돌리면 지시·짧은 목록이
+    /// 본 대화 KV에 박혀 이후 답변이 목록처럼 짧아지는 오염 발생 → 격리 필수.
+    /// 고유 sessionID로 풀에 잠시 두었다가 사용 후 즉시 제거한다.
     static func fetchNative(engine: any InferenceEngine, modelID: String,
                             prompt: String) async -> String? {
-        let native = engine as? NativeEngine
-        let savedConv = native?.activeConversation
-        let savedKey = native?.activeKey
-        defer {
-            native?.activeConversation = savedConv
-            native?.activeKey = savedKey
-        }
         do {
             try await engine.prepare(modelID: modelID)
         } catch { return nil }
-        let key = ["후속질문", UUID().uuidString]
-        let opts = GenerationOptions(temperature: 0.7, maxTokens: 100)
+        let opts = GenerationOptions(temperature: 0.7, maxTokens: FollowUpSuggest.followUpMaxTokens)
+        let sid = "후속질문-\(UUID().uuidString)"
+        defer {
+            if let native = engine as? NativeEngine {
+                let key = ConvKey(modelID: modelID, sessionID: sid, options: opts)
+                native.conversations[key] = nil
+                native.conversationAccessOrder.removeAll { $0 == key }
+            }
+        }
         let stream = engine.stream(prompt: prompt, image: nil, history: [],
-                                   keyHistory: key, options: opts)
+                                   options: opts, sessionID: sid)
         var acc = ""
         do {
             for try await chunk in stream {
                 if Task.isCancelled { engine.cancel(); return nil }
                 acc += chunk
-                if acc.count > 2000 { break }
+                if FollowUpSuggest.hasEnoughQuestions(acc) { break }
             }
         } catch { return nil }
         return acc.isEmpty ? nil : acc

@@ -18,6 +18,8 @@ final class AppServices: ObservableObject {
     let models = ModelStore()
     /// T-262: 새소식 누적 캐시 (웰컴 빈 화면이 공유, 창 닫아도 유지).
     let releases = ReleaseNotes()
+    /// T-275: 설정 스토어 공유 (설정창·엔진이 같은 인스턴스 사용).
+    let config = ConfigStore()
     /// T-284: wigolo 검색 데몬 공유 (설정·채팅 도구가 같은 인스턴스 사용).
     let wigolo = WigoloManager()
 
