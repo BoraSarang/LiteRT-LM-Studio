@@ -1,14 +1,14 @@
 import SwiftUI
 
 /// 강제 외관 (T-041 수동 전환 대응, 미지정은 시스템 추종).
-/// T-150 네이티브 전환 후 외관은 시맨틱 컬러로 처리라 값만 유지 (API 호환).
+/// T-150 앱 내 엔진 전환 후 외관은 시맨틱 컬러로 처리라 값만 유지 (API 호환).
 enum MarkdownScheme: String {
     case auto
     case light
     case dark
 }
 
-/// 마크다운 네이티브 렌더 (T-150/T-152, WKWebView 제거).
+/// 마크다운 앱 내 엔진 렌더 (T-150/T-152, WKWebView 제거).
 /// - 블록 분리 후 블록별 전체 파싱 (개행은 블록 경계로 보존, marked breaks:false와 동일)
 /// - 호출 API는 기존과 동일 (text/scheme/isStreaming/fontScale)이라 호출부 변경 없음
 struct MarkdownView: View, Equatable {

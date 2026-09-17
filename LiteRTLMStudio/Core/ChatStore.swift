@@ -106,7 +106,7 @@ final class ChatStore: ObservableObject {
     var topP = 0.95 // T-176 describe 실측
     var maxTokens: Int? // T-176 nil=무제한
     var seed: Int? // T-176 nil=랜덤
-    var systemPrompt = "" // T-176 네이티브만 유효
+    var systemPrompt = "" // T-176 앱 내 엔진만 유효
     var thinkingEnabled = false // T-176 지원 모델만 UI 활성
     var thinkingBudget = -1 // T-176 -1=무제한
     /// 전송 경로 (T-186): 입력창 피커가 소유. 초기값은 기존 전역 설정 1회 승계.
@@ -116,9 +116,9 @@ final class ChatStore: ObservableObject {
     @Published var route: EngineMode = .cli {
         didSet { routeDefaults.set(route.rawValue, forKey: "engineMode") }
     }
-    /// 네이티브 준비 여부 (T-186): 엔진 주입+모델 초기화 완료.
+    /// 앱 내 엔진 준비 여부 (T-186): 엔진 주입+모델 초기화 완료.
     var nativePrepared: Bool { inferenceEngine?.preparedModelID != nil }
-    /// 네이티브 엔진 주입 (T-130, nil이면 CLI 전용). ContentView가 AppServices에서 연결.
+    /// 앱 내 엔진 엔진 주입 (T-130, nil이면 CLI 전용). ContentView가 AppServices에서 연결.
     var inferenceEngine: (any InferenceEngine)?
 
     private var currentTask: Task<Void, Never>?
@@ -194,7 +194,7 @@ final class ChatStore: ObservableObject {
 
     /// SSE 한 줄 적용·누적 상태는 ChatStore+Stream 분리 (T-266, 본문 길이 관리).
 
-    /// 네이티브 분기 시도 (T-137): 해당하면 작업 예약 후 true.
+    /// 앱 내 엔진 분기 시도 (T-137): 해당하면 작업 예약 후 true.
     /// T-185부터 미준비면 자동 초기화 대신 안내하고 true (CLI 폴백 없음, 수동 실행).
     @discardableResult
     func startNativeIfNeeded(prompt: String, image: ChatImage?, idx: Int, started: Date) -> Bool {
@@ -208,7 +208,7 @@ final class ChatStore: ObservableObject {
         return true
     }
 
-    /// 네이티브 미준비 안내 (T-185): 전송 소비, 에러코드 없음 (실패 아님).
+    /// 앱 내 엔진 미준비 안내 (T-185): 전송 소비, 에러코드 없음 (실패 아님).
     func noticeNativeNotReady(at idx: Int) {
         messages[idx].text = "앱 내 엔진이 준비되지 않았습니다. "
             + "사이드바 엔진 행의 실행 버튼을 눌러 준비한 뒤 다시 전송해 주세요."
@@ -216,7 +216,7 @@ final class ChatStore: ObservableObject {
         messages[idx].finishedAt = Date()
         preparing = false
         streaming = false
-        logger.info(feature: "채팅전송", "네이티브 미준비 — 전송 차단")
+        logger.info(feature: "채팅전송", "앱 내 엔진 미준비 — 전송 차단")
         save()
     }
 

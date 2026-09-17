@@ -1,6 +1,6 @@
 import Foundation
 
-/// 네이티브 이벤트 스트림 확장 (T-266 S-1 분리: 본문 길이 관리).
+/// 앱 내 엔진 이벤트 스트림 확장 (T-266 S-1 분리: 본문 길이 관리).
 /// 본문·생각 채널·도구 호출 분리. 문자열 스트림(`stream`)은 프로토콜 기본값 유지.
 extension NativeEngine {
     /// 이벤트 스트림 (T-266 S-1): 본문·생각 채널·도구 호출 분리.
@@ -70,7 +70,7 @@ extension NativeEngine {
                 for try await chunk in gen {
                     for key in chunk.channels.keys where !loggedChannels.contains(key) {
                         loggedChannels.insert(key)
-                        DebugLogger.shared.info(feature: "도구", "네이티브 채널 발견: \(key)")
+                        DebugLogger.shared.info(feature: "도구", "앱 내 엔진 채널 발견: \(key)")
                     }
                     for event in Self.events(
                         from: chunk,
@@ -84,10 +84,22 @@ extension NativeEngine {
                 if error is CancellationError { throw error }
                 guard allowReuse, setup.reused, Self.isStartStreamFailure(error) else { throw error }
                 invalidateReuse()
-                DebugLogger.shared.info(feature: "네이티브엔진", "재사용 시작 실패 → 새 대화 재시도")
+                DebugLogger.shared.info(feature: "앱내엔진", "재사용 시작 실패 → 새 대화 재시도")
                 allowReuse = false
             }
         }
+    }
+
+    /// 재사용 무효화 (T-277): 시작 실패 시 새 대화로 재시도.
+    func invalidateReuse() {
+        activeConversation = nil
+        activeKey = nil
+    }
+
+    /// 대화용 도구 목록 (순수, 테스트 가능, T-290): 미지원 모델은 빈 배열.
+    nonisolated static func toolsForConversation(supportsFC: Bool,
+                                                 registered: [any Tool]) -> [any Tool] {
+        supportsFC ? registered : []
     }
 
     /// 시작 실패 판정 (순수, 테스트 가능, T-277): 재사용 핸들 거부일 때만 재시도.

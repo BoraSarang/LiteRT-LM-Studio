@@ -1,6 +1,6 @@
 import Foundation
 
-/// 네이티브 이벤트 누적 상태 (T-266 S-1, 순수·테스트 가능).
+/// 앱 내 엔진 이벤트 누적 상태 (T-266 S-1, 순수·테스트 가능).
 struct NativeStreamState: Sendable {
     var acc = ""
     var thinkingAcc = ""
@@ -28,16 +28,16 @@ struct NativeStreamState: Sendable {
     }
 }
 
-/// 네이티브 전송 확장 (T-130): 분기·토큰·실패 매핑.
+/// 앱 내 엔진 전송 확장 (T-130): 분기·토큰·실패 매핑.
 extension ChatStore {
-    /// 네이티브 분기 판정 (T-130, 테스트 가능): 선택 경로+주입 모두 필요.
+    /// 앱 내 엔진 분기 판정 (T-130, 테스트 가능): 선택 경로+주입 모두 필요.
     /// T-186부터 전역 설정 대신 입력창 route를 본다.
     func usesNative() -> Bool {
         route == .native && inferenceEngine != nil
     }
 
     /// 경로별 전송 가능 (순수, 테스트 가능, T-186).
-    /// CLI는 데몬 실행, 네이티브는 엔진 준비가 각각 필요.
+    /// CLI는 데몬 실행, 앱 내 엔진는 엔진 준비가 각각 필요.
     nonisolated static func routeReady(route: EngineMode, daemonRunning: Bool,
                                        nativePrepared: Bool) -> Bool {
         switch route {
@@ -47,19 +47,19 @@ extension ChatStore {
     }
 
     /// 전송 가능 판정 (순수, 테스트 가능, T-146): 스트리밍 중 제외,
-    /// 데몬 실행 중 또는 네이티브 준비. CLI 모드(nativeReady=false)는 기존 조건과 동일.
+    /// 데몬 실행 중 또는 앱 내 엔진 준비. CLI 모드(nativeReady=false)는 기존 조건과 동일.
     nonisolated static func sendAllowed(streaming: Bool, daemonRunning: Bool, nativeReady: Bool) -> Bool {
         !streaming && (daemonRunning || nativeReady)
     }
 
-    /// 첫 토큰 기록 (T-130, CLI·네이티브 공용): preparing 해제+TTFT 로그.
+    /// 첫 토큰 기록 (T-130, CLI·앱 내 엔진 공용): preparing 해제+TTFT 로그.
     func noteFirstToken(started: Date) {
         preparing = false
         let ttft = Date().timeIntervalSince(started)
         logger.perf(feature: "채팅전송", "첫 토큰 TTFT=\(String(format: "%.1f", ttft))s")
     }
 
-    /// 네이티브 전송 (T-130): prepare → 스트림 소비. 완료·PERF·중단 골격은 CLI와 동일.
+    /// 앱 내 엔진 전송 (T-130): prepare → 스트림 소비. 완료·PERF·중단 골격은 CLI와 동일.
     func runNative(engine: any InferenceEngine, prompt: String,
                    image: ChatImage?, idx: Int, started: Date) async {
         do {
@@ -122,7 +122,7 @@ extension ChatStore {
                             lastFlush: inout Date, started: Date) {
         if let rec = state.apply(event) {
             messages[idx].toolCalls = state.tools
-            logger.info(feature: "도구", "네이티브 호출: \(rec.name)")
+            logger.info(feature: "도구", "앱 내 엔진 호출: \(rec.name)")
         }
         // T-148: 0.1초 묶음 갱신 (토큰당 전체 리렌더 방지). 종료 후 최종 반영.
         if Self.shouldFlushText(now: Date(), lastFlush: lastFlush) {
@@ -131,7 +131,7 @@ extension ChatStore {
         }
     }
 
-    /// 네이티브 완료 반영 (T-266 분리): 본문·PERF·시각 확정.
+    /// 앱 내 엔진 완료 반영 (T-266 분리): 본문·PERF·시각 확정.
     /// T-266 S-2: 원장 배출로 도구 상태·결과 반영 (순서 매칭).
     /// T-282: 최종 flush+칩 확정도 담당 (호출부 길이 관리).
     func finishNative(at idx: Int, state: NativeStreamState, started: Date) async {
@@ -155,13 +155,13 @@ extension ChatStore {
         logger.perf(feature: "채팅전송", "완료 elapsed=\(String(format: "%.1f", elapsed))s chars=\(state.acc.count)")
     }
 
-    /// 네이티브 실패 반영 (T-130): EngineError 코드 매핑.
+    /// 앱 내 엔진 실패 반영 (T-130): EngineError 코드 매핑.
     func nativeFailed(at idx: Int, error: Error) {
         let code = (error as? EngineError)?.code ?? EngineError.inferenceFailed("").code
         lastError = code
         messages[idx].text = code == EngineError.initFailed("").code
             ? "엔진 초기화에 실패했습니다. 모델 파일과 메모리를 확인해 주세요. (E-MAC-ENG-0001)"
-            : "네이티브 추론에 실패했습니다. 다른 엔진 모드로 바꿔 다시 시도해 주세요. (E-MAC-ENG-0002)"
+            : "앱 내 엔진 추론에 실패했습니다. 다른 엔진 모드로 바꿔 다시 시도해 주세요. (E-MAC-ENG-0002)"
         messages[idx].isError = true
         messages[idx].finishedAt = Date()
         logger.error(code: code, feature: "채팅전송", "\(error)")

@@ -136,7 +136,7 @@ extension BenchmarkWindowView {
             durationSec: store.elapsed, status: .done)
     }
 
-    /// T-227: 네이티브 기록은 해당 모델로 준비된 엔진이 있어야 시작 가능.
+    /// T-227: 앱 내 엔진 기록은 해당 모델로 준비된 엔진이 있어야 시작 가능.
     private func analysisDisabled(for rec: BenchmarkRecord) -> Bool {
         rec.route == .native && chat.inferenceEngine?.preparedModelID != rec.modelID
     }

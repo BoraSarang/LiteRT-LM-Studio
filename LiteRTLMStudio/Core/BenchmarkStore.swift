@@ -66,9 +66,9 @@ final class BenchmarkStore: ObservableObject {
     /// T-218: 분석 확장(BenchmarkHistory.swift)에서 사용하므로 internal.
     let logger = DebugLogger.shared
 
-    /// 네이티브 측정 제공자 (T-132, ContentView가 nativeEngine으로 연결).
+    /// 앱 내 엔진 측정 제공자 (T-132, ContentView가 nativeEngine으로 연결).
     var nativeBenchmark: ((String) async throws -> EngineBenchmark)?
-    /// 네이티브 측정 제공자 + 진행 알림 (T-216, 설정되면 우선 사용).
+    /// 앱 내 엔진 측정 제공자 + 진행 알림 (T-216, 설정되면 우선 사용).
     var nativeBenchmarkStaged: ((String, @escaping (BenchmarkPhase) -> Void) async throws -> EngineBenchmark)?
     /// 측정 경로 (T-186): 호출 측이 입력창 route로 지정. 기본 CLI.
     var route: EngineMode = .cli
@@ -106,7 +106,7 @@ final class BenchmarkStore: ObservableObject {
         start()
     }
 
-    /// 상태 초기화 (CLI·네이티브 공용).
+    /// 상태 초기화 (CLI·앱 내 엔진 공용).
     private func reset() {
         stage = .initEngine
         currentIter = 0
@@ -141,18 +141,18 @@ final class BenchmarkStore: ObservableObject {
         tickTask = nil
     }
 
-    /// 네이티브 완료 반영 (T-216 분리): 지표+단계+기록.
+    /// 앱 내 엔진 완료 반영 (T-216 분리): 지표+단계+기록.
     private func completeNative(_ met: Metrics) {
         metrics = met
         stage = .done
         running = false
         stopTick()
         logger.perf(feature: "벤치마크",
-                    "네이티브 완료 prefill=\(met.prefillSpeed) decode=\(met.decodeSpeed)")
+                    "앱 내 엔진 완료 prefill=\(met.prefillSpeed) decode=\(met.decodeSpeed)")
         emitRecord(status: .done, metrics: met)
     }
 
-    /// 네이티브 중단 반영 (T-216 분리).
+    /// 앱 내 엔진 중단 반영 (T-216 분리).
     private func interruptNative() {
         running = false
         stopTick()
@@ -161,7 +161,7 @@ final class BenchmarkStore: ObservableObject {
         emitRecord(status: .cancelled, metrics: metrics)
     }
 
-    /// 네이티브 실패 반영 (T-216 분리, T-273 코드 정정): EngineError 코드 우선.
+    /// 앱 내 엔진 실패 반영 (T-216 분리, T-273 코드 정정): EngineError 코드 우선.
     private func failNative(_ error: Error) {
         running = false
         stopTick()
@@ -171,7 +171,7 @@ final class BenchmarkStore: ObservableObject {
         emitRecord(status: .failed, metrics: nil)
     }
 
-    /// 네이티브 측정 (T-132/T-216): 고정 프롬프트 1턴 → Metrics 매핑 + 단계 콜백.
+    /// 앱 내 엔진 측정 (T-132/T-216): 고정 프롬프트 1턴 → Metrics 매핑 + 단계 콜백.
     func runNative(modelID: String, measure: @escaping (String) async throws -> EngineBenchmark) {
         nativeTask?.cancel()
         activeModelID = modelID
@@ -193,7 +193,7 @@ final class BenchmarkStore: ObservableObject {
         }
     }
 
-    /// 네이티브 측정 (staged 제공자 우선, T-216).
+    /// 앱 내 엔진 측정 (staged 제공자 우선, T-216).
     private func runNative(modelID: String) {
         if let staged = nativeBenchmarkStaged {
             nativeTask?.cancel()
@@ -295,7 +295,7 @@ final class BenchmarkStore: ObservableObject {
 // MARK: - CLI 출력 파싱 (T-126 분리: 클래스 본문 길이 분산)
 
 private extension BenchmarkStore {
-    /// 네이티브 결과 매핑 (T-216 분리): EngineBenchmark → Metrics.
+    /// 앱 내 엔진 결과 매핑 (T-216 분리): EngineBenchmark → Metrics.
     nonisolated static func makeMetrics(_ info: EngineBenchmark) -> Metrics {
         Metrics(backend: "앱 내 엔진 GPU",
                 prefillTokens: info.prefillTokens,

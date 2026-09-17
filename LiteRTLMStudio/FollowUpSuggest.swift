@@ -42,6 +42,82 @@ enum FollowUpSuggest {
         return Array((clean + fallback).prefix(count))
     }
 
+    /// LLM 요청 프롬프트 (순수, 테스트 가능, T-291): 마지막 Q/A 1턴만.
+    /// T-292 작업 축소: Q 1000자·A 800자 (prefill 단축).
+    nonisolated static func prompt(question: String, answer: String) -> String {
+        let q = String(question.prefix(1000))
+        let a = String(answer.prefix(800))
+        return """
+        다음 대화를 읽고 사용자가 이어서 물을 만한 후속질문 3개를 각 25자 이내로 한 줄에 하나씩 써줘. \
+        번호나 설명 없이 질문만.
+        질문: \(q)
+        답변: \(a)
+        """
+    }
+
+    /// LLM 응답 파싱 (순수, 테스트 가능, T-291): 번호/불릿/따옴표/JSON 배열 수용,
+    /// 빈 제거·중복 제거·30자 절단. 0건이면 빈 배열 (호출 측이 휴리스틱 폴백).
+    nonisolated static func parseFollowUps(from text: String, max count: Int = 3) -> [String] {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("["),
+           let data = trimmed.data(using: .utf8),
+           let arr = try? JSONDecoder().decode([String].self, from: data) {
+            return cleanFollowUps(arr, max: count)
+        }
+        let lines = trimmed.components(separatedBy: .newlines)
+        let stripped = lines.map { stripFollowUpMarker($0) }
+        return cleanFollowUps(stripped, max: count)
+    }
+
+    /// 행 머리 마커 제거 (순수, T-291): "1." "1)" "- " "* " "• " + 겹따옴표.
+    nonisolated static func stripFollowUpMarker(_ line: String) -> String {
+        var s = line.trimmingCharacters(in: .whitespaces)
+        s = s.trimmingCharacters(in: CharacterSet(charactersIn: "\"'“”‘’「」"))
+            .trimmingCharacters(in: .whitespaces)
+        if let r = s.range(of: #"^\d+\s*[.\)\:\-、]\s*"#, options: .regularExpression) {
+            s = String(s[r.upperBound...])
+        } else if let r = s.range(of: #"^[-*•·▪▶–]\s+"#, options: .regularExpression) {
+            s = String(s[r.upperBound...])
+        }
+        return s.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// 후속질문 정리 (순수, T-291): 빈 제거·중복 제거·30자 절단.
+    nonisolated static func cleanFollowUps(_ lines: [String], max count: Int) -> [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for line in lines {
+            let cut = String(line.prefix(30)).trimmingCharacters(in: .whitespaces)
+            guard cut.count >= 2, seen.insert(cut).inserted else { continue }
+            out.append(cut)
+            if out.count >= count { break }
+        }
+        return out
+    }
+
+    /// 선행 결과 재호출 판정 (순수, 테스트 가능, T-292):
+    /// 스냅샷 이후 답변이 300자 초과 또는 절반 초과로 자랐으면 재호출.
+    nonisolated static func needsRefire(snapshot: Int, final: Int) -> Bool {
+        final - snapshot > max(300, snapshot / 2)
+    }
+
+    /// T-292 후속 선행 조건 (순수, 테스트 가능): 서버 route만 스트리밍 중 300자 도달.
+    /// 네이티브는 Engine 동시 추론 미검증이라 완료 후 호출 유지.
+    nonisolated static func shouldPrefetch(route: EngineMode, streaming: Bool, role: String,
+                                           isError: Bool, count: Int) -> Bool {
+        route == .cli && streaming && role == "assistant" && !isError && count >= 300
+    }
+
+    /// 후속질문 질문문 (순수, 테스트 가능, T-291): 대상 응답 직전 마지막 사용자 발화.
+    nonisolated static func questionBefore(messages: [ChatStore.Message], id: UUID) -> String {
+        var q = ""
+        for msg in messages {
+            if msg.id == id { break }
+            if msg.role == "user" { q = msg.text }
+        }
+        return q
+    }
+
     /// 키워드 추출 (순수, T-261): 2자 이상·불용어 제외·빈도순 상위.
     nonisolated static func keywords(from text: String, limit: Int = 2) -> [String] {
         var freq: [String: Int] = [:]
@@ -58,6 +134,141 @@ enum FollowUpSuggest {
             if $0.key.count != $1.key.count { return $0.key.count > $1.key.count }
             return $0.key < $1.key
         }.prefix(limit).map(\.key)
+    }
+}
+
+/// 후속질문 LLM 상태 (T-291): 메시지별 lazy 1회 호출, 현재 채팅 경로 그대로.
+/// 실패·파싱 0건은 조용히 휴리스틱 폴백 (호출 측이 chips 비어있음으로 판정).
+@MainActor
+final class FollowUpStore: ObservableObject {
+    @Published private(set) var messageID: UUID?
+    @Published private(set) var loading = false
+    @Published private(set) var chips: [String] = []
+    private var snapshotLen: Int?
+    private var task: Task<Void, Never>?
+    private let logger = DebugLogger.shared
+
+    /// 요청 1회 (중복 가드): 같은 방 ID면 재요청 안 함. 선행·완료 공용.
+    func request(messageID: UUID, question: String, answer: String, chat: ChatStore) {
+        if self.messageID == messageID && (loading || !chips.isEmpty) { return }
+        cancel()
+        self.messageID = messageID
+        chips = []
+        snapshotLen = answer.count
+        loading = true
+        let prompt = FollowUpSuggest.prompt(question: question, answer: answer)
+        let started = Date()
+        let kind = chat.streaming ? "선행 요청" : "LLM 요청"
+        logger.info(feature: "후속질문", "\(kind) (\(chat.route.title))")
+        task = Task { [weak self] in
+            let result: String?
+            if chat.route == .native, let engine = chat.inferenceEngine {
+                result = await Self.fetchNative(engine: engine, modelID: chat.model,
+                                                prompt: prompt)
+            } else {
+                result = await Self.fetchServer(baseURL: chat.baseURL, model: chat.model,
+                                                prompt: prompt)
+            }
+            guard let self, !Task.isCancelled, self.messageID == messageID else { return }
+            let elapsed = Date().timeIntervalSince(started)
+            let parsed = result.map { FollowUpSuggest.parseFollowUps(from: $0) } ?? []
+            self.loading = false
+            if parsed.isEmpty {
+                self.logger.info(feature: "후속질문",
+                                 "실패·휴리스틱 폴백 (\(String(format: "%.1f", elapsed))s)")
+            } else {
+                self.chips = parsed
+                self.logger.info(feature: "후속질문",
+                                 "완료 \(parsed.count)개 (\(String(format: "%.1f", elapsed))s)")
+            }
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
+        loading = false
+    }
+
+    /// 완료 시점 확정 (T-292): 선행 결과가 드리프트 없으면 유지, 자랐으면 재호출.
+    /// 선행 진행 중인데 이미 드리프트면 취소 후 새로 호출. 선행 실패분은 자연 재시도.
+    func finalize(messageID: UUID, question: String, answer: String, chat: ChatStore) {
+        if self.messageID == messageID, let snap = snapshotLen {
+            if loading {
+                if FollowUpSuggest.needsRefire(snapshot: snap, final: answer.count) {
+                    logger.info(feature: "후속질문", "선행 취소·재호출 (드리프트)")
+                    cancel()
+                    chips = []
+                    request(messageID: messageID, question: question,
+                            answer: answer, chat: chat)
+                }
+                return
+            }
+            if !chips.isEmpty {
+                if !FollowUpSuggest.needsRefire(snapshot: snap, final: answer.count) {
+                    logger.info(feature: "후속질문", "선행 유지 (드리프트 없음)")
+                    return
+                }
+                logger.info(feature: "후속질문", "재호출 (드리프트)")
+                chips = []
+            }
+        }
+        request(messageID: messageID, question: question, answer: answer, chat: chat)
+    }
+
+    /// 서버 1회성 비스트림 호출 (T-291): tools·extras 제외, 마지막 Q/A만.
+    static func fetchServer(baseURL: URL, model: String, prompt: String) async -> String? {
+        var req = URLRequest(url: baseURL.appendingPathComponent("v1/chat/completions"))
+        req.httpMethod = "POST"
+        req.timeoutInterval = 30
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = [
+            "model": model,
+            "messages": [
+                ["role": "system",
+                 "content": "너는 이어질 질문을 제안하는 도우미다. 후속질문만 출력한다."],
+                ["role": "user", "content": prompt]
+            ],
+            "temperature": 0.7, "max_tokens": 100, "stream": false
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let choices = json["choices"] as? [[String: Any]],
+              let msg = choices.first?["message"] as? [String: Any],
+              let content = msg["content"] as? String
+        else { return nil }
+        return content
+    }
+
+    /// 앱 내 엔진 1회성 호출 (T-291): 고유 키로 재사용 강제 회피.
+    /// 본 대화 KV 보존을 위해 호출 전후 대화·키를 복원. 도구 채널은 문자열
+    /// 스트림에 섞이지 않고 파서가 잡라인을 걸러내므로 별도 분리 없음.
+    static func fetchNative(engine: any InferenceEngine, modelID: String,
+                            prompt: String) async -> String? {
+        let native = engine as? NativeEngine
+        let savedConv = native?.activeConversation
+        let savedKey = native?.activeKey
+        defer {
+            native?.activeConversation = savedConv
+            native?.activeKey = savedKey
+        }
+        do {
+            try await engine.prepare(modelID: modelID)
+        } catch { return nil }
+        let key = ["후속질문", UUID().uuidString]
+        let opts = GenerationOptions(temperature: 0.7, maxTokens: 100)
+        let stream = engine.stream(prompt: prompt, image: nil, history: [],
+                                   keyHistory: key, options: opts)
+        var acc = ""
+        do {
+            for try await chunk in stream {
+                if Task.isCancelled { engine.cancel(); return nil }
+                acc += chunk
+                if acc.count > 2000 { break }
+            }
+        } catch { return nil }
+        return acc.isEmpty ? nil : acc
     }
 }
 
@@ -87,5 +298,22 @@ struct FollowUpChipsView: View {
                 }
             }
         }
+    }
+}
+
+/// 후속질문 로딩 자리 (T-291): 칩과 동일 배치의 회색 스켈레톤 3개 (폭 점프 방지).
+struct FollowUpSkeletonView: View {
+    var body: some View {
+        HStack {
+            Spacer(minLength: 60)
+            VStack(alignment: .trailing, spacing: 6) {
+                ForEach(0 ..< 3, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.secondary.opacity(0.2))
+                        .frame(width: 140, height: 28)
+                }
+            }
+        }
+        .accessibilityLabel("후속 질문 생성 중")
     }
 }

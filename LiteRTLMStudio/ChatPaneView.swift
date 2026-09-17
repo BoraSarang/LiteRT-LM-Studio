@@ -196,6 +196,7 @@ extension ContentView {
                 }
             }
             .onChange(of: chat.messages.last?.text) { _, _ in followStreamedText() }
+            .onChange(of: chat.messages.last?.text) { _, _ in prefetchFollowUp() }
             .onChange(of: chat.messages.last?.thinking) { _, _ in followStreamedText() }
             .onChange(of: chat.streaming) { _, streaming in
                 if streaming {
@@ -333,6 +334,22 @@ extension ContentView {
                 }
             }
             if shouldShowFollowUp(m) {
+                followUpArea(m)
+            }
+        }
+    }
+
+    /// T-291 후속질문 영역: LLM 로딩=스켈레톤, 완료=LLM 칩, 실패=휴리스틱 폴백.
+    func followUpArea(_ m: ChatStore.Message) -> some View {
+        Group {
+            if followUps.messageID == m.id && followUps.loading {
+                FollowUpSkeletonView()
+            } else if followUps.messageID == m.id && !followUps.chips.isEmpty {
+                FollowUpChipsView(chips: followUps.chips, disabled: chat.streaming) { chip in
+                    logger.info(feature: "후속질문", "전송: \(chip.prefix(20))")
+                    chat.send(chip)
+                }
+            } else {
                 FollowUpChipsView(
                     chips: FollowUpSuggest.suggestFollowUps(for: m.text),
                     disabled: chat.streaming
@@ -342,6 +359,24 @@ extension ContentView {
                 }
             }
         }
+        .onAppear {
+            followUps.finalize(messageID: m.id,
+                               question: FollowUpSuggest.questionBefore(messages: chat.messages,
+                                                                        id: m.id),
+                               answer: m.text, chat: chat)
+        }
+    }
+
+    /// T-292 후속 선행 생성: 스트리밍 중 300자 도달 시 1회 (중복은 스토어 가드).
+    func prefetchFollowUp() {
+        guard let last = chat.messages.last,
+              FollowUpSuggest.shouldPrefetch(route: chat.route, streaming: chat.streaming,
+                                             role: last.role, isError: last.isError,
+                                             count: last.text.count) else { return }
+        followUps.request(messageID: last.id,
+                          question: FollowUpSuggest.questionBefore(messages: chat.messages,
+                                                                   id: last.id),
+                          answer: last.text, chat: chat)
     }
 
     /// 후속질문 표시 판정 (순수 조건 묶음, T-261): 마지막 완료 응답에만.

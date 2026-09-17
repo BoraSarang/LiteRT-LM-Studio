@@ -189,13 +189,6 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertTrue(C.sendAllowed(streaming: false, daemonRunning: true, nativeReady: true))
     }
 
-    /// 네이티브 모드 데몬 캡션 (T-146): pid 없으면 없음, 있으면 대기 표기.
-    func testNativeDaemonCaption() {
-        XCTAssertEqual(SystemMetersView.nativeDaemonCaption(cpu: 0, rssGB: 0, pidCount: 0), "데몬 없음")
-        XCTAssertEqual(SystemMetersView.nativeDaemonCaption(cpu: 0, rssGB: 0.03, pidCount: 2),
-                       "데몬 대기 중 · CPU 0% · 0.03GB")
-    }
-
     /// 스트리밍 화면 묶음 갱신 판정 (T-148): 0.1초 간격.
     func testShouldFlushText() {
         typealias C = ChatStore
@@ -470,6 +463,86 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(chips.count, 3)
     }
 
+    /// 후속질문 LLM 파싱 번호형 (T-291): "1." 제거 3개.
+    func testFollowUpParseNumbered() {
+        let out = FollowUpSuggest.parseFollowUps(from: "1. 사과가 뭐야\n2) 바나나 예시 줘\n3: 다음 질문은")
+        XCTAssertEqual(out, ["사과가 뭐야", "바나나 예시 줘", "다음 질문은"])
+    }
+
+    /// 후속질문 LLM 파싱 불릿형 (T-291): "-/•" 제거.
+    func testFollowUpParseBullets() {
+        let out = FollowUpSuggest.parseFollowUps(from: "- 첫 번째 질문이야\n• 두 번째 질문이야")
+        XCTAssertEqual(out.count, 2)
+        XCTAssertTrue(out[0].hasPrefix("첫 번째"))
+    }
+
+    /// 후속질문 LLM 파싱 JSON 배열 (T-291).
+    func testFollowUpParseJSON() {
+        let out = FollowUpSuggest.parseFollowUps(from: #"["첫 질문", "두 번째 질문"]"#)
+        XCTAssertEqual(out, ["첫 질문", "두 번째 질문"])
+    }
+
+    /// 후속질문 LLM 파싱 실패 (T-291): 잡텍스트만이면 빈 배열 (휴리스틱 폴백).
+    func testFollowUpParseEmpty() {
+        XCTAssertTrue(FollowUpSuggest.parseFollowUps(from: "   \n  ").isEmpty)
+        XCTAssertTrue(FollowUpSuggest.parseFollowUps(from: "a\nb").isEmpty)
+    }
+
+    /// 후속질문 LLM 파싱 따옴표·중복 (T-291): 겹따옴표 제거+중복 1개.
+    func testFollowUpParseQuotesDedup() {
+        let out = FollowUpSuggest.parseFollowUps(from: "\"같은 질문이야\"\n같은 질문이야\n‘다른 질문이야’")
+        XCTAssertEqual(out, ["같은 질문이야", "다른 질문이야"])
+    }
+
+    /// 후속질문 LLM 파싱 길이 (T-291): 30자 절단.
+    func testFollowUpParseTruncate() {
+        let long = String(repeating: "가", count: 50)
+        let out = FollowUpSuggest.parseFollowUps(from: long)
+        XCTAssertEqual(out.first?.count, 30)
+    }
+
+    /// 후속질문 프롬프트 절단 (T-291): Q/A 각 절단, T-292 작업 축소(Q 1000·A 800).
+    func testFollowUpPromptTruncates() {
+        let p = FollowUpSuggest.prompt(question: String(repeating: "q", count: 3000),
+                                       answer: String(repeating: "a", count: 3000))
+        XCTAssertTrue(p.contains("질문:"))
+        XCTAssertLessThanOrEqual(p.count, 2200)
+    }
+
+    /// 후속질문 재호출 판정 (T-292): 300자 초과 또는 절반 초과 성장 시 재호출.
+    func testFollowUpNeedsRefire() {
+        XCTAssertFalse(FollowUpSuggest.needsRefire(snapshot: 300, final: 400))
+        XCTAssertTrue(FollowUpSuggest.needsRefire(snapshot: 300, final: 2000))
+        XCTAssertFalse(FollowUpSuggest.needsRefire(snapshot: 1500, final: 1700))
+        XCTAssertTrue(FollowUpSuggest.needsRefire(snapshot: 1500, final: 2500))
+    }
+
+    /// 후속질문 선행 조건 (T-292): 서버 스트리밍 중 300자 이상만.
+    func testFollowUpShouldPrefetch() {
+        XCTAssertTrue(FollowUpSuggest.shouldPrefetch(route: .cli, streaming: true,
+                                                     role: "assistant", isError: false, count: 300))
+        XCTAssertFalse(FollowUpSuggest.shouldPrefetch(route: .native, streaming: true,
+                                                      role: "assistant", isError: false, count: 500))
+        XCTAssertFalse(FollowUpSuggest.shouldPrefetch(route: .cli, streaming: false,
+                                                      role: "assistant", isError: false, count: 500))
+        XCTAssertFalse(FollowUpSuggest.shouldPrefetch(route: .cli, streaming: true,
+                                                      role: "assistant", isError: false, count: 299))
+        XCTAssertFalse(FollowUpSuggest.shouldPrefetch(route: .cli, streaming: true,
+                                                      role: "user", isError: false, count: 500))
+    }
+
+    /// 후속질문 질문문 (T-291): 대상 직전 마지막 사용자 발화.
+    func testQuestionBefore() {
+        let u1 = ChatStore.Message(role: "user", text: "첫 질문")
+        let a1 = ChatStore.Message(role: "assistant", text: "첫 답변")
+        let u2 = ChatStore.Message(role: "user", text: "둘째 질문")
+        let a2 = ChatStore.Message(role: "assistant", text: "둘째 답변")
+        let msgs = [u1, a1, u2, a2]
+        XCTAssertEqual(FollowUpSuggest.questionBefore(messages: msgs, id: a2.id), "둘째 질문")
+        XCTAssertEqual(FollowUpSuggest.questionBefore(messages: msgs, id: a1.id), "첫 질문")
+        XCTAssertEqual(FollowUpSuggest.questionBefore(messages: [a1], id: a1.id), "")
+    }
+
     /// 새소식 파싱 (T-262): 정상 2건+빈 태그 제외.
     func testReleaseParse() {
         let json = """
@@ -530,6 +603,44 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         store.merge([AppRelease(tag: "v0.1.0", name: "", body: "", url: "")])
         XCTAssertEqual(store.releases.count, 20)
         try? FileManager.default.removeItem(at: tmp)
+    }
+
+    /// 새소식 출처 기본값 (T-294): 구 캐시 JSON은 엔진扱い.
+    func testReleaseSourceDefault() {
+        let json = """
+        [{"tag_name":"v0.15.0","name":"","body":"","html_url":"","prerelease":false}]
+        """
+        let list = ReleaseNotesParser.parse(Data(json.utf8))
+        XCTAssertEqual(list.first?.source, .engine)
+        XCTAssertEqual(list.first?.id, "engine:v0.15.0")
+    }
+
+    /// 새소식 cross-source 병합 (T-294): 동 태그 양쪽 출처는 2건 유지.
+    @MainActor
+    func testReleaseMergeCrossSource() {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("releases-xsrc-\(UUID().uuidString).json")
+        let store = ReleaseNotes(storageURL: tmp)
+        store.merge([
+            AppRelease(tag: "v1.0.0", name: "", body: "", url: "", source: .engine),
+            AppRelease(tag: "v1.0.0", name: "", body: "", url: "", source: .app),
+        ])
+        XCTAssertEqual(store.releases.count, 2)
+        store.merge([])
+        XCTAssertEqual(store.releases.count, 2)
+        try? FileManager.default.removeItem(at: tmp)
+    }
+
+    /// 신버전 판정 앱 무시 (T-294): 앱 태그는 엔진 업데이트 판정 불변.
+    func testReleaseNewerStableIgnoresApp() {
+        let rels = [
+            AppRelease(tag: "v9.9.9", name: "", body: "", url: "", source: .app),
+            AppRelease(tag: "v0.15.0", name: "", body: "", url: "", source: .engine),
+        ]
+        XCTAssertEqual(ReleaseNotesParser.newerStable(rels, installed: "0.14.0")?.tag, "v0.15.0")
+        XCTAssertNil(ReleaseNotesParser.newerStable(
+            [AppRelease(tag: "v9.9.9", name: "", body: "", url: "", source: .app)],
+            installed: "0.14.0"))
     }
 
     /// 채팅 검색 일치 (T-263): 질문·응답 모두 대상.
@@ -919,6 +1030,23 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(EngineError.inferenceFailed("y").code, "E-MAC-ENG-0002")
     }
 
+    /// 대화용 도구 목록 (T-290): 미지원 모델은 빈 배열.
+    func testToolsForConversation() {
+        let tools: [any Tool] = [GetTimeTool()]
+        XCTAssertEqual(NativeEngine.toolsForConversation(supportsFC: true, registered: tools).count, 1)
+        XCTAssertTrue(NativeEngine.toolsForConversation(supportsFC: false, registered: tools).isEmpty)
+    }
+
+    /// 빈 본문 박스 표시 (T-289): 추론·도구 있으면 숨김.
+    func testShouldShowBodyPlaceholder() {
+        typealias B = AssistantBubbleView
+        XCTAssertTrue(B.shouldShowBodyPlaceholder(thinking: nil, toolCalls: nil))
+        XCTAssertTrue(B.shouldShowBodyPlaceholder(thinking: "  ", toolCalls: []))
+        XCTAssertFalse(B.shouldShowBodyPlaceholder(thinking: "고민", toolCalls: nil))
+        XCTAssertFalse(B.shouldShowBodyPlaceholder(
+            thinking: nil, toolCalls: [ToolCallRecord(callID: "c", name: "n")]))
+    }
+
     /// 시작 실패 판정 (T-277): 재사용 핸들 거부만 재시도.
     func testIsStartStreamFailure() {
         XCTAssertTrue(NativeEngine.isStartStreamFailure(
@@ -954,8 +1082,8 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(closed.clean, "답변")
         XCTAssertEqual(closed.thought, "고민")
         let single = ThinkTag.extract("<think>한 덩어리", final: true)
-        XCTAssertEqual(single.clean, "")
-        XCTAssertEqual(single.thought, "한 덩어리")
+        XCTAssertEqual(single.clean, "한 덩어리")
+        XCTAssertEqual(single.thought, "")
     }
 
     /// 네이티브 자동 초기화 판정 (T-275).

@@ -157,7 +157,7 @@ extension ContentView {
         self.clampToDocument()
         guard let sv = self.chatScrollView, let doc = sv.documentView else { return true }
         let clipH = sv.contentView.bounds.height
-        // T-150 네이티브 동기 렌더: 페인트 대기 불필요, 항상 참.
+        // T-150 앱 내 엔진 동기 렌더: 페인트 대기 불필요, 항상 참.
         let painted = true
         let snap = ContentView.EntrySnapshot(
             attempt: attempt,

@@ -260,7 +260,7 @@ final class LiteRTLMStudioViewTests: XCTestCase {
     /// 회귀: 툴바 SF Symbol 실렌더 가능 (외부 link.badge.minus 링 현상 방지).
     func testToolbarSymbolsResolve() {
         for name in ["play.fill", "stop.fill", "terminal", "command", "sidebar.right",
-                     "gauge", "server.rack", "wand.and.stars"] {
+                     "gauge", "server.rack", "wand.and.stars", "macwindow"] {
             XCTAssertNotNil(NSImage(systemSymbolName: name, accessibilityDescription: nil), "\(name) 확인")
         }
     }

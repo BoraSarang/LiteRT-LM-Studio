@@ -238,7 +238,7 @@ extension ContentView {
                 lifecycleActionRow(icon: "stop.fill", title: "앱 내 엔진 중지",
                                    help: "앱 내 엔진 메모리 반납") {
                     nativeEngine.release()
-                    DebugLogger.shared.info(feature: "네이티브엔진", "사용자 중지 (메모리 반납)")
+                    DebugLogger.shared.info(feature: "앱내엔진", "사용자 중지 (메모리 반납)")
                 }
                 lifecycleActionRow(icon: "arrow.clockwise", title: "다시 실행",
                                    help: "반납 후 처음부터 다시 준비") {
@@ -285,12 +285,12 @@ extension ContentView {
         .help(help)
     }
 
-    /// route 분기 판정 (순수, 테스트 가능): 네이티브일 때만 네이티브 버튼.
+    /// route 분기 판정 (순수, 테스트 가능): 앱 내 엔진일 때만 앱 내 엔진 버튼.
     nonisolated static func showsNativeLifecycle(route: EngineMode) -> Bool {
         route == .native
     }
 
-    /// Ollama식 통합 상태 (T-183/T-186): 대화 가능 = 데몬 실행 중 OR 네이티브 준비됨.
+    /// Ollama식 통합 상태 (T-183/T-186): 대화 가능 = 데몬 실행 중 OR 앱 내 엔진 준비됨.
     /// 엔진 경로는 입력창 route를 본다.
     var unifiedStatus: UnifiedStatus {
         let label = nativeEngine.preparedModelID.map { ModelAlias.display(id: $0) }

@@ -47,7 +47,7 @@ struct ChatInputBar: View {
     }
 
     /// 전송 가능 (T-146/T-186): 스트리밍 중 제외, 선택 경로별 준비 필요.
-    /// 데몬=실행 중, 네이티브=엔진 준비됨. 입력 자체는 막지 않고 전송만 차단.
+    /// 데몬=실행 중, 앱 내 엔진=엔진 준비됨. 입력 자체는 막지 않고 전송만 차단.
     var canSend: Bool {
         switch chat.route {
         case .cli:

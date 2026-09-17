@@ -9,7 +9,7 @@ extension ContentView {
         Form {
             if showSystem {
                 Section(InspectorTitle.system) {
-                    SystemMetersView(monitor: monitor, route: chat.route)
+                    SystemMetersView(monitor: monitor)
                 }
             }
             if showBackend {

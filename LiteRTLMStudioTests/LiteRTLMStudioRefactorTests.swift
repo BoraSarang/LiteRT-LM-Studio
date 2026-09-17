@@ -335,6 +335,81 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         XCTAssertEqual(fake.prepareCalls, ["gemma4-12b"])
     }
 
+    /// 후속질문 스토어 종단 (T-291): FakeEngine 스트림→파싱→칩 3개 적재+중복 가드.
+    func testFollowUpStoreNativeEndToEnd() async {
+        let store = makeStore()
+        let fake = FakeEngine()
+        fake.chunks = ["1. 첫 번째 질문이야\n2. 두 번째 질문이야\n3. 세 번째 질문이야"]
+        store.inferenceEngine = fake
+        store.route = .native
+        store.model = "fake-model"
+        let followUps = FollowUpStore()
+        let id = UUID()
+        followUps.request(messageID: id, question: "질문", answer: "답변", chat: store)
+        XCTAssertTrue(followUps.loading)
+        let end = Date().addingTimeInterval(10)
+        while followUps.loading, Date() < end {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertFalse(followUps.loading)
+        XCTAssertEqual(followUps.messageID, id)
+        XCTAssertEqual(followUps.chips.count, 3)
+        XCTAssertEqual(fake.prepareCalls, ["fake-model"])
+        // 중복 가드: 같은 ID 재요청은 추가 호출 없이 무시.
+        followUps.request(messageID: id, question: "질문", answer: "답변", chat: store)
+        try? await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(fake.prepareCalls, ["fake-model"])
+        XCTAssertEqual(followUps.chips.count, 3)
+    }
+
+    /// 후속질문 완료 확정 유지 (T-292): 드리프트 없으면 추가 호출 없이 유지.
+    func testFollowUpFinalizeKeeps() async {
+        let store = makeStore()
+        let fake = FakeEngine()
+        fake.chunks = ["1. 첫 번째 질문이야\n2. 두 번째 질문이야\n3. 세 번째 질문이야"]
+        store.inferenceEngine = fake
+        store.route = .native
+        store.model = "fake-model"
+        let followUps = FollowUpStore()
+        let id = UUID()
+        followUps.request(messageID: id, question: "질문", answer: "짧은 답변", chat: store)
+        let end = Date().addingTimeInterval(10)
+        while followUps.loading, Date() < end {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertEqual(followUps.chips.count, 3)
+        followUps.finalize(messageID: id, question: "질문", answer: "짧은 답변이야", chat: store)
+        try? await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(fake.prepareCalls, ["fake-model"])
+        XCTAssertEqual(followUps.chips.count, 3)
+    }
+
+    /// 후속질문 완료 확정 재호출 (T-292): 드리프트면 새로 호출.
+    func testFollowUpFinalizeRefires() async {
+        let store = makeStore()
+        let fake = FakeEngine()
+        fake.chunks = ["1. 첫 번째 질문이야\n2. 두 번째 질문이야\n3. 세 번째 질문이야"]
+        store.inferenceEngine = fake
+        store.route = .native
+        store.model = "fake-model"
+        let followUps = FollowUpStore()
+        let id = UUID()
+        followUps.request(messageID: id, question: "질문", answer: "짧은 답변", chat: store)
+        var end = Date().addingTimeInterval(10)
+        while followUps.loading, Date() < end {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertEqual(followUps.chips.count, 3)
+        let grown = "짧은 답변" + String(repeating: "가", count: 2000)
+        followUps.finalize(messageID: id, question: "질문", answer: grown, chat: store)
+        end = Date().addingTimeInterval(10)
+        while followUps.loading, Date() < end {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertEqual(fake.prepareCalls, ["fake-model", "fake-model"])
+        XCTAssertEqual(followUps.chips.count, 3)
+    }
+
     /// 준비 실패 (T-130): E-MAC-ENG-0001 버블.
     func testNativePrepareFailure() async {
         let store = makeStore()

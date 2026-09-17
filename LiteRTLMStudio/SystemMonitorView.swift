@@ -11,20 +11,12 @@ private enum MeterColor {
 }
 
 /// 시스템 섹션 (인스펙터용): 공유 모니터 주입.
-/// 활성 상태 보기식: 타이틀 위 → 그래프, 상세는 호버 팝오버. CPU 2선·RAM 3선, 데몬 히어로 유지.
+/// 활성 상태 보기식: 타이틀 위 → 그래프, 상세는 호버 팝오버. CPU 2선·RAM 3선.
 /// 모니터 본체: 인스펙터·하단 패널이 공유 (샘플러 1개).
 struct SystemMetersView: View {
     @ObservedObject var monitor: SystemMonitor
-    /// 측정 히어로 기준 경로 (T-186): 입력창 route. 네이티브면 앱 상주가 주인공.
-    var route: EngineMode = .cli
     @State private var cpuHover = false
     @State private var ramHover = false
-
-    /// 네이티브 모드 데몬 캡션 (순수, 테스트 가능, T-146): pid 없으면 없음, 있으면 대기 표기.
-    nonisolated static func nativeDaemonCaption(cpu: Double, rssGB: Double, pidCount: Int) -> String {
-        guard pidCount > 0 else { return "데몬 없음" }
-        return String(format: "데몬 대기 중 · CPU %.0f%% · %.2fGB", cpu, rssGB)
-    }
 
     var body: some View {
         HStack(spacing: 4) {
@@ -36,48 +28,7 @@ struct SystemMetersView: View {
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
                 .help("IOKit busy 추정치. powermetrics급 정밀도가 아닙니다.")
         }
-        // 데몬 히어로: 이 화면의 주인공 (pid 0개면 측정 없음 표시, 0% 오해 방지)
-        // T-146/T-186: 네이티브 경로면 프로세스 내 추론이라 앱 상주가 주인공, 데몬은 대기 표기.
-        VStack(alignment: .leading, spacing: 6) {
-            if route == .native {
-                HStack {
-                    Label("앱 내 엔진 (프로세스 내)", systemImage: "cpu")
-                        .font(.system(size: 12, weight: .semibold))
-                        .help("프로세스 내 직접 추론. 데몬 CPU 0이 정상입니다.")
-                    Spacer()
-                    Text(String(format: "앱 상주 %.2fGB", monitor.appRSSGB))
-                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(.primary)
-                }
-                HStack {
-                    Text(Self.nativeDaemonCaption(cpu: monitor.daemonCPU, rssGB: monitor.daemonRSSGB,
-                                             pidCount: monitor.daemonPidCount))
-                        .font(DS.captionFont).foregroundStyle(.tertiary)
-                        .help(":9379 리스너 + 자식 합산. 앱 내 엔진 모드에서는 유휴가 정상입니다.")
-                    Spacer()
-                }
-            } else {
-                HStack {
-                    Label("데몬", systemImage: "server.rack")
-                        .font(.system(size: 12, weight: .semibold))
-                        .help(":9379 리스너 + 자식 합산 (단일코어 기준 %, footprint 합산)")
-                    Spacer()
-                    if monitor.daemonPidCount == 0 {
-                        Text("측정 대상 없음")
-                            .font(DS.captionFont).foregroundStyle(.tertiary)
-                            .help("서버 중지 상태이거나 측정 실패 (E-MAC-NET-0010 로그 확인)")
-                    } else {
-                        Text(String(format: "CPU %.0f%% · %.2fGB", monitor.daemonCPU, monitor.daemonRSSGB))
-                            .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                            .foregroundStyle(.primary)
-                    }
-                }
-            }
-            daemonChart
-        }
-        .padding(8)
-        .background(Color.orange.opacity(0.08))
-        .clipShape(.rect(cornerRadius: 8))
+        // T-293: 데몬 히어로 카드 완전 삭제 (양 경로 무의미). CPU/RAM/GPU 미터만 유지.
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 meterTitle(label: "CPU",
@@ -226,22 +177,6 @@ struct SystemMetersView: View {
         .chartXScale(domain: SystemMonitor.xDomain(tick: monitor.sampleTick))
         .chartYScale(domain: 0 ... 100)
         .frame(height: 64)
-    }
-
-    private var daemonChart: some View {
-        let hist = monitor.daemonCPUHistory
-        let base = monitor.sampleTick - hist.count
-        return Chart {
-            ForEach(0 ..< hist.count, id: \.self) { i in
-                LineMark(x: .value("t", base + i), y: .value("v", hist[i]))
-                    .foregroundStyle(.orange)
-            }
-        }
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartXScale(domain: SystemMonitor.xDomain(tick: monitor.sampleTick))
-        .chartYScale(domain: 0 ... max(100, (monitor.daemonCPUHistory.max() ?? 0) * 1.1))
-        .frame(height: 56)
     }
 
     private func miniChart(_ history: [Double], color: Color, height: CGFloat = 28) -> some View {

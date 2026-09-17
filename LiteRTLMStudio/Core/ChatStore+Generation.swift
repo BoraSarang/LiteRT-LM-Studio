@@ -49,7 +49,7 @@ extension ChatStore {
         return req
     }
 
-    /// 현재 생성 옵션 묶음 (T-176): 네이티브 어댑터 전달용.
+    /// 현재 생성 옵션 묶음 (T-176): 앱 내 엔진 어댑터 전달용.
     /// T-285: 스킬+MCP 안내를 시스템 프롬프트에 합성.
     func generationOptions() -> GenerationOptions {
         let extras = SkillsStore.extrasBlock(

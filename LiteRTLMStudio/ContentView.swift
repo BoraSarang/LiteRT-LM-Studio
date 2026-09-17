@@ -11,7 +11,7 @@ struct ContentView: View {
     // 모니터는 직접 관찰하지 않음 (T-045): 1Hz 틱이 채팅 전체를 다시 그리며 CPU 100%를 냄.
     // 관찰은 SystemMetersView·BottomPanelView가 각자 담당 (해당 서브트리만 갱신).
     let monitor: SystemMonitor
-    // 네이티브 엔진은 준비·해제 때만 퍼블리시라 직접 관찰 (사이드바 상태 표시용).
+    // 앱 내 엔진 엔진은 준비·해제 때만 퍼블리시라 직접 관찰 (사이드바 상태 표시용).
     @ObservedObject var nativeEngine: NativeEngine
     // T-216: 채팅·벤치마크는 AppServices 단일 인스턴스 공유 (별도창·사이드바).
     @ObservedObject var chat: ChatStore
@@ -55,6 +55,7 @@ struct ContentView: View {
     @State var pinnedToBottom = false // Sticky-Pin: 하단 고정 시만 추종 (T-212 모름=false, 첫 보고에 정정)
     @State var viewportHeight: CGFloat = 600
     @StateObject var followGate = FollowGate() // T-044 휠 일시정지
+    @StateObject var followUps = FollowUpStore() // T-291 후속질문 LLM
     @State var wheelMonitor: Any?
     @State var lastFollow = Date.distantPast
     @State var pauseNotified = false

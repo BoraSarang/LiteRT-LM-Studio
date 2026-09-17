@@ -1,6 +1,6 @@
 import Foundation
 
-/// 네이티브 백엔드 묶음 확장 (T-273 분리: 본문 길이 관리).
+/// 앱 내 엔진 백엔드 묶음 확장 (T-273 분리: 본문 길이 관리).
 extension NativeEngine {
     /// 엔진 백엔드 묶음 (T-177): config.json 추종 결과.
     struct EngineBackends: Equatable {

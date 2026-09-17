@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// DebugPanel: 별도 윈도우 (T-053). 네이티브 List 선택 (T-057, Web Island 참고).
+/// DebugPanel: 별도 윈도우 (T-053). 앱 내 엔진 List 선택 (T-057, Web Island 참고).
 struct DebugPanelView: View {
     @StateObject private var logger = DebugLogger.shared
     @State private var filter: DebugLogger.Level?

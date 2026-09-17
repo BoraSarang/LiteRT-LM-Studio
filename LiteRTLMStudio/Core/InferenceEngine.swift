@@ -43,8 +43,8 @@ enum HistoryWindow: Int, CaseIterable {
     }
 }
 
-/// Ollama식 통합 상태 (T-183): 모델은 공용, 호출 경로(데몬/네이티브)만 다름.
-/// 대화 가능 = 데몬 실행 중 OR 네이티브 준비됨. 사이드바 상태 1줄 표시용.
+/// Ollama식 통합 상태 (T-183): 모델은 공용, 호출 경로(데몬/앱 내 엔진)만 다름.
+/// 대화 가능 = 데몬 실행 중 OR 앱 내 엔진 준비됨. 사이드바 상태 1줄 표시용.
 struct UnifiedStatus: Equatable {
     var title: String
     var detail: String
@@ -78,7 +78,7 @@ struct UnifiedStatus: Equatable {
                              live: false, unlinked: false)
     }
 }
-/// 생성 옵션 묶음 (T-176): CLI·네이티브 공통 샘플링+출력 파라미터.
+/// 생성 옵션 묶음 (T-176): CLI·앱 내 엔진 공통 샘플링+출력 파라미터.
 /// 기본값은 describe 실측·Gallery 대조 (temp 1.0·topK 64·topP 0.95).
 struct GenerationOptions: Equatable {
     var temperature = 1.0
@@ -106,7 +106,7 @@ enum EngineError: Error, Equatable {
     }
 }
 
-/// 네이티브 벤치마크 결과 (T-132): BenchmarkInfo 매핑용 순수 값.
+/// 앱 내 엔진 벤치마크 결과 (T-132): BenchmarkInfo 매핑용 순수 값.
 struct EngineBenchmark: Equatable {
     var initTime = 0.0
     var ttft = 0.0
@@ -123,7 +123,7 @@ enum BenchmarkPhase: Equatable {
     case summarizing
 }
 
-/// 네이티브 추론 엔진 추상 (T-130). LiteRTLM import 없이 ChatStore·테스트에서 사용.
+/// 앱 내 엔진 추론 엔진 추상 (T-130). LiteRTLM import 없이 ChatStore·테스트에서 사용.
 @MainActor
 protocol InferenceEngine: AnyObject {
     /// 준비된 모델 ID (없으면 nil).

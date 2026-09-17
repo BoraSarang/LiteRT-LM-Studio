@@ -135,6 +135,13 @@ struct AssistantBubbleView: View {    let message: ChatStore.Message
         return " · 🔧\(calls.count)"
     }
 
+    /// 빈 본문 박스 표시 판정 (순수, 테스트 가능, T-289): 추론·도구 있으면 숨김.
+    nonisolated static func shouldShowBodyPlaceholder(thinking: String?,
+                                                      toolCalls: [ToolCallRecord]?) -> Bool {
+        thinking?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+            && (toolCalls?.isEmpty ?? true)
+    }
+
     var body: some View {
         // T-065: 어시스턴트는 기본 좌우 여백 없이 전폭. T-096 좌우 패딩 제거로 푸터와 좌단 일치.
         // T-147: 본문이 왼쪽 끝에 붙는 느낌 → 박스+푸터 함께 2pt (정렬 유지).
@@ -147,14 +154,15 @@ struct AssistantBubbleView: View {    let message: ChatStore.Message
                 if let calls = message.toolCalls, !calls.isEmpty {
                     ForEach(calls) { ToolCallChipView(record: $0) }
                 }
-                if message.text.isEmpty {
+                if message.text.isEmpty, Self.shouldShowBodyPlaceholder(
+                    thinking: message.thinking, toolCalls: message.toolCalls) {
                     Text(showCursor && !preparing ? "▍" : "") // T-101 준비 중 커서 숨김 (스피너만)
                         .font(.system(size: 14 * fontScale))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 12) // T-096 좌우 여백 제거
                         .background(Color(.textBackgroundColor).opacity(0.5))
                         .clipShape(.rect(cornerRadius: 10))
-                } else {
+                } else if !message.text.isEmpty {
                     MarkdownView(text: message.text, scheme: scheme, isStreaming: isStreaming,
                                    fontScale: fontScale)
                         .equatable() // T-045: 스트리밍 중 구버블 갱신 차단

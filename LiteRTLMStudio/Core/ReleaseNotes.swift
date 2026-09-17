@@ -1,14 +1,21 @@
 import Foundation
 
+/// 새소식 출처 (T-294): 엔진 릴리즈 vs 앱 릴리즈 (버전 체계 분리).
+enum ReleaseSource: String, Codable {
+    case engine
+    case app
+}
+
 /// GitHub Release 1건 (T-262): 버전·이름·What's New 원문·링크·게시일.
 struct AppRelease: Identifiable, Codable {
-    var id: String { tag }
+    var id: String { "\(source.rawValue):\(tag)" }
     let tag: String
     let name: String
     let body: String
     let url: String
     let publishedAt: Date?
     let prerelease: Bool
+    let source: ReleaseSource // T-294 (구 캐시는 디코딩 기본값 .engine)
 
     enum CodingKeys: String, CodingKey {
         case tag = "tag_name"
@@ -17,16 +24,19 @@ struct AppRelease: Identifiable, Codable {
         case url = "html_url"
         case publishedAt = "published_at"
         case prerelease
+        case source
     }
 
     init(tag: String, name: String, body: String, url: String,
-         publishedAt: Date? = nil, prerelease: Bool = false) {
+         publishedAt: Date? = nil, prerelease: Bool = false,
+         source: ReleaseSource = .engine) {
         self.tag = tag
         self.name = name
         self.body = body
         self.url = url
         self.publishedAt = publishedAt
         self.prerelease = prerelease
+        self.source = source
     }
 
     init(from decoder: Decoder) throws {
@@ -36,6 +46,7 @@ struct AppRelease: Identifiable, Codable {
         body = try c.decodeIfPresent(String.self, forKey: .body) ?? ""
         url = try c.decodeIfPresent(String.self, forKey: .url) ?? ""
         prerelease = try c.decodeIfPresent(Bool.self, forKey: .prerelease) ?? false
+        source = try c.decodeIfPresent(ReleaseSource.self, forKey: .source) ?? .engine
         if let raw = try c.decodeIfPresent(String.self, forKey: .publishedAt) {
             publishedAt = Self.isoDate(raw)
         } else {
@@ -91,9 +102,11 @@ enum ReleaseNotesParser {
     }
 
     /// 설치 버전보다 새 정식 릴리즈가 있는지 (순수, T-262).
+    /// T-294: 엔진 출처만 판정 (앱 버전 체계 분리).
     nonisolated static func newerStable(_ releases: [AppRelease], installed: String?) -> AppRelease? {
         guard let installed, !installed.isEmpty else { return nil }
         return releases
+            .filter { $0.source == .engine }
             .filter { !$0.prerelease }
             .filter { compare($0.tag, installed) == .orderedDescending }
             .sorted { compare($0.tag, $1.tag) == .orderedDescending }
@@ -112,8 +125,13 @@ enum ReleaseNotesParser {
 /// 새소식 스토어 (T-262): GitHub Releases 조회+JSON 누적 캐시+6시간 가드.
 @MainActor
 final class ReleaseNotes: ObservableObject {
-    nonisolated static var apiURL: URL? {
+    nonisolated static var engineAPIURL: URL? {
         URL(string: "https://api.github.com/repos/google-ai-edge/LiteRT-LM/releases?per_page=20")
+    }
+
+    /// 앱 저장소 릴리즈 (T-294): 현재 비어 있음 → 빈 결과는 조용히 스킵.
+    nonisolated static var appAPIURL: URL? {
+        URL(string: "https://api.github.com/repos/BoraSarang/LiteRT-LM-Studio/releases?per_page=20")
     }
 
     nonisolated static var fetchedAtKey: String { "releaseNotesFetchedAt" }
@@ -145,9 +163,9 @@ final class ReleaseNotes: ObservableObject {
         return dir.appendingPathComponent("release-notes.json")
     }
 
-    /// 최신 정식 릴리즈 (화면 표시용).
+    /// 최신 정식 릴리즈 (화면 표시용, T-294 엔진만).
     var latestStable: AppRelease? {
-        releases.filter { !$0.prerelease }
+        releases.filter { !$0.prerelease && $0.source == .engine }
             .sorted { ReleaseNotesParser.compare($0.tag, $1.tag) == .orderedDescending }
             .first
     }
@@ -168,39 +186,60 @@ final class ReleaseNotes: ObservableObject {
         await refresh()
     }
 
-    /// Releases 조회+누적 저장. 실패해도 캐시는 유지 (조용한 실패).
+    /// Releases 조회+누적 저장 (T-294 엔진+앱 2원). 한쪽 실패·빈 결과는 조용히
+    /// 스킵하고, 양쪽 다 실패했을 때만 E-MAC-NET-0014. 실패해도 캐시는 유지.
     func refresh() async {
         guard !isLoading else { return }
-        guard let url = Self.apiURL else { return }
         isLoading = true
         defer { isLoading = false }
+        var fresh: [AppRelease] = []
+        var failures = 0
+        if let engine = await Self.fetch(url: Self.engineAPIURL, source: .engine) {
+            fresh += engine
+        } else {
+            failures += 1
+        }
+        if let app = await Self.fetch(url: Self.appAPIURL, source: .app) {
+            fresh += app
+        } else {
+            failures += 1
+            logger.info(feature: "새소식", "앱 저장소 조회 스킵 (릴리즈 없음 가능)")
+        }
+        guard !fresh.isEmpty else {
+            if failures > 0 {
+                lastError = "E-MAC-NET-0014"
+                showingCache = !releases.isEmpty
+                logger.error(code: "E-MAC-NET-0014", feature: "새소식", "조회 실패, 저장분 표시")
+            }
+            return
+        }
+        merge(fresh)
+        showingCache = false
+        lastError = nil
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.fetchedAtKey)
+        logger.info(feature: "새소식", "릴리즈 \(fresh.count)건 조회·누적 \(releases.count)건")
+    }
+
+    /// 단일 저장소 조회 (T-294): 실패·비200·빈 결과는 nil (조용히 스킵).
+    nonisolated static func fetch(url: URL?, source: ReleaseSource) async -> [AppRelease]? {
+        guard let url else { return nil }
         var req = URLRequest(url: url)
         req.timeoutInterval = 10
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        do {
-            let (data, resp) = try await URLSession.shared.data(for: req)
-            guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
-                throw URLError(.badServerResponse)
-            }
-            let fresh = ReleaseNotesParser.parse(data)
-            guard !fresh.isEmpty else { return }
-            merge(fresh)
-            showingCache = false
-            lastError = nil
-            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.fetchedAtKey)
-            logger.info(feature: "새소식", "릴리즈 \(fresh.count)건 조회·누적 \(releases.count)건")
-        } catch {
-            lastError = "E-MAC-NET-0014"
-            showingCache = !releases.isEmpty
-            logger.error(code: "E-MAC-NET-0014", feature: "새소식", "조회 실패, 저장분 표시: \(error)")
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              (resp as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        let tagged = ReleaseNotesParser.parse(data).map { rel in
+            AppRelease(tag: rel.tag, name: rel.name, body: rel.body, url: rel.url,
+                       publishedAt: rel.publishedAt, prerelease: rel.prerelease, source: source)
         }
+        return tagged.isEmpty ? nil : tagged
     }
 
-    /// 새 분합 + 태그 중복 제거 + 20건 cap + 원자 저장.
+    /// 새 분합 + 출처+태그 중복 제거 + 20건 cap + 원자 저장.
     func merge(_ fresh: [AppRelease]) {
         var seen = Set<String>()
         var merged: [AppRelease] = []
-        for rel in fresh + releases where seen.insert(rel.tag).inserted {
+        for rel in fresh + releases where seen.insert(rel.id).inserted {
             merged.append(rel)
         }
         releases = Array(merged.prefix(Self.maxKept))

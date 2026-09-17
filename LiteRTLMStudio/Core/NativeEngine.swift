@@ -7,7 +7,7 @@ struct ConvKeyEntry: Sendable, Hashable {
     var tools = false
 }
 
-/// SPM LiteRTLM 네이티브 엔진 (T-130). 프로세스 내 추론, 모델당 Engine 1개.
+/// SPM LiteRTLM 앱 내 엔진 엔진 (T-130). 프로세스 내 추론, 모델당 Engine 1개.
 /// LiteRTLM Swift 소스는 앱 타깃 직접 포함 (EngineVendor는 바이너리만).
 @MainActor
 final class NativeEngine: InferenceEngine, ObservableObject {
@@ -23,9 +23,12 @@ final class NativeEngine: InferenceEngine, ObservableObject {
     @Published private(set) var preparedModelID: String?
     @Published private(set) var state: State = .idle
     @Published private(set) var lastError: String?
-    private var activeConversation: Conversation?
+    var activeConversation: Conversation?
     /// 재사용 키 (T-191): live conversation을 만든 시점의 모델+히스토리+옵션.
-    private var activeKey: ConvKey?
+    /// T-290 확장 접근용 internal.
+    var activeKey: ConvKey?
+    /// 준비된 모델의 도구 지원 여부 (T-290): 미지원이면 도구 없이 대화 생성.
+    private(set) var preparedSupportsFC = false
 
     /// 대화 재사용 키 (T-191): 저장분이 현재 앞부분이면 KV 이어쓰기, 프리필 생략.
     struct ConvKey: Equatable {
@@ -86,9 +89,14 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         lastError = nil
         Self.installFlags()
         // MTP는 모델 메타데이터로 자체 판정 (T-130, describe 불필요).
-        let mtp = Capabilities(modelPath: Self.modelPath(for: modelID))?
-            .hasSpeculativeDecodingSupport() ?? false
+        let caps = Capabilities(modelPath: Self.modelPath(for: modelID))
+        let mtp = caps?.hasSpeculativeDecodingSupport() ?? false
         ExperimentalFlags.enableSpeculativeDecoding = mtp
+        // T-290: 도구 미지원 모델은 도구 없이 대화 (강제 등록 시 추론 실패).
+        preparedSupportsFC = caps?.supportsFunctionCalling() ?? false
+        if !preparedSupportsFC {
+            logger.info(feature: "앱내엔진", "도구 미지원 모델 — 도구 없이 대화 (\(modelID))")
+        }
         ExperimentalFlags.gpuEnableMetalResidencySet = Self.residencyEnabled()
         ExperimentalFlags.visualTokenBudget = Self.visualBudget()
         let resolved = Self.resolveBackends(configURL: ConfigStore.defaultURL)
@@ -99,7 +107,7 @@ final class NativeEngine: InferenceEngine, ObservableObject {
             guard let fallback = Self.modalFallback(resolved) else {
                 throw EngineError.initFailed("\(error)")
             }
-            logger.info(feature: "네이티브엔진", "vision·audio 제외 폴백 초기화 (\(modelID))")
+            logger.info(feature: "앱내엔진", "vision·audio 제외 폴백 초기화 (\(modelID))")
             try await boot(modelID: modelID, backends: fallback)
         }
     }
@@ -114,7 +122,7 @@ final class NativeEngine: InferenceEngine, ObservableObject {
                                       audioBackend: backends.audio,
                                       cacheDir: Self.engineCacheDir())
         } catch {
-            logger.error(code: "E-MAC-ENG-0001", feature: "네이티브엔진",
+            logger.error(code: "E-MAC-ENG-0001", feature: "앱내엔진",
                          "EngineConfig 실패 (\(modelID)): \(error)")
             throw EngineError.initFailed("\(error)")
         }
@@ -125,12 +133,12 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         } catch {
             state = .failed
             lastError = EngineError.initFailed("").code
-            logger.error(code: "E-MAC-ENG-0001", feature: "네이티브엔진",
+            logger.error(code: "E-MAC-ENG-0001", feature: "앱내엔진",
                          "초기화 실패 (\(modelID)): \(error)")
             throw EngineError.initFailed("\(error)")
         }
         let secs = Date().timeIntervalSince(started)
-        logger.perf(feature: "네이티브엔진", "\(modelID) 초기화 \(String(format: "%.1f", secs))s")
+        logger.perf(feature: "앱내엔진", "\(modelID) 초기화 \(String(format: "%.1f", secs))s")
         self.engine = engine
         preparedModelID = modelID
         state = .ready
@@ -141,6 +149,7 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         activeKey = nil
         engine = nil
         preparedModelID = nil
+        preparedSupportsFC = false
         state = .idle
     }
 
@@ -221,14 +230,15 @@ final class NativeEngine: InferenceEngine, ObservableObject {
                              thinkingTokenBudget: opts.thinkingBudget) : nil
         if allowReuse,
            let live = reusableConversation(modelID: modelID, history: entries, options: opts) {
-            logger.info(feature: "네이티브엔진", "대화 재사용 (KV 이어쓰기)")
+            logger.info(feature: "앱내엔진", "대화 재사용 (KV 이어쓰기)")
             return PreparedSetup(conversation: live, thinking: thinking, reused: true)
         }
         let conversation = try await engine.createConversation(
             with: ConversationConfig(
                 systemMessage: sysMsg.isEmpty ? nil : Message(sysMsg, role: .system),
                 initialMessages: past,
-                tools: LocalTools.registered(),
+                tools: Self.toolsForConversation(supportsFC: preparedSupportsFC,
+                                                 registered: LocalTools.registered()),
                 samplerConfig: sampler,
                 enableToolCallStreaming: true,
                 thinkingConfig: thinking))
@@ -237,11 +247,7 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         return PreparedSetup(conversation: conversation, thinking: thinking, reused: false)
     }
 
-    /// 재사용 무효화 (T-277, 확장 접근용 internal): 시작 실패 시 새 대화로 재시도.
-    func invalidateReuse() {
-        activeConversation = nil
-        activeKey = nil
-    }
+    /// 재사용·도구 게이트는 NativeEngine+Events 분리 (T-290, 본문 길이 관리).
 
     /// 재사용 대화 확정 (T-191 분리, T-282 도구 턴 제외): 저장 키가 현재 앞부분이면 live.
     private func reusableConversation(modelID: String, history: [String],
@@ -285,7 +291,7 @@ final class NativeEngine: InferenceEngine, ObservableObject {
             }
             onStage(.summarizing)
             let info = try conversation.getBenchmarkInfo()
-            logger.perf(feature: "네이티브벤치",
+            logger.perf(feature: "앱내벤치",
                         "완료 prefill=\(info.lastPrefillTokensPerSecond) decode=\(info.lastDecodeTokensPerSecond)")
             return EngineBenchmark(
                 initTime: info.initTimeInSecond,

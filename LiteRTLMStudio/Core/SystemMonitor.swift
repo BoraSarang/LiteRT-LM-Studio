@@ -35,7 +35,7 @@ final class SystemMonitor: ObservableObject {
     @Published var daemonRSSGB = 0.0 // phys_footprint 합산
     @Published var daemonPidCount = 0 // 측정 대상 pid 수 (0이면 미측정)
     @Published var daemonRunning = false // ContentView가 daemon.status로 동기화 (불일치 감지용)
-    @Published var appRSSGB = 0.0 // 자가 footprint (T-133, 네이티브 엔진 상주 확인용)
+    @Published var appRSSGB = 0.0 // 자가 footprint (T-133, 앱 내 엔진 엔진 상주 확인용)
     @Published var live = false
     @Published var sampleTick = 0 // 절대 틱 인덱스 (X 도메인 고정용, 리셋 없음)
 

@@ -233,7 +233,7 @@ extension BenchmarkStore {
 
     /// T-218/T-224/T-227: 측정한 경로·모델로 분석 (세션 오염 방지: 별도 요청, 히스토리 미기록).
     /// slotID가 있으면 해당 기록 슬롯에, 없으면 라이브 결과에 저장.
-    /// 네이티브는 해당 모델로 준비된 엔진이 필요 (자동 준비 없음 — 발열·시간).
+    /// 앱 내 엔진는 해당 모델로 준비된 엔진이 필요 (자동 준비 없음 — 발열·시간).
     func analyze(record: BenchmarkRecord, avgDuration: TimeInterval?,
                  chat: ChatStore, slotID: BenchmarkRecord.ID?) {
         guard !analyzing else { return }
@@ -254,7 +254,7 @@ extension BenchmarkStore {
             analyzing = false
             analyzingSlotID = nil
             analysisError = "앱 내 엔진이 준비되지 않았습니다. 사이드바 엔진 행에서 실행 후 다시 시도해 주세요."
-            logger.info(feature: "벤치마크", "분석 차단 (네이티브 미준비)")
+            logger.info(feature: "벤치마크", "분석 차단 (앱 내 엔진 미준비)")
             return
         }
         let request = AnalysisRequest(baseURL: chat.baseURL, model: record.modelID, route: record.route,

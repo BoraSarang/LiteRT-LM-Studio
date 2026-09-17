@@ -38,7 +38,7 @@ extension ContentView {
         logger.info(feature: "앱시작", "상태 복원 완료")
     }
 
-    /// 네이티브 자동 초기화 판정 (순수, 테스트 가능, T-275):
+    /// 앱 내 엔진 자동 초기화 판정 (순수, 테스트 가능, T-275):
     /// 경로 native + 모델 선택 + 미준비 + 준비 중 아님 + 전송 중 아님.
     nonisolated static func shouldAutoPrepare(route: EngineMode, modelID: String?,
                                               preparedID: String?, preparing: Bool,
@@ -48,7 +48,7 @@ extension ContentView {
         return !preparing && !streaming
     }
 
-    /// 네이티브 자동 초기화 실행 (T-275): 경로 전환·모델 변경 시 호출.
+    /// 앱 내 엔진 자동 초기화 실행 (T-275): 경로 전환·모델 변경 시 호출.
     /// 재실행 복원 시에는 호출 안 함 (예상 밖 메모리·시간 방지).
     func autoPrepareNativeIfNeeded() {
         let modelID = selectedModelID ?? models.models.first?.id
@@ -57,7 +57,7 @@ extension ContentView {
                                      preparing: nativeEngine.state == .preparing,
                                      streaming: chat.streaming),
               let id = modelID else { return }
-        logger.info(feature: "네이티브엔진", "자동 초기화 시작 (\(ModelAlias.display(id: id)))")
+        logger.info(feature: "앱내엔진", "자동 초기화 시작 (\(ModelAlias.display(id: id)))")
         Task { try? await nativeEngine.prepare(modelID: id) }
     }
 
