@@ -298,4 +298,6 @@
 * [x] T-303 1차 조사 (D1~D3): editMessage/취소/후속질문 3결함 수정 (unit 247/247)
 * [x] T-304 2차 조사 (R2-15/17): prepare 실패 상태·dropModel LRU 방출 정합 (unit 247/247)
 * [x] T-305 NativeEngine 400줄 관리: 주석 정리로 file_length 임계 유지
-* [ ] T-302 첫터치 프리필 완화: 방 열람 시 백그라운드 예열안 검토 (2차 조사 제안)
+* [x] T-306 첫터치 프리필 예열 (PLAN_v87): prepare 선행+기본 OFF 토글+발동 didSet
+* [x] T-307 예열 게이트: unit 252/252·lint 신규 0·build 통과
+* [ ] T-302 첫터치 프리필 실측: 방 열람→첫 전송 TTFT 대조 (게이트 후)

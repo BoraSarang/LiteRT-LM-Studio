@@ -29,6 +29,12 @@
   철회(프로젝트 명시 참조 구조) — 주석 정리로 NativeEngine 400줄 임계 유지.
   `cancel`은 NativeEngine+Events로 이동. [macos]
 * 테스트 247/247 통과. 신규 lint 경고 0건 (파일길이 400 임계 유지). [macos]
+* 첫터치 프리필 예열 (T-302, PLAN_v87): 방 열람(`currentSessionID` 변경) 시
+  앱 내 엔진 `prepare`를 백그라운드로 선행해 첫 전송의 엔진 init 구간 제거.
+  설정→채팅 "첫터치 프리필" 토글 (기본 OFF, 발열·배터리 기본 무영향).
+  재진입·스트리밍 가드, 실패는 조용히 로그(E-MAC-PERF-0001. 사용자 무방해).
+  방 대화(KV) 프리필은 전송 옵션 확정 전이라 키 불일치 위험 → prepare 선행까지
+  (한계 문서화, PLAN_v87). 테스트 252/252, lint 신규 0. [macos]
 * 모델 관리 별도창 (T-232, PLAN_v47): `Window(id:modelManager)`,
   가져오기 시트(추천 프리셋+직접입력·HF API 파일 목록·로컬ID·토큰),
   진행률 바+퍼센트+경과+남은시간+취소, 스테이징 `~/Documents/.LiteRT-LM` 숨김 유지
