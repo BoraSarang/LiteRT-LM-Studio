@@ -294,3 +294,8 @@
 * [x] T-298 사각 제거: max_prefix 플러밍·recent()·UI import·trailing (PLAN_v85)
 * [x] T-299 중복 제거: JSON 헬퍼·pastTurns·KV 필드 통일, 도구결과 매칭은 의도적 분리 유지 (PLAN_v85)
 * [x] T-300 검증: 244/244+lint 신규 0+build 게이트 (PLAN_v85)
+* [x] T-301 세션 제거: evictSession 추가+재시도 꼬리 정리+1회성 호출 정리 (2차 조사)
+* [x] T-303 1차 조사 (D1~D3): editMessage/취소/후속질문 3결함 수정 (unit 247/247)
+* [x] T-304 2차 조사 (R2-15/17): prepare 실패 상태·dropModel LRU 방출 정합 (unit 247/247)
+* [x] T-305 NativeEngine 400줄 관리: 주석 정리로 file_length 임계 유지
+* [ ] T-302 첫터치 프리필 완화: 방 열람 시 백그라운드 예열안 검토 (2차 조사 제안)

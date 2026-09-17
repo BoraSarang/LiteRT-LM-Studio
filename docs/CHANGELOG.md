@@ -19,7 +19,16 @@
   히스토리 기본 10턴+제한없음 정직화, ConfigStore 단일 주입, KV 단일 소스
   (인위 상한 제거·모델 기본값 복귀), 사각·UI import·trailing 정리,
   JSON·pastTurns 헬퍼. [macos]
-* 테스트 244/244 통과. 신규 lint 경고 0건 (기존 수용분 유지). [macos]
+* 재시도 KV 정합 (T-301): 꼬리 제거 후 재전송 시 해당 방 대화 제거 후 재생성.
+  잘린 꼬리가 KV에 남아 재생성을 오염시키던 회귀 해소. 벤치마크·후속 1회성
+  호출도 사용 후 풀에서 제거. [macos]
+* 정밀 감사 1·2차 (T-303~T-305, PLAN_v86): D1 `editMessage` 기록 잘림 시 방
+  KV 잔존 → `evictNativeSession` 공용 후 제거, D2 `cancel` 시 풀 항목 정리,
+  D3 후속질문 조기 중단 시 엔진 취소, R2-15 prepare 실패 상태 `.failed` 확정,
+  R2-17 dropModel LRU 방출 시 `.idle` 갱신. 벤치마크는 `+Benchmark` 확장 분리
+  철회(프로젝트 명시 참조 구조) — 주석 정리로 NativeEngine 400줄 임계 유지.
+  `cancel`은 NativeEngine+Events로 이동. [macos]
+* 테스트 247/247 통과. 신규 lint 경고 0건 (파일길이 400 임계 유지). [macos]
 * 모델 관리 별도창 (T-232, PLAN_v47): `Window(id:modelManager)`,
   가져오기 시트(추천 프리셋+직접입력·HF API 파일 목록·로컬ID·토큰),
   진행률 바+퍼센트+경과+남은시간+취소, 스테이징 `~/Documents/.LiteRT-LM` 숨김 유지
