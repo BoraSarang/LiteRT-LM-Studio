@@ -171,9 +171,6 @@ final class BenchmarkHistoryStore: ObservableObject {
         save()
     }
 
-    /// 최근 N건 (사이드바 표시용, 순수 호출).
-    func recent(limit: Int = 3) -> [BenchmarkRecord] { Array(records.prefix(limit)) }
-
     /// 모델 필터 (순수, 테스트 가능).
     nonisolated static func filtered(_ records: [BenchmarkRecord],
                                      modelID: String?) -> [BenchmarkRecord] {

@@ -69,9 +69,7 @@ extension ChatStore {
             // T-149: 전송 범위 설정 적용 (제한 없음이면 전량, 기존 동작).
             // 재사용 키는 방ID 고정 — 같은 방의 후속 턴은 동일 Conversation을
             // 이어써 KV를 잇는다 (히스토리 길이에 무관).
-            let windowed = Self.windowedHistory(Array(messages.dropLast(2)),
-                                                turns: HistoryWindow.currentTurns())
-            let past = windowed.map { (role: $0.role, text: $0.text) }
+            let past = pastTurns().map { (role: $0.role, text: $0.text) }
             let histChars = past.reduce(0) { $0 + $1.text.count }
             logger.perf(feature: "채팅전송",
                         "준비 완료 \(String(format: "%.1f", prepareElapsed))s "

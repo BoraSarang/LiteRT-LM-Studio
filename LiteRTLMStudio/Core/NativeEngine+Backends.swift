@@ -19,8 +19,7 @@ extension NativeEngine {
             default: nil
             }
         }
-        guard let data = try? Data(contentsOf: configURL),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let json = ConfigStore.jsonDict(at: configURL),
               let def = json["default"] as? [String: Any] else {
             return EngineBackends()
         }

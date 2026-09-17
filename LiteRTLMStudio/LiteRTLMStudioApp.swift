@@ -18,7 +18,7 @@ struct LiteRTLMStudioApp: App {
                             nativeEngine: services.nativeEngine, chat: services.chat,
                             bench: services.bench, benchHistory: services.benchHistory,
                             releases: services.releases,
-                            wigolo: services.wigolo)
+                            wigolo: services.wigolo, config: services.config)
                     .frame(minWidth: 1000, minHeight: 640)
                     .background {
                         WindowAccessor { $0?.setFrameAutosaveName("LiteRTLMStudioMain") }

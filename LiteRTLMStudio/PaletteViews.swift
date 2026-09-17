@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// 명령 1건 (T-263): 고정 6종, id 기준 실행.
 struct PaletteCommand: Identifiable, Hashable {

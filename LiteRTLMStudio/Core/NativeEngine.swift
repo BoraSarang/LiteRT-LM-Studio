@@ -79,6 +79,8 @@ final class NativeEngine: InferenceEngine, ObservableObject {
 
     func prepare(modelID: String) async throws {
         if preparedModelIDs.contains(modelID), engines[modelID] != nil {
+            engineAccessOrder.removeAll { $0 == modelID }
+            engineAccessOrder.append(modelID)
             logger.info(feature: "앱내엔진", "캐시 히트: \(modelID) 이미 준비됨")
             return
         }
@@ -99,7 +101,7 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         } else if !userMTP && modelSupportsMTP {
             logger.info(feature: "앱내엔진", "MTP 비활성화: 사용자 설정 OFF")
         }
-        
+
         // T-290: 도구 미지원 모델은 도구 없이 대화 (강제 등록 시 추론 실패).
         let supportsFC = caps?.supportsFunctionCalling() ?? false
         preparedSupportsFC[modelID] = supportsFC
@@ -199,28 +201,41 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         engineAccessOrder.append(modelID)
         if engineAccessOrder.count > maxCachedEngines {
             let evicted = engineAccessOrder.removeFirst()
-            engines[evicted] = nil
-            preparedModelIDs.remove(evicted)
-            preparedSupportsFC.removeValue(forKey: evicted)
+            dropModel(evicted)
             logger.info(feature: "앱내엔진", "Engine LRU 제거: \(evicted)")
         }
     }
 
-    func release() {
-        activeConversation = nil
-        activeKey = nil
-        // 전체 해제는 restart()에서만. 모델별은 releaseModel() 사용.
-    }
-
-    /// 특정 모델만 해제 (모델 전환 시).
-    func releaseModel(_ modelID: String) {
+    /// 모델 1건 완전 정리 (엔진+대화+지원여부+활성 포인터).
+    private func dropModel(_ modelID: String) {
         engines[modelID] = nil
         engineAccessOrder.removeAll { $0 == modelID }
         preparedModelIDs.remove(modelID)
         preparedSupportsFC.removeValue(forKey: modelID)
-        // 관련 Conversation도 정리
         conversations = conversations.filter { $0.key.modelID != modelID }
         conversationAccessOrder.removeAll { $0.modelID == modelID }
+        if activeKey?.modelID == modelID {
+            activeConversation = nil
+            activeKey = nil
+        }
+    }
+
+    /// 전체 해제 (중지 버튼): 모든 구조물 반납+idle. 모델별은 releaseModel() 사용.
+    func release() {
+        activeConversation = nil
+        activeKey = nil
+        conversations.removeAll()
+        conversationAccessOrder.removeAll()
+        engines.removeAll()
+        engineAccessOrder.removeAll()
+        preparedModelIDs.removeAll()
+        preparedSupportsFC.removeAll()
+        state = .idle
+    }
+
+    /// 특정 모델만 해제 (모델 전환 시).
+    func releaseModel(_ modelID: String) {
+        dropModel(modelID)
         state = preparedModelIDs.isEmpty ? .idle : .ready
     }
 
@@ -232,6 +247,8 @@ final class NativeEngine: InferenceEngine, ObservableObject {
 
     /// 이벤트 스트림은 NativeEngine+Events 분리 (T-266, 본문 길이 관리).
 
+    /// 평문 스트림: 이벤트 스트림 단일 경로 위임 (본문만 추출).
+    /// 모델 선택·재시도·무효화 로직 중복 제거 — streamEvents가 유일한 추론 경로.
     func stream(
         prompt: String,
         image: ChatStore.ChatImage?,
@@ -239,40 +256,17 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         options: GenerationOptions,
         sessionID: String
     ) -> AsyncThrowingStream<String, Error> {
-        guard let modelID = preparedModelIDs.first(where: { engines[$0] != nil }),
-              let engine = engines[modelID] else {
-            return AsyncThrowingStream { $0.finish(throwing: EngineError.notReady) }
-        }
-        let past = history.map { turn in
-            Message(turn.text, role: turn.role == "user" ? .user : .model)
-        }
-        let message: Message
-        if let image {
-            message = Message(contents: [
-                Content.imageData(image.data),
-                Content.text(prompt)
-            ])
-        } else {
-            message = Message(prompt)
-        }
-        // 캡처값은 Sendable (String·Double·배열) — actor 격리 충돌 없음.
-        let opts = options
+        let events = streamEvents(prompt: prompt, image: image, history: history,
+                                  options: options, sessionID: sessionID)
         return AsyncThrowingStream { continuation in
             Task {
                 do {
-                    let setup = try await self.preparedStream(
-                        engine: engine, modelID: modelID, past: past,
-                        sessionID: sessionID, opts: opts)
-                    let gen = setup.conversation.sendMessageStream(
-                        message, maxOutputTokens: opts.maxTokens, thinkingConfig: setup.thinking)
-                    for try await chunk in gen {
-                        continuation.yield(chunk.toString)
+                    for try await event in events {
+                        if case .text(let chunk) = event { continuation.yield(chunk) }
                     }
                     continuation.finish()
-                } catch is CancellationError {
-                    continuation.finish(throwing: CancellationError())
                 } catch {
-                    continuation.finish(throwing: EngineError.inferenceFailed("\(error)"))
+                    continuation.finish(throwing: error)
                 }
             }
         }

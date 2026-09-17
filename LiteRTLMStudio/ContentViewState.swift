@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import SwiftUI
-import UniformTypeIdentifiers
 
 // MARK: - 상태 복원 (T-216 분리: 파일 길이 분산)
 

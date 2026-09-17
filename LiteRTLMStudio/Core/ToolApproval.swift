@@ -30,6 +30,7 @@ actor ToolLedger {
     }
 
     /// 배출+상태 매칭 (순수, 테스트 가능): 순서대로 done/denied/failed 부여.
+    /// 호출부 2곳은 의도적 분리 — 완료 반영은 인덱스 순서, 서버 재시도는 callID 매칭.
     nonisolated static func statuses(count: Int, outcomes: [Entry]) -> [ToolCallStatus] {
         (0 ..< count).map { idx in
             guard idx < outcomes.count else { return .received }

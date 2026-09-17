@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import SwiftUI
-import UniformTypeIdentifiers
 
 extension ContentView {
     /// 사이드바 탭 (T-230): 채팅 무한 증식과 무관하게 모델·벤치마크 접근 보장.

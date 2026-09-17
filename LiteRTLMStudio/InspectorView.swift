@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import SwiftUI
-import UniformTypeIdentifiers
 
 extension ContentView {
     // MARK: - 인스펙터 (3섹션 on/off, 토글은 툴바 섹션 토글)

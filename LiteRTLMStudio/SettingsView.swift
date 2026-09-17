@@ -9,7 +9,7 @@ struct SettingsView: View {
     @AppStorage("quitStopsDaemon") private var quitStopsDaemon = true
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @AppStorage("appearance") private var appearanceRaw = AppearanceMode.system.rawValue
-    @AppStorage("historyTurns") private var historyTurns = HistoryWindow.unlimited.rawValue
+    @AppStorage("historyTurns") private var historyTurns = HistoryWindow.turns10.rawValue
     @AppStorage("benchmarkRetention") private var benchmarkRetention = BenchmarkRetention.ten.rawValue
     @AppStorage("globalPermission") private var permissionRaw = GlobalPermission.ask.rawValue
     @AppStorage("chatOutlineEnabled") private var outlineEnabled = true // T-258 대화 목차

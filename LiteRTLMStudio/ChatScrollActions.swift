@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import SwiftUI
-import UniformTypeIdentifiers
 
 // MARK: - 액션 (타입 본문 길이 관리용 분리)
 extension ContentView {

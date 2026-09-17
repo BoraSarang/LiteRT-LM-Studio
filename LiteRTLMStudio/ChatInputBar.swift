@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// 입력창 실측용 너비/높이 키 (T-034).
 private struct InputWidthKey: PreferenceKey {

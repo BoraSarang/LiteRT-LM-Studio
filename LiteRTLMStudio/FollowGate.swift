@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// 추종 게이트 상태 박스 (T-044): escaping 휠 모니터가 최신값을 읽기 위한 참조형.
 /// `pinnedToBottom`(@State, 오버레이 표시용)과 별도로 제스처 시각만 보관.

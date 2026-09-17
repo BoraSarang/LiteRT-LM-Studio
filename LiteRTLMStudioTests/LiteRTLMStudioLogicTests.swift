@@ -51,7 +51,7 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         store.draftAudio = "gpu"
         store.draftThreads = "8"
         store.draftCache = "memory"
-        store.draftMaxTokens = 10000
+        store.draftKV = "10000"
         store.draftThinking = true
         store.draftBudget = "4096"
         XCTAssertTrue(store.hasChanges)
@@ -62,19 +62,18 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(reloaded.appliedAudio, "gpu")
         XCTAssertEqual(reloaded.appliedThreads, "8")
         XCTAssertEqual(reloaded.appliedCache, "memory")
-        XCTAssertEqual(reloaded.appliedMaxTokens, 10000)
+        XCTAssertEqual(reloaded.appliedKV, "10000")
         XCTAssertTrue(reloaded.appliedThinking)
         XCTAssertEqual(reloaded.appliedBudget, "4096")
         // 빈칸이면 키 삭제 (엔진 기본 복귀).
         reloaded.draftThreads = ""
-        reloaded.draftMaxTokens = 0  // 0이면 기본값 8192 사용
+        reloaded.draftKV = ""
         reloaded.draftBudget = ""
         XCTAssertTrue(reloaded.apply(modelID: "m1"))
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: tmp)) as? [String: Any]
         let def = json?["default"] as? [String: Any]
         XCTAssertNil(def?["cpu_thread_count"])
-        // max_num_tokens는 기본값 8192가 항상 기록됨
-        XCTAssertEqual(def?["max_num_tokens"] as? Int, 8192)
+        XCTAssertNil(def?["max_num_tokens"])
         let one = (json?["models"] as? [String: Any])?["m1"] as? [String: Any]
         XCTAssertEqual(one?["thinking_budget"] as? Int, -1)
         try? FileManager.default.removeItem(at: tmp)

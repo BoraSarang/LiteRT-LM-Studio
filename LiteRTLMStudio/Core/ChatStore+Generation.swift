@@ -2,6 +2,12 @@ import Foundation
 
 /// 생성 파라미터 확장 (T-176): 요청 바디 조립 + 옵션 묶음.
 extension ChatStore {
+    /// 전송 직전 과거 turns (현재 user+assistant 제외, T-149 윈도우 적용).
+    func pastTurns() -> [Message] {
+        Self.windowedHistory(Array(messages.dropLast(2)),
+                             turns: HistoryWindow.currentTurns())
+    }
+
     /// 채팅 요청 생성 (T-126 분리, 테스트 가능): 히스토리+이미지 페이로드 조립.
     /// T-268: extraHistory(tool 턴)+tools(tool_choice auto) 추가.
     func chatRequest(prompt: String, image: ChatImage? = nil,
@@ -10,9 +16,7 @@ extension ChatStore {
         req.httpMethod = "POST"
         req.timeoutInterval = 300 // Vision 추론은 수 분 가능
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let windowed = Self.windowedHistory(Array(messages.dropLast(2)),
-                                              turns: HistoryWindow.currentTurns())
-        let history = windowed.map { ["role": $0.role, "content": $0.text] }
+        let history = pastTurns().map { ["role": $0.role, "content": $0.text] }
         let userContent: Any
         if let image {
             let b64 = image.data.base64EncodedString()

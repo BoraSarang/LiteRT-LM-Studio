@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import SwiftUI
-import UniformTypeIdentifiers
 
 // MARK: - 서버 액션 (T-189 분리, 파일 길이 관리)
 extension ContentView {

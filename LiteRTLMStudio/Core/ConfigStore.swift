@@ -23,12 +23,8 @@ final class ConfigStore: ObservableObject {
     @Published var appliedThinking = false // T-175 모델별 thinking 기본값
     @Published var appliedBudget = "" // T-175 빈칸=무제한(-1)
     @Published var appliedPrecision = "" // T-177 빈칸=모델 내장
-    @Published var appliedMaxPrefixTurns = 10 // P1-1 KV 재사용 prefix 턴 수 (기본 10)
-    @Published var appliedMaxTokens = 8192 // P1-2 KV 캐시 크기 제한 (기본 8192)
     /// UI 편집 중인 초안.
     @Published var draftBackend = "gpu"
-    @Published var draftMaxPrefixTurns = 10
-    @Published var draftMaxTokens = 8192
     @Published var draftVision = "gpu"
     @Published var draftMTP = false // T-222 기본 OFF
     @Published var draftAudio = "cpu"
@@ -53,8 +49,15 @@ var hasChanges: Bool {
             || draftAudio != appliedAudio || draftThreads != appliedThreads
             || draftCache != appliedCache || draftKV != appliedKV
             || draftThinking != appliedThinking || draftBudget != appliedBudget
-            || draftPrecision != appliedPrecision || draftMaxPrefixTurns != appliedMaxPrefixTurns
-            || draftMaxTokens != appliedMaxTokens
+            || draftPrecision != appliedPrecision
+    }
+
+    /// JSON 파일 읽기 공용 (T-299): 읽기 5곳의 Data+파싱 반복 제거.
+    nonisolated static func jsonDict(at url: URL) -> [String: Any]? {
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return json
     }
 
     /// 숫자 초안 → config 값 (순수, 테스트 가능, T-175): 빈칸·비숫자·하한 미달이면 nil(키 삭제).
@@ -100,9 +103,6 @@ var hasChanges: Bool {
             let after = draftPrecision.isEmpty ? "내장" : draftPrecision
             parts.append("정밀도 \(before)→\(after)")
         }
-        if draftMaxPrefixTurns != appliedMaxPrefixTurns {
-            parts.append("Prefix턴 \(appliedMaxPrefixTurns)→\(draftMaxPrefixTurns)")
-        }
         return parts.joined(separator: " · ")
     }
 
@@ -110,16 +110,13 @@ var hasChanges: Bool {
         var s = "LLM \(appliedBackend) · Vision \(appliedVision)\(appliedMTP ? " · MTP" : "")"
         if appliedAudio != "cpu" { s += " · Audio \(appliedAudio)" }
         if !appliedKV.isEmpty { s += " · KV \(appliedKV)" }
-        if appliedMaxPrefixTurns != 10 { s += " · Prefix \(appliedMaxPrefixTurns)" }
         return s
     }
 
     /// 기존 파일의 다른 키는 보존하면서 읽는다. applied와 draft를 함께 채운다.
     func load(modelID: String) {
         logger.info(feature: "설정조회", "config.json 읽기")
-        guard let data = try? Data(contentsOf: configURL),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else {
+        guard let json = Self.jsonDict(at: configURL) else {
             configExists = false
             logger.info(feature: "설정조회", "config 없음 → 엔진 기본값(CPU) 동작 중")
             return
@@ -132,8 +129,7 @@ var hasChanges: Bool {
             appliedCache = def["cache"] as? String ?? appliedCache
             appliedPrecision = def["activation_data_type"] as? String ?? appliedPrecision
             if let t = def["cpu_thread_count"] as? Int { appliedThreads = "\(t)" }
-            if let k = def["max_num_tokens"] as? Int { appliedMaxTokens = k }
-            if let mpt = def["max_prefix_turns"] as? Int { appliedMaxPrefixTurns = mpt }
+            if let k = def["max_num_tokens"] as? Int { appliedKV = "\(k)" }
         }
         if let models = json["models"] as? [String: Any],
            let one = models[modelID] as? [String: Any] {
@@ -161,16 +157,13 @@ var hasChanges: Bool {
         draftThinking = appliedThinking
         draftBudget = appliedBudget
         draftPrecision = appliedPrecision
-        draftMaxPrefixTurns = appliedMaxPrefixTurns
-        draftMaxTokens = appliedMaxTokens
         logger.info(feature: "설정취소", "초안 되돌림")
     }
 
     /// 모델 MTP 저장값 조회 (T-222, 벤치마크 창 표시용): 명시 없으면 nil (기본 OFF).
     static func savedMTP(modelID: String, configURL: URL? = nil) -> Bool? {
         let url = configURL ?? Self.defaultURL
-        guard let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let json = jsonDict(at: url),
               let models = json["models"] as? [String: Any],
               let one = models[modelID] as? [String: Any],
               let spec = one["speculative_decoding"] as? Bool
@@ -178,22 +171,10 @@ var hasChanges: Bool {
         return spec
     }
 
-    /// max_prefix_turns 값 읽기 (P1-1): 없으면 nil (기본 10 사용).
-    @MainActor
-    static func maxPrefixTurnsValue(from url: URL) -> Int? {
-        guard let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let def = json["default"] as? [String: Any],
-              let mpt = def["max_prefix_turns"] as? Int
-        else { return nil }
-        return mpt
-    }
-
-    /// max_num_tokens 값 읽기 (P1-2): 없으면 nil (엔진 기본값 사용).
+    /// max_num_tokens 값 읽기: 없으면 nil (엔진·모델 기본값 사용).
     @MainActor
     static func maxNumTokensValue(from url: URL) -> Int? {
-        guard let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let json = jsonDict(at: url),
               let def = json["default"] as? [String: Any],
               let k = def["max_num_tokens"] as? Int
         else { return nil }
@@ -217,18 +198,14 @@ var hasChanges: Bool {
         } else {
             def.removeValue(forKey: "cpu_thread_count")
         }
-        // draftMaxTokens는 이미 Int 타입 (기본 8192)
-        if draftMaxTokens >= 1 {
-            def["max_num_tokens"] = draftMaxTokens
+        // 빈칸이면 키 삭제 (엔진·모델 기본값으로 복귀).
+        if let k = Self.intOrNil(draftKV, min: 1) {
+            def["max_num_tokens"] = k
         } else {
-            def["max_num_tokens"] = 8192
+            def.removeValue(forKey: "max_num_tokens")
         }
-        // draftMaxPrefixTurns는 이미 Int 타입
-        if draftMaxPrefixTurns >= 1 {
-            def["max_prefix_turns"] = draftMaxPrefixTurns
-        } else {
-            def.removeValue(forKey: "max_prefix_turns")
-        }
+        // 구 max_prefix_turns 키 1회 정리 (세션키 방식으로 대체되어 미사용).
+        def.removeValue(forKey: "max_prefix_turns")
     }
 
     /// models 섹션 쓰기 (T-175 분리).
@@ -273,9 +250,6 @@ var hasChanges: Bool {
             appliedThinking = draftThinking
             appliedBudget = draftBudget
             appliedPrecision = draftPrecision
-            appliedMaxPrefixTurns = draftMaxPrefixTurns
-            appliedMaxTokens = draftMaxTokens
-            NativeEngine.invalidateBackendCache()
             logger.info(feature: "설정적용", "config 저장 완료 (\(summary.isEmpty ? "변경 없음" : summary))")
             return true
         } catch {

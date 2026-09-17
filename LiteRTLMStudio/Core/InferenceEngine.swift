@@ -21,7 +21,7 @@ enum EngineMode: String, CaseIterable {
 }
 
 /// 전송 히스토리 범위 (T-149, 전역 설정, 기본 10턴).
-/// 1턴 = 사용자 1 + 어시스턴트 1. 0은 제한 없음(기존 동작 그대로).
+/// 1턴 = 사용자 1 + 어시스턴트 1. 명시적 0=제한 없음.
 enum HistoryWindow: Int, CaseIterable {
     case unlimited = 0
     case turns10 = 10
@@ -37,10 +37,12 @@ enum HistoryWindow: Int, CaseIterable {
         }
     }
 
-    /// 저장 키 "historyTurns" 읽기 (미설정 시 10=10턴 기본).
+    /// 저장 키 "historyTurns" 읽기. 미설정 시 10턴 기본, 명시적 0은 제한 없음.
     nonisolated static func currentTurns() -> Int {
-        let v = UserDefaults.standard.integer(forKey: "historyTurns")
-        return v == 0 ? 10 : v
+        guard UserDefaults.standard.object(forKey: "historyTurns") != nil else {
+            return HistoryWindow.turns10.rawValue
+        }
+        return UserDefaults.standard.integer(forKey: "historyTurns")
     }
 }
 

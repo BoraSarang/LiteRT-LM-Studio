@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// 3분할 매니저형: 사이드바(환경·모델·서버) / 중앙(채팅) / 인스펙터(생성 파라미터).
 struct ContentView: View {
@@ -23,7 +22,8 @@ struct ContentView: View {
     @ObservedObject var wigolo: WigoloManager
     /// T-266 S-2: 도구 승인 요청 공유 (싱글톤 관찰).
     @ObservedObject var toolApproval = ToolApproval.shared
-    @StateObject var config = ConfigStore()
+    /// T-297: 설정 단일 진실원천 — AppServices.config 주입 (자체 생성 금지).
+    @ObservedObject var config: ConfigStore
     @StateObject var logger = DebugLogger.shared
 
     // T-279: 모델 선택도 AppStorage (SceneStorage는 메뉴바 상주에서 복원 불안정).
