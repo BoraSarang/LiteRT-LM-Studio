@@ -246,7 +246,7 @@ struct ThinkingBlockView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "brain")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
-                    Text(expanded ? "생각 중…" : "생각 과정")
+                    Text(expanded ? "추론 중…" : "추론 과정")
                         .font(DS.captionFont).foregroundStyle(.secondary)
                     Image(systemName: (open ?? expanded) ? "chevron.down" : "chevron.right")
                         .font(.system(size: 10)).foregroundStyle(.tertiary)
@@ -256,7 +256,7 @@ struct ThinkingBlockView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(expanded ? "생각 과정 (생성 중)" : "생각 과정 펼치기")
+            .help(expanded ? "추론 과정 (생성 중)" : "추론 과정 펼치기")
             if open ?? expanded {
                 Text(thinking)
                     .font(DS.captionFont).foregroundStyle(.secondary)

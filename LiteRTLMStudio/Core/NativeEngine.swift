@@ -57,44 +57,7 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         return dir.path
     }
 
-    /// 엔진 백엔드 묶음 (T-177): config.json 추종 결과.
-    struct EngineBackends: Equatable {
-        var backend: Backend = .gpu
-        var vision: Backend? = .cpu()
-        var audio: Backend?
-    }
-
-    /// config.json 추종 백엔드 (순수, 테스트 가능, T-177): default 섹션 읽기.
-    /// 실패·미기재 시 기존 고정값 (.gpu/.cpu()/nil). npu 등 미지원은 gpu로 폴백.
-    nonisolated static func resolveBackends(configURL: URL) -> EngineBackends {
-        func parsed(_ s: String?, threads: Int?) -> Backend? {
-            switch s {
-            case "cpu": .cpu(threadCount: threads)
-            case "gpu": .gpu
-            default: nil
-            }
-        }
-        guard let data = try? Data(contentsOf: configURL),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let def = json["default"] as? [String: Any] else {
-            return EngineBackends()
-        }
-        let threads = def["cpu_thread_count"] as? Int
-        return EngineBackends(
-            backend: parsed(def["backend"] as? String, threads: threads) ?? .gpu,
-            vision: parsed(def["vision_backend"] as? String, threads: nil),
-            audio: parsed(def["audio_backend"] as? String, threads: nil))
-    }
-
-    /// Metal residency (T-177): 미설정 시 켬 (Gallery 동일).
-    nonisolated static func residencyEnabled(_ defaults: UserDefaults = .standard) -> Bool {
-        defaults.object(forKey: "metalResidency") as? Bool ?? true
-    }
-
-    /// Visual 예산 (T-177): 미설정 시 1120 (describe 상한, Gemma4 5단 중 최대).
-    nonisolated static func visualBudget(_ defaults: UserDefaults = .standard) -> Int32 {
-        Int32(defaults.object(forKey: "visualTokenBudget") as? Int ?? 1120)
-    }
+    /// 백엔드 묶음은 NativeEngine+Backends 분리 (T-273, 본문 길이 관리).
 
     func prepare(modelID: String) async throws {
         if preparedModelID == modelID, engine != nil { return }
@@ -109,14 +72,30 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         ExperimentalFlags.gpuEnableMetalResidencySet = Self.residencyEnabled()
         ExperimentalFlags.visualTokenBudget = Self.visualBudget()
         let resolved = Self.resolveBackends(configURL: ConfigStore.defaultURL)
+        do {
+            try await boot(modelID: modelID, backends: resolved)
+        } catch {
+            // T-273: 인코더 없는 모델은 모달 제외하고 1회 재시도.
+            guard let fallback = Self.modalFallback(resolved) else {
+                throw EngineError.initFailed("\(error)")
+            }
+            logger.info(feature: "네이티브엔진", "vision·audio 제외 폴백 초기화 (\(modelID))")
+            try await boot(modelID: modelID, backends: fallback)
+        }
+    }
+
+    /// 엔진 기동 1회 (T-273 분리): config→Engine→initialize, 성공 시 상태 확정.
+    private func boot(modelID: String, backends: EngineBackends) async throws {
         let config: EngineConfig
         do {
             config = try EngineConfig(modelPath: Self.modelPath(for: modelID),
-                                      backend: resolved.backend,
-                                      visionBackend: resolved.vision,
-                                      audioBackend: resolved.audio,
+                                      backend: backends.backend,
+                                      visionBackend: backends.vision,
+                                      audioBackend: backends.audio,
                                       cacheDir: Self.engineCacheDir())
         } catch {
+            logger.error(code: "E-MAC-ENG-0001", feature: "네이티브엔진",
+                         "EngineConfig 실패 (\(modelID)): \(error)")
             throw EngineError.initFailed("\(error)")
         }
         let engine = Engine(engineConfig: config)
@@ -126,6 +105,8 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         } catch {
             state = .failed
             lastError = EngineError.initFailed("").code
+            logger.error(code: "E-MAC-ENG-0001", feature: "네이티브엔진",
+                         "초기화 실패 (\(modelID)): \(error)")
             throw EngineError.initFailed("\(error)")
         }
         let secs = Date().timeIntervalSince(started)

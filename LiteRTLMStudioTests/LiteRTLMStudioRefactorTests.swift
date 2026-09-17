@@ -209,7 +209,9 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
     private func makeStore() -> ChatStore {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("chat-native-\(UUID().uuidString).json")
-        return ChatStore(storageURL: url)
+        // T-275: 경로 대입이 실 UserDefaults를 덮지 않게 격리.
+        let suite = UserDefaults(suiteName: "test-route-\(UUID().uuidString)")!
+        return ChatStore(storageURL: url, routeDefaults: suite)
     }
 
     private func withNativeMode(_ raw: String? = "native", _ body: () -> Void) {

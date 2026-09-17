@@ -95,13 +95,11 @@ extension ChatStore {
                 }
                 // T-148: 0.1초 묶음 갱신 (토큰당 전체 리렌더 방지). 종료 후 최종 반영.
                 if Self.shouldFlushText(now: Date(), lastFlush: lastFlush) {
-                    messages[idx].text = state.acc
-                    messages[idx].thinking = state.thinking
+                    flushText(idx: idx, acc: state.acc, thinkingAcc: state.thinkingAcc)
                     lastFlush = Date()
                 }
             }
-            messages[idx].text = state.acc
-            messages[idx].thinking = state.thinking
+            flushText(idx: idx, acc: state.acc, thinkingAcc: state.thinkingAcc)
             messages[idx].toolCalls = state.tools.isEmpty ? nil : state.tools
             await finishNative(at: idx, chars: state.acc.count, started: started)
         } catch is CancellationError {

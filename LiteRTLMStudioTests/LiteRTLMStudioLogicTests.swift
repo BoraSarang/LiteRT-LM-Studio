@@ -846,6 +846,77 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(ShellGuard.workspaceRoot(override: "/tmp/w").path, "/tmp/w")
     }
 
+    /// 모달 제외 폴백 (T-273): vision·audio 있을 때만 재시도 값.
+    func testModalFallback() {
+        let full = NativeEngine.EngineBackends(backend: .gpu, vision: .cpu(), audio: .cpu())
+        let fallback = NativeEngine.modalFallback(full)
+        XCTAssertEqual(fallback, NativeEngine.EngineBackends(backend: .gpu, vision: nil, audio: nil))
+        XCTAssertNil(NativeEngine.modalFallback(
+            NativeEngine.EngineBackends(backend: .gpu, vision: nil, audio: nil)))
+    }
+
+    /// 엔진 코드 매핑 (T-273): 페이로드 무관 케이스 기준.
+    func testEngineErrorCode() {
+        XCTAssertEqual(EngineError.initFailed("x").code, "E-MAC-ENG-0001")
+        XCTAssertEqual(EngineError.notReady.code, "E-MAC-ENG-0001")
+        XCTAssertEqual(EngineError.inferenceFailed("y").code, "E-MAC-ENG-0002")
+    }
+
+    /// <think> 분리 (T-274): 닫힘·미닫힘·복수·없음.
+    func testThinkTag() {
+        let closed = ThinkTag.extract("<think>고민</think>답변")
+        XCTAssertEqual(closed.clean, "답변")
+        XCTAssertEqual(closed.thought, "고민")
+        let open = ThinkTag.extract("<think>고민 중")
+        XCTAssertEqual(open.clean, "")
+        XCTAssertEqual(open.thought, "고민 중")
+        let multi = ThinkTag.extract("a<think>1</think>b<think>2</think>c")
+        XCTAssertEqual(multi.clean, "abc")
+        XCTAssertEqual(multi.thought, "1\n2")
+        let none = ThinkTag.extract("그냥 답변")
+        XCTAssertEqual(none.clean, "그냥 답변")
+        XCTAssertEqual(none.thought, "")
+    }
+
+    /// 네이티브 자동 초기화 판정 (T-275).
+    func testShouldAutoPrepare() {
+        typealias C = ContentView
+        XCTAssertTrue(C.shouldAutoPrepare(route: .native, modelID: "m", preparedID: nil,
+                                          preparing: false, streaming: false))
+        XCTAssertTrue(C.shouldAutoPrepare(route: .native, modelID: "m2", preparedID: "m1",
+                                          preparing: false, streaming: false))
+        XCTAssertFalse(C.shouldAutoPrepare(route: .cli, modelID: "m", preparedID: nil,
+                                           preparing: false, streaming: false))
+        XCTAssertFalse(C.shouldAutoPrepare(route: .native, modelID: nil, preparedID: nil,
+                                           preparing: false, streaming: false))
+        XCTAssertFalse(C.shouldAutoPrepare(route: .native, modelID: "m", preparedID: "m",
+                                           preparing: false, streaming: false))
+        XCTAssertFalse(C.shouldAutoPrepare(route: .native, modelID: "m", preparedID: nil,
+                                           preparing: true, streaming: false))
+        XCTAssertFalse(C.shouldAutoPrepare(route: .native, modelID: "m", preparedID: nil,
+                                           preparing: false, streaming: true))
+    }
+
+    /// 경로 저장소 주입 (T-275): 대입은 주입 저장소에만, 재실행 로드도 동일 저장소.
+    @MainActor
+    func testRoutePersistence() {
+        let suite = UserDefaults(suiteName: "test-route-persist-\(UUID().uuidString)")!
+        let before = UserDefaults.standard.string(forKey: "engineMode")
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-route-\(UUID().uuidString).json")
+        let store = ChatStore(storageURL: url, routeDefaults: suite)
+        XCTAssertEqual(store.route, .cli) // 빈 저장소 기본값
+        store.route = .native
+        XCTAssertEqual(suite.string(forKey: "engineMode"), "native")
+        XCTAssertEqual(UserDefaults.standard.string(forKey: "engineMode"), before) // 실 저장소 무변경
+        let url2 = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-route-\(UUID().uuidString).json")
+        let reloaded = ChatStore(storageURL: url2, routeDefaults: suite)
+        XCTAssertEqual(reloaded.route, .native) // 재실행 승계
+        try? FileManager.default.removeItem(at: url)
+        try? FileManager.default.removeItem(at: url2)
+    }
+
     /// 도구 카탈로그 (T-271, T-272 3종 추가): 등록 타입과 1:1 대응.
     func testToolCatalog() {
         let names = Set(ToolCatalog.all.map(\.name))

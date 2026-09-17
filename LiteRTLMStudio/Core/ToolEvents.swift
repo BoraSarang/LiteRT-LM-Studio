@@ -189,3 +189,25 @@ struct SSEChoice: Decodable {
 struct SSEChoiceChunk: Decodable {
     var choices: [SSEChoice]?
 }
+
+/// 인라인 <think> 분리 (T-274, 순수·테스트 가능): Qwen류가 본문에 섞어 보내는 추론 태그.
+/// 미닫힘은 뒤 전체를 추론으로 (스트리밍 중간 상태).
+enum ThinkTag {
+    nonisolated static func extract(_ text: String) -> (clean: String, thought: String) {
+        var clean = text
+        var thoughts: [String] = []
+        while let open = clean.range(of: "<think>") {
+            let afterOpen = open.upperBound
+            if let close = clean.range(of: "</think>", range: afterOpen ..< clean.endIndex) {
+                thoughts.append(String(clean[afterOpen ..< close.lowerBound]))
+                clean.removeSubrange(open.lowerBound ..< close.upperBound)
+            } else {
+                thoughts.append(String(clean[afterOpen...]))
+                clean.removeSubrange(open.lowerBound ..< clean.endIndex)
+                break
+            }
+        }
+        return (clean.trimmingCharacters(in: .whitespacesAndNewlines),
+                thoughts.joined(separator: "\n"))
+    }
+}

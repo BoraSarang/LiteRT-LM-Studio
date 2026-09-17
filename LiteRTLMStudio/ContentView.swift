@@ -141,6 +141,10 @@ struct ContentView: View {
                     chat.model = v
                     config.load(modelID: v)
                 }
+                autoPrepareNativeIfNeeded()
+            }
+            .onChange(of: chat.route) { _, _ in
+                autoPrepareNativeIfNeeded()
             }
             .onChange(of: daemon.status) { _, _ in
                 monitor.invalidateDaemonCache()

@@ -31,11 +31,23 @@ extension ChatStore {
         }
         state.acc += content
         if Self.shouldFlushText(now: Date(), lastFlush: state.lastFlush) {
-            messages[idx].text = state.acc
-            messages[idx].thinking = state.thinkingAcc.isEmpty ? nil : state.thinkingAcc
+            flushText(idx: idx, acc: state.acc, thinkingAcc: state.thinkingAcc)
             state.lastFlush = Date()
         }
         return false
+    }
+
+    /// 본문·추론 반영 (T-274): 인라인 <think> 분리 후 저장 (덮어쓰기라 중복 없음).
+    func flushText(idx: Int, acc: String, thinkingAcc: String) {
+        let split = ThinkTag.extract(acc)
+        messages[idx].text = split.clean
+        if split.thought.isEmpty {
+            messages[idx].thinking = thinkingAcc.isEmpty ? nil : thinkingAcc
+        } else if thinkingAcc.isEmpty {
+            messages[idx].thinking = split.thought
+        } else {
+            messages[idx].thinking = split.thought + "\n" + thinkingAcc
+        }
     }
 
     /// 도구·생각 델타 반영 (T-266): 누적+드문 갱신은 즉시 (조각 빈도 낮음).
@@ -94,8 +106,7 @@ extension ChatStore {
 
     /// 턴 종료 반영 (T-268): 본문·생각·칩 확정.
     func flushTurn(state: SSEStreamState, idx: Int) {
-        messages[idx].text = state.acc
-        messages[idx].thinking = state.thinkingAcc.isEmpty ? nil : state.thinkingAcc
+        flushText(idx: idx, acc: state.acc, thinkingAcc: state.thinkingAcc)
         let fresh = state.toolAcc.finalized()
         if !fresh.isEmpty {
             messages[idx].toolCalls = ServerToolHistory.merged(

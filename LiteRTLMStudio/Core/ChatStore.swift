@@ -110,9 +110,11 @@ final class ChatStore: ObservableObject {
     var thinkingEnabled = false // T-176 지원 모델만 UI 활성
     var thinkingBudget = -1 // T-176 -1=무제한
     /// 전송 경로 (T-186): 입력창 피커가 소유. 초기값은 기존 전역 설정 1회 승계.
-    /// 변경 시 UserDefaults에도 저장해 재실행 후 초기값으로 쓴다.
-    @Published var route: EngineMode = EngineMode.current() {
-        didSet { UserDefaults.standard.set(route.rawValue, forKey: "engineMode") }
+    /// 변경 시 routeDefaults에도 저장해 재실행 후 초기값으로 쓴다.
+    /// T-275: 저장소 주입 — 단위 테스트가 실 UserDefaults를 덮지 않게 분리.
+    var routeDefaults: UserDefaults = .standard
+    @Published var route: EngineMode = .cli {
+        didSet { routeDefaults.set(route.rawValue, forKey: "engineMode") }
     }
     /// 네이티브 준비 여부 (T-186): 엔진 주입+모델 초기화 완료.
     var nativePrepared: Bool { inferenceEngine?.preparedModelID != nil }
@@ -123,7 +125,8 @@ final class ChatStore: ObservableObject {
     let logger = DebugLogger.shared
     let storageURL: URL
 
-    init(storageURL: URL? = nil) {
+    init(storageURL: URL? = nil, routeDefaults: UserDefaults = .standard) {
+        self.routeDefaults = routeDefaults
         if let storageURL {
             self.storageURL = storageURL
         } else {
@@ -133,6 +136,7 @@ final class ChatStore: ObservableObject {
                 logger.info(feature: "채팅기록", "구 기록 이사 완료")
             }
         }
+        route = EngineMode(rawValue: routeDefaults.string(forKey: "engineMode") ?? "") ?? .cli
         load()
         if sessions.isEmpty { startDraft() }
         logger.info(feature: "채팅기록", "채팅 \(sessions.count)개 복원")

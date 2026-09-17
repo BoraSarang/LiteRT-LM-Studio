@@ -33,6 +33,29 @@ extension ContentView {
         logger.info(feature: "앱시작", "상태 복원 완료")
     }
 
+    /// 네이티브 자동 초기화 판정 (순수, 테스트 가능, T-275):
+    /// 경로 native + 모델 선택 + 미준비 + 준비 중 아님 + 전송 중 아님.
+    nonisolated static func shouldAutoPrepare(route: EngineMode, modelID: String?,
+                                              preparedID: String?, preparing: Bool,
+                                              streaming: Bool) -> Bool {
+        guard route == .native, let modelID, !modelID.isEmpty else { return false }
+        guard preparedID != modelID else { return false }
+        return !preparing && !streaming
+    }
+
+    /// 네이티브 자동 초기화 실행 (T-275): 경로 전환·모델 변경 시 호출.
+    /// 재실행 복원 시에는 호출 안 함 (예상 밖 메모리·시간 방지).
+    func autoPrepareNativeIfNeeded() {
+        let modelID = selectedModelID ?? models.models.first?.id
+        guard Self.shouldAutoPrepare(route: chat.route, modelID: modelID,
+                                     preparedID: nativeEngine.preparedModelID,
+                                     preparing: nativeEngine.state == .preparing,
+                                     streaming: chat.streaming),
+              let id = modelID else { return }
+        logger.info(feature: "네이티브엔진", "자동 초기화 시작 (\(ModelAlias.display(id: id)))")
+        Task { try? await nativeEngine.prepare(modelID: id) }
+    }
+
     /// T-216: 벤치마크 공유 인스턴스 연결 (측정 제공자+기록 전달).
     func wireBenchmark() {
         let engine = nativeEngine

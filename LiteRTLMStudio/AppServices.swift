@@ -37,7 +37,7 @@ final class AppServices: ObservableObject {
     /// 구 번들 설정 이사 (T-060, 1회): UserDefaults는 번들ID 기준이라 개명 시 초기화됨.
     /// SceneStorage 2종(selectedModelID·logPanelVisible)은 이사 불가, 로그인 항목은 설정 재토글.
     nonisolated static func migrateLegacyDefaults() {
-        let keys = ["appearance", "inspectorVisible", "launchAtLogin", "quitStopsDaemon",
+        let keys = ["appearance", "engineMode", "inspectorVisible", "launchAtLogin", "quitStopsDaemon",
                     "sessionSort", "showBackend", "showGenerate", "showInDock", "showSystem"]
         let old = UserDefaults(suiteName: "com.borasarang.litertlm-manager")
         var moved = false

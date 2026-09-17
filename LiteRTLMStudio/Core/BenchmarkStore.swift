@@ -161,12 +161,13 @@ final class BenchmarkStore: ObservableObject {
         emitRecord(status: .cancelled, metrics: metrics)
     }
 
-    /// 네이티브 실패 반영 (T-216 분리).
+    /// 네이티브 실패 반영 (T-216 분리, T-273 코드 정정): EngineError 코드 우선.
     private func failNative(_ error: Error) {
         running = false
         stopTick()
         stage = .initEngine
-        logger.error(code: "E-MAC-ENG-0002", feature: "벤치마크", "\(error)")
+        let code = (error as? EngineError)?.code ?? "E-MAC-ENG-0002"
+        logger.error(code: code, feature: "벤치마크", "\(error)")
         emitRecord(status: .failed, metrics: nil)
     }
 
