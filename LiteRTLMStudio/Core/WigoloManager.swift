@@ -20,10 +20,11 @@ final class WigoloManager: ObservableObject {
     @Published var external = false // 앱이 띄우지 않은 기존 serve에 연결 중
     @Published var installStage: String? // T-288 설치 단계 표시 ("[1/3] 패키지" 등)
     @Published var health = WigoloHealth() // T-288 4칸 상태
+    @Published var serveLog: [String] = [] // T-308 serve 실행 로그 (출력 파이프 수집)
 
-    private var process: Process?
+    var process: Process?
     private var installProcess: Process?
-    private let logger = DebugLogger.shared
+    let logger = DebugLogger.shared
 
     var baseURL: URL { Self.baseURL }
 
@@ -46,25 +47,15 @@ final class WigoloManager: ObservableObject {
                 return
             }
             status = .starting
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: bin)
-            p.arguments = ["serve"]
-            do {
-                try p.run()
-                process = p
-                logger.info(feature: "웹검색", "wigolo 데몬 시작 (\(bin))")
-                try? await Task.sleep(for: .seconds(3))
-                await recheck()
-            } catch {
-                status = .failed
-                lastError = "E-MAC-NET-0015"
-                logger.error(code: "E-MAC-NET-0015", feature: "웹검색", "데몬 시작 실패: \(error)")
-            }
+            await runServe(binary: bin)
         }
     }
 
-    /// 중지 (앱 소유 프로세스만).
+    /// serve 실행+출력 수집은 WigoloSupport 확장 (T-308, 본문 길이 관리).
+
+    /// 중지 (앱 소유 프로세스만, T-308: serveLog는 유지해 원인 추적).
     func stop() {
+        if process?.isRunning == true { appendServeLog("중지 요청") }
         process?.terminate()
         process = nil
         external = false
@@ -108,7 +99,9 @@ final class WigoloManager: ObservableObject {
         installStage = "[1/3] 패키지"
         appendInstallLog("[1/3] 패키지: $ npm i -g wigolo")
         logger.info(feature: "웹검색", "[1/3] 패키지 설치 시작")
-        let pkg = await runStreaming(executable: npm, args: ["i", "-g", "wigolo"], timeout: 600)
+        let pkg = await runStreaming(executable: npm, args: ["i", "-g", "wigolo"],
+                                      timeout: 600,
+                                      environment: Self.processEnvironment(addingPathDirs: Self.nodePathDirs()))
         guard status == .installing else { return } // 취소됨
         if pkg != 0 {
             await finishInstall(code: pkg, stage: "[1/3] 패키지")
@@ -119,9 +112,13 @@ final class WigoloManager: ObservableObject {
             return
         }
         installStage = "[2/3] 초기화"
-        appendInstallLog("[2/3] 초기화: $ wigolo init (약 1.5GB, 수 분 소요)")
+        // T-310: nvm node로 직접 실행해야 shebang env-node가 살아난다.
+        let initCmd = Self.wigoloCommand(bin, ["init"])
+        appendInstallLog("[2/3] 초기화: $ \(initCmd.executable) \(initCmd.args.joined(separator: " "))")
         logger.info(feature: "웹검색", "[2/3] 초기화 시작")
-        let initCode = await runStreaming(executable: bin, args: ["init"], timeout: 600)
+        let initCode = await runStreaming(executable: initCmd.executable, args: initCmd.args,
+                                          timeout: 600,
+                                          environment: Self.processEnvironment(addingPathDirs: Self.nodePathDirs()))
         guard status == .installing else { return } // 취소됨
         if initCode != 0 {
             await finishInstall(code: initCode, stage: "[2/3] 초기화")
@@ -147,11 +144,14 @@ final class WigoloManager: ObservableObject {
     }
 
     /// 로그 스트리밍 실행 (취소·타임아웃 지원). 종료코드 반환 (124=타임아웃).
-    func runStreaming(executable: String, args: [String], timeout: TimeInterval) async -> Int32 {
+    /// environment: PATH shebang 발동용 선택 주입 (T-310).
+    func runStreaming(executable: String, args: [String], timeout: TimeInterval,
+                      environment: [String: String]? = nil) async -> Int32 {
         await withCheckedContinuation { cont in
             let p = Process()
             p.executableURL = URL(fileURLWithPath: executable)
             p.arguments = args
+            if let environment { p.environment = environment }
             let pipe = Pipe()
             p.standardOutput = pipe
             p.standardError = pipe
@@ -211,7 +211,9 @@ final class WigoloManager: ObservableObject {
         result.cli = Self.resolveBinary() != nil
         result.daemon = await isHealthy()
         if let bin = Self.resolveBinary() {
-            let (out, code) = await UvManager.runProcess(bin, args: ["doctor"], timeout: 120)
+            // T-310: node 경유 실행 (shebang env-node 확보).
+            let cmd = Self.wigoloCommand(bin, ["doctor"])
+            let (out, code) = await UvManager.runProcess(cmd.executable, args: cmd.args, timeout: 120)
             if code == 0 {
                 appendInstallLog(out)
                 let parsed = Self.parseDoctor(out)
@@ -228,10 +230,11 @@ final class WigoloManager: ObservableObject {
                         + "브라우저=\(result.browser) 모델=\(result.models)")
     }
 
-    /// 버전 조회 (`wigolo --version` 첫 줄).
+    /// 버전 조회 (`wigolo --version` 첫 줄, T-310: node 경유).
     func fetchVersion() async {
         guard let bin = Self.resolveBinary() else { return }
-        let (out, code) = await UvManager.runProcess(bin, args: ["--version"], timeout: 30)
+        let cmd = Self.wigoloCommand(bin, ["--version"])
+        let (out, code) = await UvManager.runProcess(cmd.executable, args: cmd.args, timeout: 30)
         if code == 0 {
             version = out.trimmingCharacters(in: .whitespacesAndNewlines)
                 .components(separatedBy: .newlines).first
@@ -243,6 +246,8 @@ final class WigoloManager: ObservableObject {
         installLog.append(contentsOf: line.components(separatedBy: .newlines).filter { !$0.isEmpty })
         if installLog.count > 300 { installLog.removeFirst(installLog.count - 300) }
     }
+
+    /// serve 실행 로그는 WigoloSupport 확장 (T-308, 본문 길이 관리).
 
     /// 상태 재확인 (소유 프로세스 alive → running, 아니면 헬스체크).
     func recheck() async {

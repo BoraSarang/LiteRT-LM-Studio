@@ -125,6 +125,7 @@ extension SettingsView {
                 }
                 Button("다시 확인") { Task { await wigolo.doctor() } }
                     .controlSize(.small)
+                ServeLogButton(wigolo: wigolo)
             }
             .help("내장 검색 엔진 (wigolo 로컬 데몬, 127.0.0.1:3333). 앱 시작 시 자동 실행.")
             HStack(spacing: 12) {
@@ -186,6 +187,58 @@ extension SettingsView {
     /// wigolo 버전 접미 (T-284).
     var wigoloVersionSuffix: String {
         wigolo.version.map { " · \($0)" } ?? ""
+    }
+}
+
+/// 검색 데몬 실행 로그 버튼+팝오버 (T-308): `시작` 출력 확인용.
+struct ServeLogButton: View {
+    @ObservedObject var wigolo: WigoloManager
+    @State private var show = false
+
+    var body: some View {
+        Button("로그 보기") {
+            show = true
+            DebugLogger.shared.info(feature: "웹검색", "실행 로그 보기 열기")
+        }
+        .controlSize(.small)
+        .popover(isPresented: $show, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("검색 데몬 실행 로그")
+                    .font(.system(size: 13, weight: .semibold))
+                if wigolo.serveLog.isEmpty {
+                    Text("아직 실행 로그가 없어요. 시작을 누르면 여기에 표시됩니다.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 2) {
+                            ForEach(wigolo.serveLog.indices, id: \.self) { i in
+                                Text(wigolo.serveLog[i])
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                    }
+                    .frame(height: 200)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .clipShape(.rect(cornerRadius: 8))
+                    .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) }
+                }
+                HStack {
+                    Spacer()
+                    if !wigolo.serveLog.isEmpty {
+                        Button("복사") {
+                            PasteboardUtil.copy(wigolo.serveLog.joined(separator: "\n"))
+                        }.controlSize(.small)
+                    }
+                    Button("닫기") { show = false }.controlSize(.small)
+                }
+            }
+            .padding(12)
+            .frame(width: 440)
+        }
     }
 }
 

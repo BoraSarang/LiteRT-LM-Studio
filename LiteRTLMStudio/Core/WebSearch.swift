@@ -163,8 +163,8 @@ struct WebSearchTool: Tool {
         let limit = Swift.min(Swift.max(1, maxResults), 8)
         guard WebSearch.enabled() else {
             await ToolLedger.shared.record(toolName: Self.name, detail: q,
-                                           result: "웹 검색이 꺼져 있습니다.", denied: true)
-            return "웹 검색이 꺼져 있습니다. 설정에서 켜 주세요."
+                                           result: "웹 도구가 꺼져 있습니다.", denied: true)
+            return "웹 도구가 꺼져 있습니다. 설정에서 켜 주세요."
         }
         guard await WebSearch.available() else {
             await ToolLedger.shared.record(toolName: Self.name, detail: q,
@@ -197,8 +197,8 @@ struct WebFetchTool: Tool {
         let target = url
         guard WebSearch.enabled() else {
             await ToolLedger.shared.record(toolName: Self.name, detail: target,
-                                           result: "웹 검색이 꺼져 있습니다.", denied: true)
-            return "웹 검색이 꺼져 있습니다. 설정에서 켜 주세요."
+                                           result: "웹 도구가 꺼져 있습니다.", denied: true)
+            return "웹 도구가 꺼져 있습니다. 설정에서 켜 주세요."
         }
         guard await WebSearch.available() else {
             await ToolLedger.shared.record(toolName: Self.name, detail: target,

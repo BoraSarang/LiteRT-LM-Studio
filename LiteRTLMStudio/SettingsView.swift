@@ -134,7 +134,7 @@ if let err = loginError {
                     .onChange(of: prefillWarmup) { _, on in
                         DebugLogger.shared.info(feature: "프리필", on ? "켜짐" : "꺼짐")
                     }
-                Toggle("웹 검색 사용", isOn: $webSearchEnabled)
+                Toggle("웹 도구 사용", isOn: $webSearchEnabled)
                     .help("모델이 web_search·web_fetch 도구를 쓸 수 있게 합니다. wigolo 설치 필요.")
                     .onChange(of: webSearchEnabled) { _, on in
                         DebugLogger.shared.info(feature: "웹검색", on ? "켜짐" : "꺼짐")
