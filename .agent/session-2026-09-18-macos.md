@@ -63,3 +63,26 @@
 - 문서갱신: PLAN_v91 작성, TODO T-313 [x]·T-311 설명 정정(finish 누락), CHANGELOG Unreleased T-313 1건.
 - 큐상태: 코드+문서 미커밋 (feat/docs 커밋 예정).
 - E2E: 형상 단위 게이트. 실전 항목: 후속 대기 심머·완료 전환·재전송.
+
+## 후속6 — 앱 데이터 홈 통합·스킬 임포트 (T-314/T-315, PLAN_v92)
+
+- 무엇을: ① `StudioPaths`(단일 홈 `~/.litert-lm-studio`, `studioHome` 재지정) 신설 → 경로 9곳(ChatStore·MCPStore·SkillsStore·BenchmarkHistory·ReleaseNotes·NativeEngine.engineCacheDir·ShellTools.workspaceRoot·ModelStoreStaging) 수렴. ② `StudioMigrator` 1회 이사(소형 JSON·스킬=복사→원본 백업, 엔진 캐시·스테이징=이동) + `LiteRTLMStudioApp.init` 훅. ③ `SkillsStore` 멀티 루트(`skillRoots`)·자동 탐색 4곳·`SkillsImportSheet`(설정 스킬 탭).
+- 플랫폼: macOS (SwiftUI·xcodebuild·swiftlint).
+- 빌드+PERF+CACHE: unit 272/272(신규 12: StudioPaths·Migrator·스킬 임포트), lint 신규 0(SkillsStore 3-tuple→SkillEntry 구조체, SkillsImportSheet를 SettingsView로 이동해 파일 400줄 유지), build+~/Applications 설치+실행 OK.
+- 실홈 이사 검증: `~/.litert-lm-studio/{chats,mcp,benchmarks,release-notes.json,engine-cache,staging,workspace}` 생성, `~/Documents/.LiteRT-LM`은 `.DS_Store`만 남음(staging·workspace 이동), 구 App Support JSON·Skills는 백업으로 유지, `studioHomeMigrated=1`.
+- 남은 TODO: 설정에서 외부 스킬 폴더 추가·가져오기 눈확인(사용자), studioHome 재지정 실험(선택).
+- 전달로그: `StudioPaths`·`StudioMigrator.Summary{failed}`(실패 시 플래그 미설정=재시도), `SkillsStore.scanRoot/SkillEntry/knownExternalRoots/importCandidates/importSkill`, `ErrorCode` E-MAC-STOR-0013/0014.
+- 문서갱신: PLAN_v92, TODO T-314/T-315 [x], DESIGN·사용설명서·AGENTS.local 현행화, CHANGELOG Unreleased 2건, error_message_ko.json 2건.
+- 큐상태: 코드+문서 미커밋 (feat/docs 커밋 예정, 푸시 보류).
+- E2E: 형상 단위 게이트. 실전 항목: 설정→스킬 외부 추가·가져오기, 이사 후 기존 대화·MCP·벤치 기록 정상 로드.
+
+## 후속7 — 스킬 가져오기 UI 강화 (T-315, PLAN_v93)
+
+- 무엇을: AIModelTalk(SkillSettingsView·SkillPickerPopover) 패턴 적용 — `SkillsImportSheet`에 검색(이름·설명 실시간 필터), 출처 캡슐 뱃지(opencode/claude/agents), 헤더 카운트(총/검색/설치됨), 일괄 선택/해제/새로고침 버튼 추가. `SkillsStore`에 `SkillSource` enum(우선순위: opencode > claude > agents > 기타) 신설, 동일 이름 중복 시 높은 우선순위 승. `skillsTab` 행에도 출처 뱃지 표시(기존 "외부" 텍스트 대체).
+- 플랫폼: macOS (SwiftUI·xcodebuild·swiftlint).
+- 빌드+PERF+CACHE: unit 272/272, swiftlint 신규 0, `build_and_run.sh build macos` OK(설치·실행).
+- 남은 TODO: 사용자 실사용 확인(검색·뱃지·일괄 선택 동작), 필요 시 추가 루트(예: `.config/opencode/skill` 단수형) 스캔 대상 추가.
+- 전달로그: `SkillSource` enum·`ImportCandidate.source`·`knownExternalRootsWithSource` 우선순위 튜플·`sourceForRoot` 매핑, `SkillsImportSheet` 검색·헤더·액션 버튼, skillsTab 출처 뱃지.
+- 문서갱신: PLAN_v93, TODO T-315 갱신, CHANGELOG Unreleased T-315 1건, DESIGN 스킬 섹션 현행화.
+- 큐상태: 코드+문서 미커밋 (feat/docs 커밋 예정, 푸시 보류).
+- E2E: 형상 단위 게이트. 실전 항목: 설정→스킬 탭→가져오기 시 검색·뱃지·모두선택·새로고침, skillsTab 행 뱃지 확인.

@@ -156,20 +156,28 @@ final class ChatStore: ObservableObject {
         logger.info(feature: "채팅기록", "채팅 \(sessions.count)개 복원")
     }
 
-    /// 저장 경로 확정 (T-060): 신 디렉터리 + 구 기록 1회 이사.
+    /// 저장 경로 확정 (T-060 구 번들 이사 + T-314 신 홈 통합).
     nonisolated static func resolvedStorageURL() -> (URL, Bool) {
+        let dst = StudioPaths.chatHistoryURL
         let base = FileManager.default.urls(for: .applicationSupportDirectory,
                                             in: .userDomainMask).first!
-        let next = base.appendingPathComponent("LiteRTLMStudio", isDirectory: true)
-        let prev = base.appendingPathComponent("LiteRTLM-Manager", isDirectory: true)
-        try? FileManager.default.createDirectory(at: next, withIntermediateDirectories: true)
-        let dst = next.appendingPathComponent("chat-history.json")
-        let src = prev.appendingPathComponent("chat-history.json")
+        let appSupport = base.appendingPathComponent("LiteRTLMStudio/chat-history.json")
+        let legacyManager = base.appendingPathComponent("LiteRTLM-Manager/chat-history.json")
+        // T-060: 구 번들(LiteRTLM-Manager) → App Support 1회 이사.
+        if !FileManager.default.fileExists(atPath: appSupport.path),
+           FileManager.default.fileExists(atPath: legacyManager.path) {
+            try? FileManager.default.createDirectory(at: appSupport.deletingLastPathComponent(),
+                                                     withIntermediateDirectories: true)
+            try? FileManager.default.moveItem(at: legacyManager, to: appSupport)
+        }
+        // T-314: 마이그레이터 미실행·실패 대비 폴백 (구 경로 → 신 홈 복사, 원본 유지).
         var migrated = false
-        if !FileManager.default.fileExists(atPath: dst.path),
-           FileManager.default.fileExists(atPath: src.path) {
-            try? FileManager.default.moveItem(at: src, to: dst)
-            migrated = FileManager.default.fileExists(atPath: dst.path)
+        if !FileManager.default.fileExists(atPath: dst.path) {
+            let src = FileManager.default.fileExists(atPath: appSupport.path) ? appSupport : legacyManager
+            if FileManager.default.fileExists(atPath: src.path) {
+                try? FileManager.default.copyItem(at: src, to: dst)
+                migrated = FileManager.default.fileExists(atPath: dst.path)
+            }
         }
         return (dst, migrated)
     }

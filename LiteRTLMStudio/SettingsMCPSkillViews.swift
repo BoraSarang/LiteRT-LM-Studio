@@ -41,20 +41,52 @@ extension SettingsView {
             .tabItem { Label("MCP", systemImage: "server.rack") }
     }
 
-    /// 스킬 탭.
+    /// 스킬 탭 (T-315: 외부 루트·임포트 추가).
     var skillsTab: some View {
         Form {
             if skills.isEmpty {
-                Text("SKILL.md 없음. 폴더 열기로 Skills 폴더에 <이름>/SKILL.md를 넣으세요.")
+                Text("SKILL.md 없음. 폴더 열기로 직접 넣거나, 가져오기로 외부 스킬을 복사하세요.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             ForEach(skills) { skill in
-                Toggle(skill.name, isOn: skillBinding(for: skill.name))
-                    .help(skill.blurb)
+                HStack(spacing: 8) {
+                    Toggle(skill.name, isOn: skillBinding(for: skill.name))
+                        .help(skill.blurb)
+                    if let src = skill.source {
+                        Text(src.label)
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.15))
+                            .clipShape(Capsule())
+                            .help(skill.root)
+                    }
+                }
+            }
+            if !skillRoots.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("외부 스킬 폴더").font(DS.captionFont).foregroundStyle(.secondary)
+                    ForEach(skillRoots, id: \.self) { root in
+                        HStack(spacing: 6) {
+                            Text(root).font(DS.captionFont).foregroundStyle(.secondary)
+                                .lineLimit(1).truncationMode(.middle)
+                            Spacer()
+                            Button("제거") {
+                                SkillsStore.removeRoot(root)
+                                reloadSkills()
+                            }.controlSize(.small)
+                        }
+                    }
+                }
             }
             HStack {
                 Button("폴더 열기") {
                     NSWorkspace.shared.open(SkillsStore.skillsDir())
+                }
+                Button("폴더 추가") { pickSkillRoot() }
+                Button("가져오기") {
+                    skillCandidates = SkillsStore.importCandidates()
+                    showSkillsImport = true
                 }
                 Button("새로고침") { reloadSkills() }
                 Spacer()
@@ -63,6 +95,33 @@ extension SettingsView {
                 .font(.caption).foregroundStyle(.secondary)
         }.formStyle(.grouped).padding()
             .tabItem { Label("스킬", systemImage: "sparkles") }
+            .sheet(isPresented: $showSkillsImport) {
+                SkillsImportSheet(
+                    candidates: $skillCandidates,
+                    onImport: { c in
+                        SkillsStore.importSkill(c)
+                        skillCandidates = SkillsStore.importCandidates()
+                        reloadSkills()
+                    },
+                    onRefresh: {
+                        skillCandidates = SkillsStore.importCandidates()
+                    },
+                    onClose: { showSkillsImport = false })
+            }
+    }
+
+    /// 외부 스킬 폴더 선택 (T-315).
+    func pickSkillRoot() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "추가"
+        panel.message = "스킬(SKILL.md) 폴더를 선택하세요."
+        if panel.runModal() == .OK, let url = panel.url {
+            SkillsStore.addRoot(url.path)
+            reloadSkills()
+        }
     }
 
     /// MCP 토글 바인딩 (T-285).
@@ -89,9 +148,12 @@ extension SettingsView {
         mcpTestResult[srv.id] = await mcp.testConnection(srv)
     }
 
-    /// 스킬 목록 새로고침 (T-285).
+    /// 스킬 목록 새로고침 (T-285, T-315: 외부 루트 포함).
     func reloadSkills() {
         skills = SkillsStore.list()
+        skillRoots = SkillsStore.extraRoots().map { $0.path }
+        DebugLogger.shared.info(feature: "스킬",
+                                "새로고침: \(skills.count)개 (외부 루트 \(skillRoots.count))")
     }
 
     /// 스킬 토글 바인딩 (T-285).

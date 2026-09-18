@@ -2,6 +2,22 @@
 
 ## [Unreleased] (macos)
 
+* 앱 데이터 홈 통합 (T-314, PLAN_v92): 흩어져 있던 앱 소유 데이터를 `~/.litert-lm-studio/`
+  단일 홈으로 모은다 — `chats/chat-history.json`, `mcp/servers.json`,
+  `skills/<이름>/SKILL.md`, `benchmarks/history.json`, `release-notes.json`,
+  `engine-cache/`, `staging/`, `workspace/`. 설정 `studioHome`으로 재지정 가능(재실행 반영).
+  기존 경로에서 1회 자동 이사(`StudioMigrator`, `studioHomeMigrated` 플래그): 소형 JSON·스킬은
+  **복사**(원본=백업 유지), 엔진 캐시·스테이징은 **이동**(동일 볼륨 rename, 실패 시 복사 폴백).
+  실패 항목이 있으면 플래그를 남기지 않아 다음 실행에 재시도. `~/Documents/.LiteRT-LM`
+  (staging·workspace)과 `~/Library/{Application Support,Caches}/LiteRTLMStudio`가 대상.
+  외부 도구 소유(`~/.litert-lm` config·models, `~/.wigolo`)는 옮기지 않음. error_code
+  E-MAC-STOR-0013. [macos]
+* 스킬 외부 루트·가져오기 (T-315, PLAN_v93): 설정 스킬 탭에서 외부 폴더를 추가해 함께
+  스캔(멀티 루트, `skillRoots`)하고, `~/.opencode/skills`·`~/.claude/skills`·
+  `~/.agents/skills`의 SKILL.md를 골라 앱 홈 `skills/`로 복사
+  (`SkillsImportSheet`). **검색(이름·설명), 출처 뱃지(opencode/claude/agents), 일괄 선택/해제/새로고침** 지원.
+  동일 이름 중복 시 우선순위(opencode > claude > agents) 자동 병합. skillsTab 행에 출처 뱃지 표시.
+  error_code E-MAC-STOR-0014. [macos]
 * 후속 질문 로딩 애니메이션 (T-313, PLAN_v91): 후속 질문이 생성되는 3~4초 동안
   스켈레톤 바가 정적이라 "멍때리는" 느낌이었다. 심머(밝은 그라데이션이 좌→우로
   흐름)를 추가하고, 완료 시 칩으로 크로스페이드(0.25s). 스켈레톤 바를 칩과 같은

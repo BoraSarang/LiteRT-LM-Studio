@@ -307,3 +307,5 @@
 * [x] T-311 응답중 멈춤: 근본원인=스트림 정상 완료 시 `continuation.finish()` 누락 (PLAN_v90)
 * [x] T-312 오늘 날짜 주입: FC 미지원 모델도 날짜·요일 인지 (시스템 프롬프트, PLAN_v90)
 * [x] T-313 후속 질문 로딩 애니메이션: 심머+크로스페이드+최소 노출 0.4s (PLAN_v91)
+* [x] T-314 앱 데이터 홈 통합: `~/.litert-lm-studio` 단일 홈+백업 후 자동 이사 (PLAN_v92) — StudioPaths/StudioMigrator, 경로 9곳 수렴, 실홈 이사 검증(chats·mcp·benchmarks·engine-cache·staging 이동, 원본 백업 유지).
+* [x] T-315 스킬 외부 루트+임포트: 설정 폴더 추가+Claude/opencode/agents SKILL.md 가져오기 (PLAN_v93) — skillRoots 멀티 루트+자동 탐색 3곳+우선순위 병합, `SkillsImportSheet` 검색·출처 뱃지·일괄 선택·새로고침, skillsTab 출처 뱃지 표시.

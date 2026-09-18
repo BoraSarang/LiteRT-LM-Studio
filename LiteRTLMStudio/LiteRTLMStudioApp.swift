@@ -3,9 +3,16 @@ import SwiftUI
 
 @main
 struct LiteRTLMStudioApp: App {
-    @StateObject private var services = AppServices()
+    @StateObject private var services: AppServices
     @AppStorage("showInDock") private var showInDock = false
     @AppStorage("onboardingDone") private var onboardingDone = false
+
+    init() {
+        // T-314: 스토어 생성 전에 앱 데이터 홈(`~/.litert-lm-studio`)으로 1회 이사.
+        // NSApp 호출이 아니라 FS 작업이라 App.init에서 안전.
+        StudioMigrator.runIfNeeded()
+        _services = StateObject(wrappedValue: AppServices())
+    }
 
     // 주의: init에서 NSApp 호출 금지 (테스트 부트스트랩 크래시).
     // 정책 적용은 ContentView.task + 설정 토글에서 수행.

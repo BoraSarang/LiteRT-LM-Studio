@@ -1103,10 +1103,10 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(ShellGuard.jailed("~/x", root: root), nil) // 홈 확장 후 루트 밖
     }
 
-    /// 작업폴더 기본값 (T-272).
+    /// 작업폴더 기본값 (T-272 → T-314: 앱 홈 workspace).
     func testWorkspaceDefault() {
         XCTAssertTrue(ShellGuard.workspaceRoot(override: nil).path
-            .hasSuffix("Documents/.LiteRT-LM/workspace"))
+            .hasSuffix(".litert-lm-studio/workspace"))
         XCTAssertEqual(ShellGuard.workspaceRoot(override: "/tmp/w").path, "/tmp/w")
     }
 

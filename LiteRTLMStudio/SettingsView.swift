@@ -21,6 +21,9 @@ struct SettingsView: View {
     @State private var toolFlags: [String: Bool] = [:] // T-271 도구 개별 ON/OFF
     @ObservedObject var mcp = MCPStore.shared // T-285 MCP 서버 목록
     @State var skills: [SkillInfo] = [] // T-285 스킬 목록
+    @State var skillRoots: [String] = [] // T-315 외부 스킬 루트
+    @State var skillCandidates: [SkillsStore.ImportCandidate] = [] // T-315 임포트 후보
+    @State var showSkillsImport = false // T-315 임포트 시트
     @State var showMCPAdd = false // T-285 서버 추가 시트
     @State var mcpDraft = MCPServerConfig(name: "") // T-285 입력 초안
     @State var mcpTestResult: [UUID: String] = [:] // T-285 연결 결과
@@ -237,5 +240,125 @@ if let err = loginError {
             loginError = "로그인 항목 변경 실패: \(error.localizedDescription)"
             launchAtLogin = !on
         }
+    }
+}
+
+/// 외부 스킬 가져오기 시트 (T-315): 검색·출처 뱃지·일괄 선택·새로고침.
+struct SkillsImportSheet: View {
+    @Binding var candidates: [SkillsStore.ImportCandidate]
+    var onImport: (SkillsStore.ImportCandidate) -> Void
+    var onRefresh: () -> Void
+    var onClose: () -> Void
+    @State private var selected: Set<String> = []
+    @State private var searchText = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("스킬 가져오기").font(.system(size: 13, weight: .semibold))
+
+            // 검색 필드
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.caption).foregroundStyle(.secondary)
+                TextField("스킬 이름 또는 설명 검색", text: $searchText)
+                    .textFieldStyle(.plain)
+                if !searchText.isEmpty {
+                    Button { searchText = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }.buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            if filteredCandidates.isEmpty {
+                Text(candidates.isEmpty
+                     ? "가져올 외부 스킬을 찾지 못했어요. (opencode·claude·agents 스킬 폴더 확인)"
+                     : "'\(searchText)'에 일치하는 스킬이 없습니다")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 12)
+            } else {
+                // 헤더: 카운트 + 액션
+                let installedCount = candidates.filter { $0.installed }.count
+                HStack {
+                    Text("총 \(candidates.count)개 · 검색 \(filteredCandidates.count)개 · 설치됨 \(installedCount)개")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("모두 선택") {
+                        selected = Set(filteredCandidates.filter { !$0.installed }.map { $0.id })
+                    }.controlSize(.small)
+                    Button("모두 해제") { selected.removeAll() }.controlSize(.small)
+                    Button(action: onRefresh) {
+                        Label("새로고침", systemImage: "arrow.clockwise")
+                    }.controlSize(.small)
+                }
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(filteredCandidates) { c in
+                            HStack(alignment: .top, spacing: 8) {
+                                Toggle("", isOn: binding(for: c))
+                                    .labelsHidden()
+                                    .disabled(c.installed)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack(spacing: 6) {
+                                        // 출처 뱃지
+                                        Text(c.source.label)
+                                            .font(.system(size: 10))
+                                            .foregroundStyle(.secondary)
+                                            .padding(.horizontal, 5).padding(.vertical, 1)
+                                            .background(Color.secondary.opacity(0.15))
+                                            .clipShape(Capsule())
+                                        Text(c.name).font(.system(size: 12, weight: .medium))
+                                        if c.installed {
+                                            Text("설치됨").font(DS.captionFont)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    if !c.blurb.isEmpty {
+                                        Text(c.blurb).font(DS.captionFont)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1).truncationMode(.tail)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+                }.frame(maxHeight: 300)
+            }
+
+            HStack {
+                Spacer()
+                Button("닫기", action: onClose)
+                Button("가져오기") {
+                    for c in filteredCandidates where selected.contains(c.id) { onImport(c) }
+                    selected.removeAll()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selected.isEmpty)
+            }
+        }.padding(16).frame(width: 520)
+    }
+
+    private var filteredCandidates: [SkillsStore.ImportCandidate] {
+        let q = searchText.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return candidates }
+        return candidates.filter {
+            $0.name.localizedCaseInsensitiveContains(q) ||
+            $0.blurb.localizedCaseInsensitiveContains(q)
+        }
+    }
+
+    /// 후보 선택 바인딩 (이미 설치된 항목은 제외).
+    private func binding(for c: SkillsStore.ImportCandidate) -> Binding<Bool> {
+        Binding(get: { selected.contains(c.id) },
+                set: { on in
+                    if on { selected.insert(c.id) } else { selected.remove(c.id) }
+                })
     }
 }

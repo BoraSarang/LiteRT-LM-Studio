@@ -156,11 +156,16 @@ final class ReleaseNotes: ObservableObject {
     }
 
     nonisolated static func resolvedURL() -> URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory,
-                                            in: .userDomainMask).first!
-        let dir = base.appendingPathComponent("LiteRTLMStudio", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("release-notes.json")
+        let dst = StudioPaths.releaseNotesURL
+        // 마이그레이터 미실행·실패 대비 폴백: 구 경로가 남아 있으면 1회 복사.
+        let legacy = FileManager.default.urls(for: .applicationSupportDirectory,
+                                              in: .userDomainMask).first!
+            .appendingPathComponent("LiteRTLMStudio/release-notes.json")
+        if !FileManager.default.fileExists(atPath: dst.path),
+           FileManager.default.fileExists(atPath: legacy.path) {
+            try? FileManager.default.copyItem(at: legacy, to: dst)
+        }
+        return dst
     }
 
     /// 최신 정식 릴리즈 (화면 표시용, T-294 엔진만).

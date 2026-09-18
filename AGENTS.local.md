@@ -10,6 +10,7 @@
 * 외부 도구: `/opt/homebrew/bin/uv` 절대경로 사용 (Swift Process PATH 미의존).
 * 데몬: `litert-lm serve --host 127.0.0.1 --port 9379` 고정. 포트 변경 시 본 파일 갱신.
 * 모델 경로: `~/.litert-lm/models` 읽기 전용 참조. `.litertlm` 앱 번들 금지.
+* 앱 데이터 홈(T-314): `~/.litert-lm-studio/` (`StudioPaths` 단일 진실). 채팅·MCP·스킬·벤치·캐시·스테이징·작업폴더가 이 아래. `~/.litert-lm`(CLI config·models)·`~/.wigolo`(wigolo)는 외부 소유라 참조만. 신규 파일에 경로 하드코딩 금지 → `StudioPaths` 사용.
 * 캐시 삭제(`rm -r ~/.litert-lm`)는 파괴적 동작 → 확인 팝업 필수.
 * 빌드: `xcodebuild`만 사용 (`swift build/test` 금지). 결과물 `~/Applications/LiteRT-LM Studio.app` (번들명=DisplayName 규칙, 기존 있으면 rm 후 복사 — 본 프로젝트 결과물에 한함).
 * 빌드 후 항상 설치·실행 (2번 고정): 검증 게이트 통과 후 `./build_and_run.sh build macos` 전체 실행 (종료→복사→open). 포커스 스틸 사전 확인 생략.

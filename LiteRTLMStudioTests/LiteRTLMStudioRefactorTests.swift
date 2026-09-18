@@ -695,3 +695,174 @@ final class LiteRTLMStudioPrefillTests: XCTestCase {
         XCTAssertTrue(fake.prepareCalls.isEmpty)
     }
 }
+
+/// T-314·T-315: 앱 데이터 홈·마이그레이션·외부 스킬 임포트.
+final class LiteRTLMStudioStudioHomeTests: XCTestCase {
+    private func tempDir(_ name: String) -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("litert-\(name)-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    private func suite() -> UserDefaults {
+        let name = "litert.test.\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: name)!
+        d.removePersistentDomain(forName: name)
+        return d
+    }
+
+    // MARK: StudioPaths
+
+    func testResolveHomeFallsBackToDefault() {
+        XCTAssertEqual(StudioPaths.resolveHome(override: nil).path, StudioPaths.defaultHome.path)
+        XCTAssertEqual(StudioPaths.resolveHome(override: "  ").path, StudioPaths.defaultHome.path)
+        XCTAssertEqual(StudioPaths.resolveHome(override: "relative/dir").path,
+                       StudioPaths.defaultHome.path)
+    }
+
+    func testResolveHomeAcceptsAbsoluteAndTilde() {
+        XCTAssertEqual(StudioPaths.resolveHome(override: "/tmp/studio-x").path, "/tmp/studio-x")
+        let expanded = (("~/studio-x") as NSString).expandingTildeInPath
+        XCTAssertEqual(StudioPaths.resolveHome(override: "~/studio-x").path, expanded)
+    }
+
+    func testHomeReadsUserDefaults() {
+        let d = suite()
+        let dir = tempDir("home-cfg")
+        d.set(dir.path, forKey: StudioPaths.homeKey)
+        XCTAssertEqual(StudioPaths.home(d).path, dir.path)
+        d.set("relative", forKey: StudioPaths.homeKey)
+        XCTAssertEqual(StudioPaths.home(d).path, StudioPaths.defaultHome.path)
+    }
+
+    func testSubdirBuilders() {
+        let base = URL(fileURLWithPath: "/tmp/base", isDirectory: true)
+        XCTAssertEqual(StudioPaths.chatsDir(base).lastPathComponent, "chats")
+        XCTAssertEqual(StudioPaths.mcpDir(base).lastPathComponent, "mcp")
+        XCTAssertEqual(StudioPaths.skillsDir(base).lastPathComponent, "skills")
+        XCTAssertEqual(StudioPaths.benchmarksDir(base).lastPathComponent, "benchmarks")
+        XCTAssertEqual(StudioPaths.engineCacheDir(base).lastPathComponent, "engine-cache")
+        XCTAssertEqual(StudioPaths.stagingDir(base).lastPathComponent, "staging")
+        XCTAssertEqual(StudioPaths.workspaceDir(base).lastPathComponent, "workspace")
+    }
+
+    // MARK: StudioMigrator
+
+    func testMigratorRunCopiesJSONMovesLargeFiles() throws {
+        let home = tempDir("home")
+        let legacyAS = tempDir("as")
+        let legacyCaches = tempDir("caches")
+        let legacyDocs = tempDir("docs")
+        let fm = FileManager.default
+        try "{}".write(to: legacyAS.appendingPathComponent("chat-history.json"),
+                       atomically: true, encoding: .utf8)
+        try "{}".write(to: legacyAS.appendingPathComponent("mcp-servers.json"),
+                       atomically: true, encoding: .utf8)
+        let skillDir = legacyAS.appendingPathComponent("Skills/my-skill", isDirectory: true)
+        try fm.createDirectory(at: skillDir, withIntermediateDirectories: true)
+        try "# My Skill".write(to: skillDir.appendingPathComponent("SKILL.md"),
+                               atomically: true, encoding: .utf8)
+        let engineCache = legacyCaches.appendingPathComponent("EngineCache", isDirectory: true)
+        try fm.createDirectory(at: engineCache, withIntermediateDirectories: true)
+        try "bin".write(to: engineCache.appendingPathComponent("model.bin"),
+                        atomically: true, encoding: .utf8)
+        let ws = legacyDocs.appendingPathComponent("workspace", isDirectory: true)
+        try fm.createDirectory(at: ws, withIntermediateDirectories: true)
+        try "work".write(to: ws.appendingPathComponent("file.txt"), atomically: true, encoding: .utf8)
+
+        let s = StudioMigrator.run(home: home, legacyAppSupport: legacyAS,
+                                   legacyCaches: legacyCaches, legacyDocuments: legacyDocs)
+        XCTAssertGreaterThanOrEqual(s.copied, 3) // chat-history·mcp-servers·skill
+        XCTAssertGreaterThanOrEqual(s.moved, 2) // engine-cache·workspace
+        XCTAssertEqual(s.failed, 0)
+        XCTAssertTrue(fm.fileExists(atPath: StudioPaths.chatsDir(home)
+            .appendingPathComponent("chat-history.json").path))
+        XCTAssertTrue(fm.fileExists(atPath: StudioPaths.skillsDir(home)
+            .appendingPathComponent("my-skill/SKILL.md").path))
+        XCTAssertTrue(fm.fileExists(atPath: StudioPaths.engineCacheDir(home)
+            .appendingPathComponent("model.bin").path))
+        XCTAssertTrue(fm.fileExists(atPath: StudioPaths.workspaceDir(home)
+            .appendingPathComponent("file.txt").path))
+        // 복사=원본 유지(백업), 이동=원본 제거.
+        XCTAssertTrue(fm.fileExists(atPath: legacyAS
+            .appendingPathComponent("chat-history.json").path))
+        XCTAssertFalse(fm.fileExists(atPath: engineCache.appendingPathComponent("model.bin").path))
+    }
+
+    func testMigratorSkipsWhenFlagSet() {
+        let d = suite()
+        d.set(true, forKey: StudioMigrator.flagKey)
+        let s = StudioMigrator.runIfNeeded(defaults: d)
+        XCTAssertTrue(s.skipped)
+        XCTAssertTrue(s.isEmpty)
+    }
+
+    func testMigratorNoLegacyReturnsEmpty() {
+        let home = tempDir("home-empty")
+        let empty = tempDir("empty")
+        let s = StudioMigrator.run(home: home, legacyAppSupport: empty,
+                                   legacyCaches: empty, legacyDocuments: empty)
+        XCTAssertTrue(s.isEmpty)
+        XCTAssertEqual(s.failed, 0)
+    }
+
+    // MARK: SkillsStore 외부 루트·임포트
+
+    func testAddRemoveRoot() {
+        let d = suite()
+        let dir = tempDir("ext-root")
+        SkillsStore.addRoot(dir.path, defaults: d)
+        SkillsStore.addRoot(dir.path, defaults: d) // 중복 무시
+        XCTAssertEqual(SkillsStore.extraRoots(defaults: d).map { $0.path }, [dir.path])
+        SkillsStore.removeRoot(dir.path, defaults: d)
+        XCTAssertTrue(SkillsStore.extraRoots(defaults: d).isEmpty)
+    }
+
+    func testRootsDedupesDefault() {
+        let d = suite()
+        SkillsStore.addRoot(SkillsStore.skillsDir().path, defaults: d)
+        XCTAssertEqual(SkillsStore.roots(defaults: d).count, 1)
+    }
+
+    func testScanRootOnlySkillFolders() throws {
+        let root = tempDir("scan")
+        let fm = FileManager.default
+        let ok = root.appendingPathComponent("alpha", isDirectory: true)
+        try fm.createDirectory(at: ok, withIntermediateDirectories: true)
+        try "# Alpha\ndesc".write(to: ok.appendingPathComponent("SKILL.md"),
+                                  atomically: true, encoding: .utf8)
+        let noSkill = root.appendingPathComponent("beta", isDirectory: true)
+        try fm.createDirectory(at: noSkill, withIntermediateDirectories: true)
+        let found = SkillsStore.scanRoot(root, fm)
+        XCTAssertEqual(found.map { $0.name }, ["alpha"])
+        XCTAssertEqual(found.first?.blurb, "Alpha")
+    }
+
+    func testImportSkillCopiesOnce() throws {
+        let home = tempDir("home-import")
+        let ext = tempDir("ext")
+        let fm = FileManager.default
+        let src = ext.appendingPathComponent("my-skill", isDirectory: true)
+        try fm.createDirectory(at: src, withIntermediateDirectories: true)
+        try "# My Skill\ndesc".write(to: src.appendingPathComponent("SKILL.md"),
+                                     atomically: true, encoding: .utf8)
+        let c = SkillsStore.ImportCandidate(name: "my-skill", blurb: "My Skill",
+                                            root: ext.path, installed: false, source: .other)
+        XCTAssertTrue(SkillsStore.importSkill(c, home: home))
+        let dst = StudioPaths.skillsDir(home).appendingPathComponent("my-skill/SKILL.md")
+        XCTAssertTrue(fm.fileExists(atPath: dst.path))
+        XCTAssertFalse(SkillsStore.importSkill(c, home: home))
+    }
+
+    func testImportCandidatesMarksInstalled() throws {
+        let home = tempDir("home-cand")
+        let fm = FileManager.default
+        let target = StudioPaths.skillsDir(home).appendingPathComponent("alpha", isDirectory: true)
+        try fm.createDirectory(at: target, withIntermediateDirectories: true)
+        try "# Alpha".write(to: target.appendingPathComponent("SKILL.md"),
+                            atomically: true, encoding: .utf8)
+        let installed = Set(SkillsStore.scanRoot(StudioPaths.skillsDir(home), fm).map { $0.name })
+        XCTAssertTrue(installed.contains("alpha"))
+    }
+}

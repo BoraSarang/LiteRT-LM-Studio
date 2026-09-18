@@ -12,11 +12,8 @@ extension ModelStore {
 
     // MARK: - 스테이징 (T-232, PLAN_v47)
 
-    /// 스테이징 폴더: 숨김·유지 (`~/Documents/.LiteRT-LM`). 완료 후에도 삭제 안 함.
-    var stagingURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Documents/.LiteRT-LM")
-    }
+    /// 스테이징 폴더: 숨김·유지 (`~/.litert-lm-studio/staging`, T-314). 완료 후에도 삭제 안 함.
+    var stagingURL: URL { StudioPaths.stagingURL }
 
     var mappingURL: URL { stagingURL.appendingPathComponent(".mapping.json") }
 

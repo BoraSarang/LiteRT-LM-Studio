@@ -24,8 +24,7 @@ enum ShellGuard {
         if let o = override, !o.isEmpty {
             return URL(fileURLWithPath: (o as NSString).expandingTildeInPath)
         }
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Documents/.LiteRT-LM/workspace", isDirectory: true)
+        return StudioPaths.workspaceURL
     }
 
     /// 명령 감사 (순수): 차단 사유 또는 nil(통과).

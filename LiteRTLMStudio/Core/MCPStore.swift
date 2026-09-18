@@ -25,11 +25,7 @@ final class MCPStore: ObservableObject {
     }
 
     nonisolated static func resolvedURL() -> URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory,
-                                            in: .userDomainMask).first!
-        let dir = base.appendingPathComponent("LiteRTLMStudio", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("mcp-servers.json")
+        StudioPaths.mcpServersURL
     }
 
     /// 켜진 서버 목록 (게이트웨이 조회용).

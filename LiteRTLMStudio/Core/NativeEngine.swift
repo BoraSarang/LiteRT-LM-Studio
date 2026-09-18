@@ -59,13 +59,9 @@ final class NativeEngine: InferenceEngine, ObservableObject {
             .appendingPathComponent(".litert-lm/models/\(modelID)/model.litertlm").path
     }
 
-    /// 컴파일 캐시 경로 (P2-1): cachesDirectory 사용 (시스템 자동 관리).
+    /// 컴파일 캐시 경로 (P2-1 → T-314): 앱 홈 `engine-cache` (StudioPaths).
     nonisolated static func engineCacheDir() -> String {
-        let base = FileManager.default.urls(for: .cachesDirectory,
-                                            in: .userDomainMask).first!
-        let dir = base.appendingPathComponent("LiteRTLMStudio/EngineCache", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.path
+        StudioPaths.engineCachePath
     }
 
     /// 백엔드 캐시 무효화 (설정 변경 시 호출).
