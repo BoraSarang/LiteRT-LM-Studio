@@ -99,12 +99,14 @@ enum EngineError: Error, Equatable {
     case notReady
     case initFailed(String)
     case inferenceFailed(String)
+    case timeout(String) // T-311: 응답 스톨 워치독 발화
 
     /// error_message_ko.json 키.
     var code: String {
         switch self {
         case .notReady, .initFailed: "E-MAC-ENG-0001"
         case .inferenceFailed: "E-MAC-ENG-0002"
+        case .timeout: "E-MAC-ENG-0005"
         }
     }
 }

@@ -339,6 +339,7 @@ extension ContentView {
     }
 
     /// T-291 후속질문 영역: LLM 로딩=스켈레톤, 완료=LLM 칩, 실패=휴리스틱 폴백.
+    /// T-313: 스켈레톤↔칩 크로스페이드 (뚝 바뀌지 않게).
     func followUpArea(_ m: ChatStore.Message) -> some View {
         Group {
             if followUps.messageID == m.id && followUps.loading {
@@ -358,6 +359,8 @@ extension ContentView {
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: followUps.loading)
+        .animation(.easeInOut(duration: 0.25), value: followUps.chips)
         .onAppear {
             followUps.finalize(messageID: m.id,
                                question: FollowUpSuggest.questionBefore(messages: chat.messages,

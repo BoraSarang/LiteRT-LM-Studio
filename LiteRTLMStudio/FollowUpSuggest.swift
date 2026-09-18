@@ -147,6 +147,16 @@ enum FollowUpSuggest {
         guard nonEmpty.count >= 3 else { return false }
         return stripFollowUpMarker(lines.last ?? "").count >= 8
     }
+
+    /// 스켈레톤 최소 노출 (T-313): 초고속 응답 시 깜빡임 방지.
+    nonisolated static var minLoadingSeconds: TimeInterval { 0.4 }
+
+    /// 최소 노출까지 남은 대기 (순수, 테스트 가능, T-313). 이미 지났으면 0.
+    nonisolated static func minDisplayRemainder(
+        elapsed: TimeInterval, minimum: TimeInterval = minLoadingSeconds
+    ) -> TimeInterval {
+        max(0, minimum - elapsed)
+    }
 }
 
 /// 후속질문 LLM 상태 (T-291): 메시지별 lazy 1회 호출, 현재 채팅 경로 그대로.
@@ -183,6 +193,12 @@ final class FollowUpStore: ObservableObject {
             }
             guard let self, !Task.isCancelled, self.messageID == messageID else { return }
             let elapsed = Date().timeIntervalSince(started)
+            // T-313: 스켈레톤 최소 노출 — 초고속 응답 시 깜빡임 방지.
+            let remainder = FollowUpSuggest.minDisplayRemainder(elapsed: elapsed)
+            if remainder > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(remainder * 1_000_000_000))
+            }
+            guard !Task.isCancelled, self.messageID == messageID else { return }
             let parsed = result.map { FollowUpSuggest.parseFollowUps(from: $0) } ?? []
             self.loading = false
             if parsed.isEmpty {
@@ -308,22 +324,53 @@ struct FollowUpChipsView: View {
                 }
             }
         }
+        .transition(.opacity) // T-313: 스켈레톤→칩 크로스페이드
     }
 }
 
-/// 후속질문 로딩 자리 (T-291): 칩과 동일 배치의 회색 스켈레톤 3개 (폭 점프 방지).
+/// 후속질문 로딩 자리 (T-291/T-313): 칩과 동일 배치(Capsule·높이 28)의 스켈레톤 3개.
+/// 심머가 좌→우로 흐르고, 완료 시 칩으로 크로스페이드된다. 동작 줄이기 시 정적.
 struct FollowUpSkeletonView: View {
+    /// 칩 폭과 비슷한 길이 변주 (단조로움 완화).
+    private static let barWidths: [CGFloat] = [148, 120, 164]
+
     var body: some View {
         HStack {
             Spacer(minLength: 60)
             VStack(alignment: .trailing, spacing: 6) {
-                ForEach(0 ..< 3, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.secondary.opacity(0.2))
-                        .frame(width: 140, height: 28)
+                ForEach(Array(Self.barWidths.enumerated()), id: \.offset) { item in
+                    SkeletonBar(width: item.element)
                 }
             }
         }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("후속 질문 생성 중")
+        .transition(.opacity) // T-313: 스켈레톤→칩 크로스페이드
+    }
+}
+
+/// 심머 스켈레톤 바 (T-313): 밝은 그라데이션이 좌→우로 지나간다.
+private struct SkeletonBar: View {
+    let width: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var phase: CGFloat = 0
+
+    var body: some View {
+        Capsule(style: .continuous)
+            .fill(Color.secondary.opacity(0.18))
+            .frame(width: width, height: 28)
+            .overlay {
+                if !reduceMotion {
+                    Capsule(style: .continuous)
+                        .fill(LinearGradient(
+                            colors: [.clear, Color.primary.opacity(0.14), .clear],
+                            startPoint: .leading, endPoint: .trailing))
+                        .offset(x: (phase * 2 - 1) * width)
+                        .animation(.linear(duration: 1.2).repeatForever(autoreverses: false),
+                                   value: phase)
+                }
+            }
+            .clipShape(Capsule(style: .continuous))
+            .onAppear { phase = 1 }
     }
 }

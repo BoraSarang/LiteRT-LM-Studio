@@ -1,16 +1,59 @@
 import Foundation
 
+/// 1회 실행 마커 (T-311): 스톨 강제 마무리와 정상 종료가 겹치면 중복 완료·저장 방지.
+@MainActor
+final class OnceMarker {
+    private var ran = false
+    func run(_ body: () -> Void) {
+        guard !ran else { return }
+        ran = true
+        body()
+    }
+}
+
+/// 진행 문자 수 공유 셀 (T-311): 스톨 발화 시점에 누적량을 로그로 남기기 위한 관측용.
+final class ProgressCell {
+    var chars = 0
+    var thinking = 0
+}
+
+/// 응답 스트림 진행 게이트 (순수, 테스트 가능, T-311): 토큰마다 시계를 리셋하고,
+/// idle초 이상 진행이 없으면 1회 발화한다 (엔진 스톨을 무한 "응답중" 대신 명확한 실패로).
+final class StreamProgressGate {
+    let idleLimit: TimeInterval
+    private let now: () -> Date
+    private var lastProgress: Date
+    private var fired = false
+
+    init(idleLimit: TimeInterval, now: @escaping () -> Date = Date.init) {
+        self.idleLimit = idleLimit
+        self.now = now
+        self.lastProgress = now()
+    }
+
+    /// 진행 발생 (토큰 1건마다 호출).
+    func tic() { lastProgress = now() }
+
+    /// idle 초과 여부 (1회 발화 후 계속 true, 병합 처리용).
+    func isStalled() -> Bool {
+        if !fired, now().timeIntervalSince(lastProgress) > idleLimit { fired = true }
+        return fired
+    }
+}
+
 /// 앱 내 엔진 이벤트 누적 상태 (T-266 S-1, 순수·테스트 가능).
 struct NativeStreamState: Sendable {
     var acc = ""
     var thinkingAcc = ""
     var tools: [ToolCallRecord] = []
+    var eventCount = 0
 
     /// 표시용 생각 (빈 문자열은 nil 취급을 호출 측에서).
     var thinking: String? { thinkingAcc.isEmpty ? nil : thinkingAcc }
 
     /// 이벤트 1건 누적. 도구 호출이면 표시 갱신용 레코드 반환.
     mutating func apply(_ event: StreamEvent) -> ToolCallRecord? {
+        eventCount += 1
         switch event {
         case .text(let chunk):
             acc += chunk
@@ -32,6 +75,9 @@ struct NativeStreamState: Sendable {
 extension ChatStore {
     /// 첫터치 프리필 토글 저장 키 (T-302): @AppStorage(SettingsView)와 동일.
     nonisolated static var prefillWarmupKey: String { "prefillWarmup" }
+
+    /// 응답 스톨 워치독 무진행 한계 (T-311): 토큰 없이 60초면 중단.
+    nonisolated static var stallIdleLimit: TimeInterval { 60 }
 
     /// 예열 실행 판정 (순수, 테스트 가능, T-302).
     /// 이미 대상 모델이 준비됨(alreadyPrepared)·스트리밍·진행 중이면 false.
@@ -98,8 +144,15 @@ extension ChatStore {
     }
 
     /// 앱 내 엔진 전송 (T-130): prepare → 스트림 소비. 완료·PERF·중단 골격은 CLI와 동일.
+    /// T-311: C++ 스트림 종료를 신뢰하지 않는 강제 마무리 — 무진행 60초 시 워치독이
+    /// 직접 실패 전환·플래그 해제·저장까지 수행한다 (무한 "응답중" 방지).
     func runNative(engine: any InferenceEngine, prompt: String,
                    image: ChatImage?, idx: Int, started: Date) async {
+        let gate = StreamProgressGate(idleLimit: Self.stallIdleLimit)
+        let once = OnceMarker()
+        let progress = ProgressCell()
+        let watch = stallWatch(engine: engine, gate: gate, once: once,
+                               progress: progress, idx: idx)
         do {
             try await engine.prepare(modelID: model)
             // T-190 TTFT 구간 분리: prepare cost vs (대화 생성+프리필) cost.
@@ -119,34 +172,94 @@ extension ChatStore {
             var state = NativeStreamState()
             var firstTokenAt: Date?
             var lastFlush = started
+            var lastLog = started
             for try await event in stream {
                 if Task.isCancelled { break }
+                gate.tic()
                 if firstTokenAt == nil {
                     firstTokenAt = Date()
                     self.noteFirstToken(started: started)
                 }
                 consumeNativeEvent(event, state: &state, idx: idx,
                                    lastFlush: &lastFlush, started: started)
+                progress.chars = state.acc.count
+                progress.thinking = state.thinkingAcc.count
+                Self.logDecodeProgress(logger: logger, state: state,
+                                       started: started, lastLog: &lastLog)
             }
+            logger.info(feature: "앱내엔진",
+                        "소비 루프 종료 (이벤트 \(state.eventCount)건, chars=\(state.acc.count))")
+            watch.cancel()
             // T-289: 취소로 빠졌으면 완료 확정 금지 (중단 상태 유지).
-            if Task.isCancelled { return }
-            await finishNative(at: idx, state: state, started: started)
-        } catch is CancellationError {
-            logger.info(feature: "채팅중단", "사용자 중단")
-        } catch {
             if Task.isCancelled {
-                logger.info(feature: "채팅중단", "사용자 중단")
-            } else {
-                // T-282 진단: 관측 가능값 (메시지 수·도구 턴 수).
-                let toolTurns = messages.filter { !($0.toolCalls?.isEmpty ?? true) }.count
-                logger.info(feature: "채팅전송",
-                            "실패 맥락 messages=\(messages.count) 도구턴=\(toolTurns)")
-                self.nativeFailed(at: idx, error: error)
+                once.run { self.endRun() }
+                return
             }
+            await finishNative(at: idx, state: state, started: started)
+            once.run { self.endRun() }
+        } catch {
+            watch.cancel()
+            handleNativeError(error, idx: idx, gate: gate)
+            once.run { self.endRun() }
         }
+    }
+
+    /// 전송 마무리 (T-311 분리): 스트리밍 플래그 해제+저장 (1회 보장).
+    private func endRun() {
         preparing = false
         streaming = false
         save()
+    }
+
+    /// 디코드 진행 로그 (T-311 진단): 2초 간격·누적 글자 수 — 느림vs멈춤 구분.
+    nonisolated static func logDecodeProgress(logger: DebugLogger, state: NativeStreamState,
+                                              started: Date, lastLog: inout Date) {
+        guard Date().timeIntervalSince(lastLog) >= 2 else { return }
+        lastLog = Date()
+        let elapsed = Date().timeIntervalSince(started)
+        logger.info(feature: "디코드",
+                    "진행 중 chars=\(state.acc.count) think=\(state.thinkingAcc.count) "
+                        + "elapsed=\(String(format: "%.1f", elapsed))s")
+    }
+
+    /// 진행 워치독 (T-311): 1초 폴링, 무진행 한계 도달 시 엔진 중단.
+    /// C++ 스트림이 중단에 응답하지 않아도 강제로 실패 전환을 완료한다 (1회).
+    private func stallWatch(engine: any InferenceEngine, gate: StreamProgressGate,
+                            once: OnceMarker, progress: ProgressCell,
+                            idx: Int) -> Task<Void, Never> {
+        Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self else { return }
+                if gate.isStalled() {
+                    self.logger.error(code: "E-MAC-ENG-0005", feature: "채팅전송",
+                                      "응답이 \(Int(gate.idleLimit))초간 진행 없음: "
+                                          + "chars=\(progress.chars) think=\(progress.thinking) — 강제 중단")
+                    engine.cancel()
+                    once.run {
+                        self.nativeFailed(at: idx, error: EngineError.timeout(""))
+                        self.endRun()
+                    }
+                    return
+                }
+            }
+        }
+    }
+
+    /// 네이티브 실패 확정 (T-311 분리): 스톨·사용자 중단·실패 구분.
+    private func handleNativeError(_ error: Error, idx: Int, gate: StreamProgressGate) {
+        if gate.isStalled() {
+            logger.info(feature: "채팅중단", "응답 멈춤 워치독 발화")
+            nativeFailed(at: idx, error: EngineError.timeout(""))
+        } else if error is CancellationError || Task.isCancelled {
+            logger.info(feature: "채팅중단", "사용자 중단")
+        } else {
+            // T-282 진단: 관측 가능값 (메시지 수·도구 턴 수).
+            let toolTurns = messages.filter { !($0.toolCalls?.isEmpty ?? true) }.count
+            logger.info(feature: "채팅전송",
+                        "실패 맥락 messages=\(messages.count) 도구턴=\(toolTurns)")
+            nativeFailed(at: idx, error: error)
+        }
     }
 
     /// 스트리밍 이벤트 1건 반영 (T-282 분리): 누적+호출 표시+묶음 반영.
@@ -191,9 +304,14 @@ extension ChatStore {
     func nativeFailed(at idx: Int, error: Error) {
         let code = (error as? EngineError)?.code ?? EngineError.inferenceFailed("").code
         lastError = code
-        messages[idx].text = code == EngineError.initFailed("").code
-            ? "엔진 초기화에 실패했습니다. 모델 파일과 메모리를 확인해 주세요. (E-MAC-ENG-0001)"
-            : "앱 내 엔진 추론에 실패했습니다. 다른 엔진 모드로 바꿔 다시 시도해 주세요. (E-MAC-ENG-0002)"
+        if code == EngineError.initFailed("").code {
+            messages[idx].text = "엔진 초기화에 실패했습니다. 모델 파일과 메모리를 확인해 주세요. (E-MAC-ENG-0001)"
+        } else if code == EngineError.timeout("").code {
+            // T-311: 스톨 워치독 — 무한 "응답중" 방지.
+            messages[idx].text = "응답 생성이 멈춰 중지했습니다. 다시 시도해 주세요. (E-MAC-ENG-0005)"
+        } else {
+            messages[idx].text = "앱 내 엔진 추론에 실패했습니다. 다른 엔진 모드로 바꿔 다시 시도해 주세요. (E-MAC-ENG-0002)"
+        }
         messages[idx].isError = true
         messages[idx].finishedAt = Date()
         logger.error(code: code, feature: "채팅전송", "\(error)")

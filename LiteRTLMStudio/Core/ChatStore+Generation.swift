@@ -28,12 +28,14 @@ extension ChatStore {
             userContent = prompt
         }
         let historyPlus = history + [["role": "user", "content": userContent]] + extraHistory
-        // T-285: 스킬+MCP 안내 시스템 메시지 (빈 문자열이면 생략).
+        // T-285: 스킬+MCP 안내 + T-312: 오늘 날짜 시스템 메시지 (빈 문자열이면 생략).
         let extras = SkillsStore.extrasBlock(
             serverNames: MCPStore.shared.enabledServers.map(\.name))
-        let messagesPlus: [[String: Any]] = extras.isEmpty
+        let sysBlock = [Self.currentDateBlock(), extras]
+            .filter { !$0.isEmpty }.joined(separator: "\n\n")
+        let messagesPlus: [[String: Any]] = sysBlock.isEmpty
             ? historyPlus
-            : [["role": "system", "content": extras]] + historyPlus
+            : [["role": "system", "content": sysBlock]] + historyPlus
         // top_k는 OpenAI 비표준이라 config 기본으로만 (T-176).
         var body: [String: Any] = [
             "model": model, "messages": messagesPlus,
@@ -58,9 +60,26 @@ extension ChatStore {
     func generationOptions() -> GenerationOptions {
         let extras = SkillsStore.extrasBlock(
             serverNames: MCPStore.shared.enabledServers.map(\.name))
-        let combined = [systemPrompt, extras].filter { !$0.isEmpty }.joined(separator: "\n\n")
+        let combined = [Self.currentDateBlock(), systemPrompt, extras]
+            .filter { !$0.isEmpty }.joined(separator: "\n\n")
         return GenerationOptions(temperature: temperature, topK: topK, topP: topP, seed: seed,
                                  maxTokens: maxTokens, thinkingEnabled: thinkingEnabled,
                                  thinkingBudget: thinkingBudget, systemPrompt: combined)
+    }
+
+    /// 오늘 날짜 블록 (T-312): FC(함수 호출) 미지원 모델도 날짜·요일을 알도록 시스템
+    /// 프롬프트에 주입한다. 시각은 의도적으로 제외 — 분 단위로 바뀌면 대화 키
+    /// (GenerationOptions)가 매 요청 달라져 KV 캐시 재사용이 깨진다. 날짜는 하루
+    /// 동안 고정이라 안전하다. 순수 함수(테스트 가능).
+    nonisolated static func currentDateBlock(
+        now: Date = Date(),
+        timeZone: TimeZone = .current
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy년 M월 d일 EEEE"
+        return "[오늘 날짜] \(formatter.string(from: now)). "
+            + "날짜·요일을 물으면 이 값을 그대로 답하세요."
     }
 }

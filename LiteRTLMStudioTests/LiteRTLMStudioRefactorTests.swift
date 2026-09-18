@@ -114,8 +114,11 @@ final class LiteRTLMStudioRefactorTests: XCTestCase {
         XCTAssertEqual(json["model"] as? String, "test-model")
         XCTAssertEqual(json["stream"] as? Bool, true)
         let msgs = try XCTUnwrap(json["messages"] as? [[String: Any]])
-        XCTAssertEqual(msgs.count, 3)
-        XCTAssertEqual(msgs.first?["content"] as? String, "old")
+        // T-312: 오늘 날짜 시스템 메시지가 항상 선두에 1건 추가된다.
+        XCTAssertEqual(msgs.count, 4)
+        XCTAssertEqual(msgs.first?["role"] as? String, "system")
+        XCTAssertTrue((msgs.first?["content"] as? String ?? "").contains("[오늘 날짜]"))
+        XCTAssertEqual(msgs[1]["content"] as? String, "old")
         XCTAssertEqual(msgs.last?["content"] as? String, "hello")
         let imgReq = try store.chatRequest(
             prompt: "see", image: ChatStore.ChatImage(data: Data([1, 2, 3]), mime: "image/jpeg")

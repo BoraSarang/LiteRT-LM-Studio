@@ -53,10 +53,15 @@ extension NativeEngine {
                                     continuation.yield(event)
                                 }
                             }
+                            Self.logStreamDone()
+                            // T-311 근본원인: 정상 완료 시 finish를 빼먹으면 AsyncThrowingStream이
+                            // 끝나지 않아 소비 루프가 영원히 대기한다 (무한 "응답중").
+                            continuation.finish()
                             return
                         } catch {
                             // T-289: 취소는 재시도 없이 즉시 전파
                             if error is CancellationError { throw error }
+                            Self.logStreamError(error)
                             // 실패한 대화는 풀에서 제거 (오염 루프 방지).
                             // 시작 실패가 아니면 재시도 없이 전파 — 다음 전송(재시도 버튼)이 새로 만든다.
                             invalidateReuse()
@@ -120,6 +125,17 @@ extension NativeEngine {
         guard let lite = error as? LiteRTLMError,
               case .conversation(.failedToStartStream) = lite else { return false }
         return true
+    }
+
+    /// 스트림 정상 종료 계측 (T-311 진단): 소비 루프가 마지막 청크에 도달했는지 구분.
+    nonisolated static func logStreamDone() {
+        DebugLogger.shared.info(feature: "앱내엔진", "엔진 스트림 정상 종료(마지막 청크 도달)")
+    }
+
+    /// 스트림 오류 계측 (T-311 진단): 실패 원인 문자열을 DebugPanel에 남긴다.
+    nonisolated static func logStreamError(_ error: Error) {
+        DebugLogger.shared.error(code: "E-MAC-ENG-0006", feature: "앱내엔진",
+                                 "엔진 스트림 오류: \(error)")
     }
 
     /// 청크→이벤트 매핑 (순수, 테스트 가능, T-266 S-1).

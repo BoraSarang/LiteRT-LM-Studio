@@ -232,6 +232,24 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(cut.last?.text, "m9")
     }
 
+    /// 오늘 날짜 블록 (T-312): 고정 시각·시간대에서 한국어 날짜·요일로 고정되고,
+    /// 같은 날 재호출은 동일 문자열(대화 키 안정성)임을 확인.
+    func testCurrentDateBlock() {
+        let tz = TimeZone(identifier: "Asia/Seoul")!
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        var comps = DateComponents()
+        comps.year = 2026
+        comps.month = 9
+        comps.day = 18
+        comps.hour = 12
+        let date = cal.date(from: comps)!
+        let expected = "[오늘 날짜] 2026년 9월 18일 금요일. "
+            + "날짜·요일을 물으면 이 값을 그대로 답하세요."
+        XCTAssertEqual(ChatStore.currentDateBlock(now: date, timeZone: tz), expected)
+        XCTAssertEqual(ChatStore.currentDateBlock(now: date, timeZone: tz), expected)
+    }
+
     /// 클램프 목표: [0, 최대] 구간 제한 (T-054).
     func testClampedTargetY() {
         XCTAssertEqual(ContentView.clampedTargetY(target: 400, docHeight: 1000, clipHeight: 600), 400)
@@ -518,6 +536,16 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
                                                       role: "assistant", isError: false, count: 299))
         XCTAssertFalse(FollowUpSuggest.shouldPrefetch(route: .cli, streaming: true,
                                                       role: "user", isError: false, count: 500))
+    }
+
+    /// 스켈레톤 최소 노출 (T-313): 초고속 응답 시 깜빡임 방지 대기 계산.
+    func testFollowUpMinDisplayRemainder() {
+        XCTAssertEqual(FollowUpSuggest.minLoadingSeconds, 0.4, accuracy: 0.0001)
+        XCTAssertEqual(FollowUpSuggest.minDisplayRemainder(elapsed: 0.1), 0.3, accuracy: 0.0001)
+        XCTAssertEqual(FollowUpSuggest.minDisplayRemainder(elapsed: 0.4), 0, accuracy: 0.0001)
+        XCTAssertEqual(FollowUpSuggest.minDisplayRemainder(elapsed: 3.0), 0, accuracy: 0.0001)
+        XCTAssertEqual(FollowUpSuggest.minDisplayRemainder(elapsed: 0.0, minimum: 1.0),
+                       1.0, accuracy: 0.0001)
     }
 
     /// 후속질문 질문문 (T-291): 대상 직전 마지막 사용자 발화.
@@ -961,6 +989,85 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         try? FileManager.default.removeItem(atPath: home)
     }
 
+    /// serve 실행 로그 상한 (T-308): 300줄 cap·꼬리 유지.
+    func testServeLogCap() {
+        let lines = (0..<350).map { "줄 \($0)" }
+        let capped = WigoloManager.cappedServeLog(lines)
+        XCTAssertEqual(capped.count, 300)
+        XCTAssertEqual(capped.first, "줄 50")
+        XCTAssertEqual(capped.last, "줄 349")
+        XCTAssertEqual(WigoloManager.cappedServeLog(["a", "b"]).count, 2)
+    }
+
+    /// node 실행기 탐색 (T-310): 같은 디렉터리의 실행 node.
+    func testNodeForWigolo() {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wigolonode-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let bin = dir.appendingPathComponent("wigolo").path
+        let node = dir.appendingPathComponent("node").path
+        FileManager.default.createFile(atPath: bin, contents: Data("#!node\n".utf8))
+        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: bin)
+        FileManager.default.createFile(atPath: node, contents: Data())
+        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: node)
+        XCTAssertEqual(WigoloManager.nodeForWigolo(bin: bin), node)
+        XCTAssertNil(WigoloManager.nodeForWigolo(bin: "/nonexistent/bin/wigolo"))
+        try? FileManager.default.removeItem(at: dir)
+    }
+
+    /// wigolo 커맨드 (T-310): node 경유 조립·폴백.
+    func testWigoloCommand() {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wigolocmd-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let bin = dir.appendingPathComponent("wigolo").path
+        let node = dir.appendingPathComponent("node").path
+        FileManager.default.createFile(atPath: bin, contents: Data())
+        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: bin)
+        FileManager.default.createFile(atPath: node, contents: Data())
+        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: node)
+        let withNode = WigoloManager.wigoloCommand(bin, ["serve"])
+        XCTAssertEqual(withNode.executable, node)
+        XCTAssertEqual(withNode.args, [bin, "serve"])
+        let noNode = WigoloManager.wigoloCommand("/tmp/no-node/wigolo", ["serve"])
+        XCTAssertEqual(noNode.executable, "/tmp/no-node/wigolo")
+        XCTAssertEqual(noNode.args, ["serve"])
+        try? FileManager.default.removeItem(at: dir)
+    }
+
+    /// PATH 디렉터리 목록 (T-310): homebrew·npm-global·nvm 포함.
+    func testNodePathDirs() {
+        let dirs = WigoloManager.nodePathDirs(home: "/nonexistent-home")
+        XCTAssertEqual(Array(dirs.prefix(3)),
+                       ["/opt/homebrew/bin", "/usr/local/bin",
+                        "/nonexistent-home/.npm-global/bin"])
+    }
+
+    /// 응답 스톨 게이트 (T-311): 리셋 유지·무진행 발화·1회만 true 유지.
+    func testStreamProgressGate() {
+        var clock = 100.0
+        let date: () -> Date = { Date(timeIntervalSince1970: clock) }
+        let gate = StreamProgressGate(idleLimit: 60, now: date)
+        XCTAssertFalse(gate.isStalled())
+        clock += 30
+        gate.tic()
+        XCTAssertFalse(gate.isStalled())
+        clock += 61
+        XCTAssertTrue(gate.isStalled())
+        XCTAssertTrue(gate.isStalled())
+    }
+
+    /// 1회 실행 마커 (T-311): 중복 완료·저장 방지.
+    @MainActor
+    func testOnceMarker() {
+        let marker = OnceMarker()
+        var count = 0
+        marker.run { count += 1 }
+        marker.run { count += 1 }
+        marker.run { count += 1 }
+        XCTAssertEqual(count, 1)
+    }
+
     /// 웹 검색 등록 판정 (T-287): 토글 ON + 바이너리 존재.
     func testShouldRegisterWebSearch() {
         XCTAssertTrue(LocalTools.shouldRegisterWebSearch(webEnabled: true, binaryFound: true))
@@ -1017,6 +1124,7 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(EngineError.initFailed("x").code, "E-MAC-ENG-0001")
         XCTAssertEqual(EngineError.notReady.code, "E-MAC-ENG-0001")
         XCTAssertEqual(EngineError.inferenceFailed("y").code, "E-MAC-ENG-0002")
+        XCTAssertEqual(EngineError.timeout("z").code, "E-MAC-ENG-0005")
     }
 
     /// 대화용 도구 목록 (T-290): 미지원 모델은 빈 배열.

@@ -317,14 +317,13 @@ final class NativeEngine: InferenceEngine, ObservableObject {
             return PreparedSetup(conversation: live, thinking: thinking, reused: true)
         }
 
+        let tools = Self.toolsForConversation(supportsFC: preparedSupportsFC[modelID] ?? false,
+                                              registered: LocalTools.registered())
         let conversation = try await engine.createConversation(
             with: ConversationConfig(
                 systemMessage: sysMsg.isEmpty ? nil : Message(sysMsg, role: .system),
-                initialMessages: past,
-                tools: Self.toolsForConversation(supportsFC: preparedSupportsFC[modelID] ?? false,
-                                                 registered: LocalTools.registered()),
-                samplerConfig: sampler,
-                enableToolCallStreaming: true,
+                initialMessages: past, tools: tools, samplerConfig: sampler,
+                enableToolCallStreaming: !tools.isEmpty, // T-311: 빈 도구면 끔 (스톨 방지)
                 thinkingConfig: thinking))
 
         // Conversation 풀 등록 (P0-2)
