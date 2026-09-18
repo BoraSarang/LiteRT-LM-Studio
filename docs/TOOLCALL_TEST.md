@@ -42,6 +42,7 @@
 ## 웹 검색 (T-269, wigolo 설치 후)
 
 13. `최근 LiteRT 소식을 검색해줘` — 🔧 web_search 칩+인용 답변
+    (T-316: 1위 페이지 본문 2000자 자동 첨부, 칩 기본 접힘·T-317)
 14. `이 페이지 읽어줘 https://ai.google.dev/edge/litert-lm` — web_fetch 본문 인용
 15. 데몬 중지 상태로 13번 — DDG/Wikipedia 폴백 또는 정중 거절
 16. 웹 검색 끔 + 13번 — 도구 미호출 확인

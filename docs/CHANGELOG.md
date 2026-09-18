@@ -2,6 +2,14 @@
 
 ## [Unreleased] (macos)
 
+* 웹 검색 1위 본문 자동 첨부 (T-316, PLAN_v94): 발췌만으로 답이 안 나오는 질의
+  (예: 최신 버전)에 모델이 `web_fetch` 후속 호출 없이 끝나던 문제.
+  `web_search` 실행 시 1위 URL 본문을 2000자 상한으로 결과에 덧붙인다
+  (`combinedForModel`, 실패 시 검색 목록만 유지). [macos]
+* 웹 도구 칩 표시 개편 (T-317, PLAN_v95): `web_search`→"웹 검색"·
+  `web_fetch`→"웹 가져오기" 한글 명칭, 인자 원문 대신 query/url 값 표시,
+  결과 본문 기본 접힘(헤더 탭 토글), 가져오기는 브라우저 열기 버튼. [macos]
+
 * 앱 데이터 홈 통합 (T-314, PLAN_v92): 흩어져 있던 앱 소유 데이터를 `~/.litert-lm-studio/`
   단일 홈으로 모은다 — `chats/chat-history.json`, `mcp/servers.json`,
   `skills/<이름>/SKILL.md`, `benchmarks/history.json`, `release-notes.json`,

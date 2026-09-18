@@ -86,3 +86,14 @@
 - 문서갱신: PLAN_v93, TODO T-315 갱신, CHANGELOG Unreleased T-315 1건, DESIGN 스킬 섹션 현행화.
 - 큐상태: 코드+문서 미커밋 (feat/docs 커밋 예정, 푸시 보류).
 - E2E: 형상 단위 게이트. 실전 항목: 설정→스킬 탭→가져오기 시 검색·뱃지·모두선택·새로고침, skillsTab 행 뱃지 확인.
+
+## 후속8 — 도구 미동작 진단·웹 검색 개편 (T-316/T-317, PLAN_v94/v95)
+
+- 무엇을: ① "권한 모두 허용인데 도구 안 됨" 진단 — 권한 정상, 원인은 engineMode=native + E2B `describe FC NO` → 네이티브 도구 제거(T-290). 서버 경로 실측 `get_time` 정상. ② 강제 등록 실험 (Python 동일 C++ 엔진): 2회 모두 도구 미방출·직답 → 게이트 정당, 이 파일은 네이티브 불가 확정. ③ E2B·12B `describe` 둘 다 FC NO/Thinking NO/MTP YES 실측 → 모델별 지원표 정리. ④ wigolo 죽음 1회 (복구, 앱이 입양) + 빈 결과 1회 (일시적). ⑤ T-316 검색 1위 본문 2000자 자동 첨부(`combinedForModel`·`topBody`), T-317 칩 개편(한글 명칭·query/url 표시·기본 접힘·가져오기 외부열기).
+- 플랫폼: macOS (SwiftUI·xcodebuild·swiftlint).
+- 빌드+PERF+CACHE: unit 274/274, lint 신규 0, build+~/Applications 설치+실행 OK.
+- 남은 TODO: 칩 접힘·1턴 버전 답변 눈확인 (사용자). 네이티브 12B KV 재사용 TTFT 3.0s·무고착 실전 확인됨.
+- 전달로그: `WebSearch.combinedForModel/topBody/autoFetchCap`, `ToolCallRecord.displayTitle/displayArg/externalURL`, 개편 `ToolCallChipView`.
+- 문서갱신: PLAN_v94/v95, TODO T-316/T-317 [x], CHANGELOG 2건, TOOLCALL_TEST 13번 1행.
+- 큐상태: 코드+문서 미커밋 (feat/docs 커밋 여부 사용자 결정 대기, 푸시 보류).
+- E2E: 실전 항목 — "LiteRT-LM 최신 버전" 1턴 답변, 칩 접힘/펼침/브라우저 열기.
