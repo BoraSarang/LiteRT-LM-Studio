@@ -32,6 +32,36 @@ struct ToolCallRecord: Identifiable, Codable, Hashable, Sendable {
         let flat = argumentsJSON.replacingOccurrences(of: "\n", with: " ")
         return String(flat.prefix(80))
     }
+
+    /// 칩 표시명 (순수, T-317): 웹 도구는 한글, 그 외 원문 이름.
+    var displayTitle: String {
+        switch name {
+        case "web_search": return "웹 검색"
+        case "web_fetch": return "웹 가져오기"
+        default: return name
+        }
+    }
+
+    /// 대표 인자 (순수, T-317): query/url 값만 추출, 실패 시 summary 폴백.
+    var displayArg: String {
+        guard name == "web_search" || name == "web_fetch",
+              let data = argumentsJSON.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return summary
+        }
+        let key = name == "web_search" ? "query" : "url"
+        if let value = json[key] as? String, !value.isEmpty { return value }
+        return summary
+    }
+
+    /// 외부열기 URL (순수, T-317): web_fetch의 http(s)만.
+    var externalURL: URL? {
+        guard name == "web_fetch" else { return nil }
+        let raw = displayArg.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: raw),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
+        return url
+    }
 }
 
 /// 스트림 이벤트 (T-266 S-1): 본문·생각·도구 호출 3채널.

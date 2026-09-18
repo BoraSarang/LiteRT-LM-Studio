@@ -37,6 +37,7 @@ struct WigoloSearchResponse: Decodable {
 enum WebSearch {
     nonisolated static var excerptCap: Int { 300 }
     nonisolated static var fetchCap: Int { 8192 }
+    nonisolated static var autoFetchCap: Int { 2000 } // T-316: 1위 자동 첨부 상한
     nonisolated static var toggleKey: String { "webSearchEnabled" }
 
     /// 설정 토글 (기본 켜짐).
@@ -61,6 +62,16 @@ enum WebSearch {
             let excerpt = String(hit.excerpt.prefix(excerptCap))
             return "[\(idx + 1)] \(hit.title)\n\(hit.url)\n\(excerpt)"
         }.joined(separator: "\n\n")
+    }
+
+    /// 검색+1위 본문 합성 (순수, T-316): 본문 없으면 검색 목록만.
+    nonisolated static func combinedForModel(hits: [WebHit], topBody: String) -> String {
+        var out = formatForModel(hits)
+        let body = topBody.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !body.isEmpty {
+            out += "\n\n[1번 페이지 본문]\n" + String(body.prefix(autoFetchCap))
+        }
+        return out
     }
 
     /// 검색 실행 (T-284 wigolo 단일): 미설치·미실행이면 즉시 안내 반환.
@@ -117,6 +128,18 @@ enum WebSearch {
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw WebSearchError.badStatus }
         return parseWigolo(data)
+    }
+
+    /// 1위 본문 조회 (T-316, 무예외): 실패·빈 본문이면 "" (검색 결과 유지).
+    static func topBody(url: String) async -> String {
+        guard let target = URL(string: url),
+              ["http", "https"].contains(target.scheme?.lowercased() ?? "") else { return "" }
+        do {
+            return try await fetch(url: url)
+        } catch {
+            DebugLogger.shared.info(feature: "웹검색", "1위 본문 생략: \(error.localizedDescription)")
+            return ""
+        }
     }
 
     /// wigolo fetch 호출.
@@ -176,7 +199,10 @@ struct WebSearchTool: Tool {
             do {
                 let hits = try await WebSearch.search(query: q, maxResults: limit)
                 guard !hits.isEmpty else { return "검색 결과 없음" }
-                return WebSearch.formatForModel(hits)
+                // T-316: 1위 본문 자동 첨부 (발췌만으로 답 불가 질의 대응).
+                // 실패해도 검색 결과는 유지 — 2턴 절약이 목적이지 강제가 아님.
+                let body = await WebSearch.topBody(url: hits[0].url)
+                return WebSearch.combinedForModel(hits: hits, topBody: body)
             } catch WebSearchError.allFailed {
                 // T-283: 결과 없음은 실패가 아님 (벤더 스트림 유지용 정상 응답).
                 return "검색 결과 없음"

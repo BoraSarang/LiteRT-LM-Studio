@@ -925,6 +925,39 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(out.count, "[1] T\nhttps://u.example\n".count + 300)
     }
 
+    /// 1위 본문 합성 (T-316): 본문 있음·없음·cap 절단.
+    func testCombinedForModel() {
+        let hits = [WebHit(title: "T", url: "https://u.example", excerpt: "요약")]
+        XCTAssertTrue(WebSearch.combinedForModel(hits: hits, topBody: "").contains("[1] T"))
+        XCTAssertFalse(WebSearch.combinedForModel(hits: hits, topBody: "  ").contains("1번 페이지 본문"))
+        let withBody = WebSearch.combinedForModel(hits: hits, topBody: "본문 v0.17.1")
+        XCTAssertTrue(withBody.contains("[1번 페이지 본문]"))
+        XCTAssertTrue(withBody.contains("v0.17.1"))
+        let long = WebSearch.combinedForModel(hits: hits,
+                                              topBody: String(repeating: "가", count: 5000))
+        XCTAssertTrue(long.hasSuffix(String(repeating: "가", count: WebSearch.autoFetchCap)))
+    }
+
+    /// 칩 표시명·대표 인자·외부열기 (T-317).
+    func testToolDisplayHelpers() {
+        let search = ToolCallRecord(callID: "c1", name: "web_search",
+                                    argumentsJSON: #"{"query": "버전"}"#, status: .done)
+        XCTAssertEqual(search.displayTitle, "웹 검색")
+        XCTAssertEqual(search.displayArg, "버전")
+        XCTAssertNil(search.externalURL)
+        let fetch = ToolCallRecord(callID: "c2", name: "web_fetch",
+                                   argumentsJSON: #"{"url": "https://x.example/r"}"#, status: .done)
+        XCTAssertEqual(fetch.displayTitle, "웹 가져오기")
+        XCTAssertEqual(fetch.displayArg, "https://x.example/r")
+        XCTAssertEqual(fetch.externalURL?.absoluteString, "https://x.example/r")
+        let other = ToolCallRecord(callID: "c3", name: "get_time", status: .done)
+        XCTAssertEqual(other.displayTitle, "get_time")
+        XCTAssertEqual(other.displayArg, other.summary)
+        let bad = ToolCallRecord(callID: "c4", name: "web_fetch",
+                                 argumentsJSON: #"{"url": "notaurl"}"#, status: .done)
+        XCTAssertNil(bad.externalURL)
+    }
+
     /// 웹 검색 토글 (T-269): 기본 켜짐.
     func testWebSearchEnabled() {
         let defaults = UserDefaults(suiteName: "websearch-test-\(UUID().uuidString)")!

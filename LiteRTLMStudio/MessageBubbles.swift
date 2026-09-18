@@ -283,33 +283,55 @@ struct ThinkingBlockView: View {
     }
 }
 
-/// 도구 호출 칩 (T-266 S-1): 이름+인자 요약+상태점. 실행 결과는 S-2.
+/// 도구 호출 칩 (T-266 S-1, T-317 개편): 한글 명칭+대표 인자, 결과 기본 접힘.
+/// 스트리밍 중엔 진행 표시만 (펼침 없음).
 struct ToolCallChipView: View {
     let record: ToolCallRecord
+    @State private var open = false // T-317: 결과 기본 접힘
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                if record.status == .streaming {
-                    ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
-                } else {
-                    Image(systemName: statusIcon)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(statusColor)
-                        .frame(width: 12, height: 12)
+            Button {
+                if record.result != nil { open.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    if record.status == .streaming {
+                        ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
+                    } else {
+                        Image(systemName: statusIcon)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(statusColor)
+                            .frame(width: 12, height: 12)
+                    }
+                    Text(record.displayTitle)
+                        .font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                    Text(record.displayArg)
+                        .font(DS.captionFont).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                    Spacer()
+                    if record.result != nil {
+                        Image(systemName: open ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 10)).foregroundStyle(.tertiary)
+                    }
+                    Text(statusText).font(DS.captionFont).foregroundStyle(.tertiary)
                 }
-                Text(record.name)
-                    .font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                Text(record.summary)
-                    .font(DS.captionFont).foregroundStyle(.secondary)
-                    .lineLimit(1).truncationMode(.middle)
-                Spacer()
-                Text(statusText).font(DS.captionFont).foregroundStyle(.tertiary)
             }
-            if let result = record.result {
+            .buttonStyle(.plain)
+            .help("도구 호출: \(record.displayTitle)")
+            if open, let result = record.result {
                 Text(result)
                     .font(DS.captionFont).foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .textSelection(.enabled)
+                if record.externalURL != nil {
+                    Button {
+                        if let url = record.externalURL { NSWorkspace.shared.open(url) }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.right")
+                            Text("브라우저에서 열기")
+                        }.font(DS.captionFont)
+                    }.buttonStyle(.link)
+                }
             }
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
