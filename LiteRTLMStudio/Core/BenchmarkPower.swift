@@ -36,12 +36,13 @@ struct BatteryStatus: Equatable {
     nonisolated static func powerLine(mtp: Bool?, battery: BatteryStatus?) -> (String, Bool) {
         var parts: [String] = []
         if let mtp {
-            parts.append(mtp ? "MTP 제한" : "MTP 끔")
+            parts.append(L(mtp ? L10n.Power.mtpLimited : L10n.Power.mtpOff))
         } else {
-            parts.append("MTP 미설정(기본 끔)")
+            parts.append(L(L10n.Power.mtpUnset))
         }
         if let battery {
-            parts.append("배터리 \(battery.discharging ? "방전 중" : "충전 중") (\(battery.percent)%)")
+            let state = battery.discharging ? L(L10n.Power.discharging) : L(L10n.Power.charging)
+            parts.append(L(L10n.Power.battery, state, battery.percent))
         }
         let warn = mtp == true || (battery?.discharging == true && (battery?.percent ?? 100) <= 20)
         return (parts.joined(separator: " · "), warn)

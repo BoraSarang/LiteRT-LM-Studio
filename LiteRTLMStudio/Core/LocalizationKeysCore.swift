@@ -51,4 +51,13 @@ extension L10n {
         static let noModel = L10nKey("engineNotice.noModel")
         static let noFile = L10nKey("engineNotice.noFile")
     }
+
+    enum Power {
+        static let mtpLimited = L10nKey("power.mtpLimited")
+        static let mtpOff = L10nKey("power.mtpOff")
+        static let mtpUnset = L10nKey("power.mtpUnset")
+        static let battery = L10nKey("power.battery")
+        static let discharging = L10nKey("power.discharging")
+        static let charging = L10nKey("power.charging")
+    }
 }
