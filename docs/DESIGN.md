@@ -56,7 +56,8 @@
    - 웹 검색 (T-269 → T-352, PLAN_v62): Exa REST(`api.exa.ai/search`·`/contents`, Bearer 키),
      web_search(하이라이트 발췌 300자 cap)+web_fetch(8K cap), 키는 설정 도구 탭에 저장, 토글+키 게이트.
    - Exa 교체 (T-352): wigolo 데몬·설치·설정 UI·배너 제거, 등록 게이트를 바이너리→API 키 존재로 전환.
-   - Exa 라이브 크롤 (T-353): 검색·contents에 `maxAgeHours: 0` — 최신 릴리스의 캐시 노후화 방지.
+   - Exa 라이브 크롤 (T-353·T-354): `web_fetch`(contents)는 `maxAgeHours: 0` 라이브, 검색은 캐시.
+     시스템 프롬프트에 웹 결과 활용 규칙([1번 페이지 본문] 우선) 주입.
 - MCP·스킬 (T-285, PLAN_v73 → PLAN_v93): 외부 서버(stdio·SSE) 연결+게이트웨이 2종,
       SKILL.md 폴더+시스템 프롬프트 주입(8KB cap), 설정 MCP·스킬 탭.
       스킬 가져오기: 검색(이름·설명), 출처 뱃지(opencode/claude/agents), 일괄 선택/해제/새로고침.

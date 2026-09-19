@@ -1077,19 +1077,26 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertTrue(WebSearch.unavailableMessage.contains("dashboard.exa.ai"))
     }
 
-    /// Exa 키 실검색 테스트용 요청 본문 (T-353): 라이브 크롤(maxAgeHours=0) 강제.
+    /// Exa 요청 본문 (T-353·T-354): 검색=캐시(지연·비용 절약), contents=라이브 크롤.
     func testExaRequestBodies() {
         let search = WebSearch.searchBody(query: "릴리스", maxResults: 5)
         XCTAssertEqual(search["query"] as? String, "릴리스")
         XCTAssertEqual(search["numResults"] as? Int, 5)
         let searchContents = search["contents"] as? [String: Any]
         XCTAssertEqual(searchContents?["highlights"] as? Bool, true)
-        XCTAssertEqual(searchContents?["maxAgeHours"] as? Int, 0)
+        XCTAssertNil(searchContents?["maxAgeHours"]) // T-354: 검색은 캐시 허용
 
         let contents = WebSearch.contentsBody(url: "https://x.example/r")
         XCTAssertEqual(contents["urls"] as? [String], ["https://x.example/r"])
         XCTAssertEqual(contents["text"] as? Bool, true)
-        XCTAssertEqual(contents["maxAgeHours"] as? Int, 0)
+        XCTAssertEqual(contents["maxAgeHours"] as? Int, 0) // T-353: 가져오기는 라이브
+    }
+
+    /// 웹 결과 활용 규칙 (T-354): 본문 우선·미루지 않기.
+    func testWebAnswerBlock() {
+        let block = ChatStore.webAnswerBlock()
+        XCTAssertTrue(block.contains("[1번 페이지 본문]"))
+        XCTAssertTrue(block.contains("지체 없이 web_fetch"))
     }
 
     /// Exa 키 판정 (T-352): 공백 트림·빈값이면 미사용.

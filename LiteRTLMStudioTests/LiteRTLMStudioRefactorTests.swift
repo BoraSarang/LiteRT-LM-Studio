@@ -177,7 +177,7 @@ final class LiteRTLMStudioRefactorTests: XCTestCase {
         try? FileManager.default.removeItem(at: url)
     }
 
-    /// 도구 재전송 턴 시스템 경량화 (T-347): 정직 가드·스킬 안내 생략, 날짜만 유지.
+    /// 도구 재전송 턴 시스템 경량화 (T-347): 정직 가드·스킬 안내 생략, 날짜+웹 활용 규칙만 (T-354).
     @MainActor
     func testChatRequestToolTurnLightSystem() throws {
         let url = FileManager.default.temporaryDirectory
@@ -200,6 +200,7 @@ final class LiteRTLMStudioRefactorTests: XCTestCase {
         let content = toolSys["content"] as? String ?? ""
         XCTAssertFalse(content.contains("도구 정직 규칙"))
         XCTAssertTrue(content.contains("[오늘 날짜]"))
+        XCTAssertTrue(content.contains("[웹 결과 활용 규칙]")) // T-354: 결과 활용 턴에 본문 우선 규칙
         try? FileManager.default.removeItem(at: url)
     }
 

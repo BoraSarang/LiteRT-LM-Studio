@@ -40,13 +40,15 @@ extension ChatStore {
         // 정직 가드·스킬/MCP 안내는 1턴에 충분 — 도구 결과를 답으로 정리하는 2턴엔 불필요.
         let sysBlock: String
         if toolTurn {
-            sysBlock = Self.currentDateBlock()
+            // T-354: 도구 결과를 받는 턴 — 본문 우선 활용 규칙은 여기서 특히 필요.
+            sysBlock = [Self.currentDateBlock(), Self.webAnswerBlock()]
+                .filter { !$0.isEmpty }.joined(separator: "\n\n")
         } else {
             // T-285: 스킬+MCP 안내 + T-312: 오늘 날짜 시스템 메시지 (빈 문자열이면 생략).
             let extras = SkillsStore.extrasBlock(
                 serverNames: MCPStore.shared.enabledServers.map(\.name))
             sysBlock = [Self.currentDateBlock(), Self.toolHonestyBlock(),
-                        Self.parallelToolCallBlock(), extras]
+                        Self.parallelToolCallBlock(), Self.webAnswerBlock(), extras]
                 .filter { !$0.isEmpty }.joined(separator: "\n\n")
         }
         let messagesPlus: [[String: Any]] = sysBlock.isEmpty
@@ -115,5 +117,14 @@ extension ChatStore {
         "[도구 병렬 규칙] 맡은 확인을 위한 읽기 전용 도구(클립보드 읽기, 시스템 정보, "
             + "파일 읽기 등)는 서로 독립적이므로 한 응답에서 여러 도구를 함께 호출하고, "
             + "모든 결과를 받은 뒤 한 번에 요약하세요. 순차로 하나씩 호출하지 마세요."
+    }
+
+    /// 웹 결과 활용 (T-354): 검색 결과의 [1번 페이지 본문]을 근거로 바로 답하고,
+    /// 부족하면 지체 없이 web_fetch를 호출한다. "확인해 보겠습니다"만 말하고 끝내지 않도록.
+    /// 고정 문자열이라 KV 캐시 안전. 서버 1턴·도구 결과 턴 모두 주입. 순수 함수(테스트 가능).
+    nonisolated static func webAnswerBlock() -> String {
+        "[웹 결과 활용 규칙] 도구 결과에 [1번 페이지 본문]이 있으면 그 본문을 근거로 곧바로 답하세요. "
+            + "필요한 정보가 없거나 더 최신이어야 하면 지체 없이 web_fetch로 원문을 읽으세요. "
+            + "'확인해 보겠습니다'라고만 말하고 답을 미루거나 끝내지 마세요."
     }
 }

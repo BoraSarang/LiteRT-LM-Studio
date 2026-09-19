@@ -140,10 +140,11 @@ enum WebSearch {
         "웹 검색을 사용할 수 없습니다. 설정 → 도구 → 웹에서 Exa API 키를 입력해 주세요. (키 발급: https://dashboard.exa.ai)"
     }
 
-    /// Exa search 요청 본문 (순수, T-352): 하이라이트 + 라이브 크롤(maxAgeHours=0).
+    /// Exa search 요청 본문 (순수, T-352·T-354): 하이라이트 + 캐시(지연·비용 절약).
+    /// 최신성은 1위 본문 자동 첨부(web_fetch=라이브 크롤)가 담당한다.
     nonisolated static func searchBody(query: String, maxResults: Int) -> [String: Any] {
         ["query": query, "numResults": maxResults, "type": "auto",
-         "contents": ["highlights": true, "maxAgeHours": 0]]
+         "contents": ["highlights": true]]
     }
 
     /// Exa contents 요청 본문 (순수, T-352): 텍스트 + 라이브 크롤(maxAgeHours=0).
@@ -151,8 +152,7 @@ enum WebSearch {
         ["urls": [url], "text": true, "maxAgeHours": 0]
     }
 
-    /// Exa search 호출 (T-352): 하이라이트 포함, 발췌용 가볍게.
-    /// maxAgeHours=0(T-353): 캐시 대신 라이브 크롤 — 릴리스·최신 소식의 낡은 캐시 방지.
+    /// Exa search 호출 (T-352): 하이라이트 포함, 발췌용 가볍게 (캐시 허용).
     static func searchViaExa(query: String, maxResults: Int) async throws -> [WebHit] {
         let data = try await exaPOST(path: "search",
                                      body: searchBody(query: query, maxResults: maxResults))
