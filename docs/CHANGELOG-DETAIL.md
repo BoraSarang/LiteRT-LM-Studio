@@ -3,6 +3,11 @@
 > 릴리스 요약은 [CHANGELOG.md](CHANGELOG.md)를 본다. 이 문서는 작업 단위 상세 기록이며 **최신이 위**다.
 > T-0006~T-366(0.7.150 이전 작업 포함)의 항목별 설명을 담는다.
 
+* 릴리스 자동화 (0.7.151): `.github/workflows/release.yml`을 추가해 `v*.*.*` 태그 push 시
+  macos-15 러너에서 Release 빌드 후 `LiteRT-LM-Studio-<버전>-macos-arm64.dmg`와 sha256을
+  만들어 GitHub Release에 올린다. Ad-hoc 서명 유지라 첫 실행 Gatekeeper 안내는 우클릭→열기로
+  적었다. 태그와 MARKETING_VERSION 불일치 시 경고를 남긴다. 앱 코드 변경 없음. [macos]
+
 * 시스템 표면·문서 (T-366): 캘린더·미리 알림 권한 설명을 `InfoPlist.xcstrings`(ko/en)로 옮기고, 한국어 단일 파일이던 `error_message_ko.json`(E-MAC 코드 29개)을 카탈로그 `error.<코드>` 키로 이관해 영어 문구까지 채웠다. 코드 전수가 두 언어로 해석되는지 테스트가 막는다. README(한/영)·사용설명서에 언어 설정과 'macOS가 그리는 문구는 다음 실행 때 반영' 안내를 넣었다. [macos]
 
 * 문구 다듬기 (T-365): korean-humanizer로 카탈로그의 한국어·영어 표시 문구를 점검해 연결어미 뒤 쉼표를 없애고, 줄표로 이어 붙인 문구 20건을 문장 분리·괄호·가운뎃점으로 정리했다. [macos]
