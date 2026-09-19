@@ -257,6 +257,7 @@ struct InspectorSectionHeader: View {
                 .help("\(title) 메뉴")
             }
         }
+        .padding(.trailing, 8) // T-324 행 우측 여백과 맞춤 (요약 돌출 방지)
         .onHover { hovering = $0 }
     }
 }
