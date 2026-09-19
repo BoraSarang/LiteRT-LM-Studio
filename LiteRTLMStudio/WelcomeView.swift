@@ -10,17 +10,17 @@ struct WelcomeLink: Hashable {
 
     nonisolated static var all: [WelcomeLink] {
         [
-            WelcomeLink(title: "공식 문서", detail: "LiteRT-LM 시작·API 안내",
+            WelcomeLink(title: L(L10n.Welcome.docLink), detail: L(L10n.Welcome.docLinkDetail),
                         url: "https://ai.google.dev/edge/litert-lm", icon: "book"),
-            WelcomeLink(title: "GitHub", detail: "릴리즈·이슈·소스",
+            WelcomeLink(title: L(L10n.Welcome.github), detail: L(L10n.Welcome.githubDetail),
                         url: "https://github.com/google-ai-edge/LiteRT-LM",
                         icon: "chevron.left.forwardslash.chevron.right"),
-            WelcomeLink(title: "LiteRT-LM Studio", detail: "앱 소스·이슈",
+            WelcomeLink(title: L(L10n.Welcome.appRepo), detail: L(L10n.Welcome.appRepoDetail),
                         url: "https://github.com/BoraSarang/LiteRT-LM-Studio",
                         icon: "macwindow"),
-            WelcomeLink(title: "Hugging Face", detail: "커뮤니티 모델 모음",
+            WelcomeLink(title: L(L10n.Welcome.huggingFace), detail: L(L10n.Welcome.huggingFaceDetail),
                         url: "https://huggingface.co/litert-community", icon: "face.smiling"),
-            WelcomeLink(title: "AI Edge Gallery", detail: "온디바이스 데모 앱",
+            WelcomeLink(title: L(L10n.Welcome.gallery), detail: L(L10n.Welcome.galleryDetail),
                         url: "https://github.com/google-ai-edge/gallery", icon: "square.grid.2x2")
         ]
     }
@@ -58,12 +58,12 @@ struct WelcomeView: View {
             .padding(.bottom, 24) // T-325 하단 잘림 방지 (bottom inset 보강)
         }
         .task { await notes.refreshIfNeeded() }
-        .confirmationDialog("litert-lm 업데이트", isPresented: $showUpgradeConfirm,
+        .confirmationDialog(L(L10n.Welcome.upgradeTitle), isPresented: $showUpgradeConfirm,
                             titleVisibility: .visible) {
-            Button("업데이트 실행") { Task { await runUpgrade() } }
-            Button("취소", role: .cancel) {}
+            Button(L(L10n.Welcome.runUpgrade)) { Task { await runUpgrade() } }
+            Button(L(L10n.Welcome.cancel), role: .cancel) {}
         } message: {
-            Text("`uv tool upgrade litert-lm`을 실행합니다. 수 분 걸릴 수 있어요.")
+            Text(L(L10n.Welcome.upgradeNote))
         }
     }
 
@@ -76,7 +76,7 @@ struct WelcomeView: View {
                 .clipShape(.rect(cornerRadius: 14))
             Text("LiteRT-LM Studio")
                 .font(.system(size: 22, weight: .bold))
-            Text("온디바이스 LLM 채팅 매니저 — 아래에 질문을 입력하세요")
+            Text(L(L10n.Welcome.tagline))
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
         }
@@ -87,14 +87,14 @@ struct WelcomeView: View {
         HStack(spacing: 6) {
             Circle().fill(daemonRunning ? .green : .gray)
                 .frame(width: 8, height: 8)
-            Text("litert-lm \(installed ?? "확인 중")")
+            Text("litert-lm \(installed ?? L(L10n.Welcome.checking))")
                 .font(DS.captionFont).foregroundStyle(.secondary)
             if let tag = notes.latestStable?.tag {
-                Text("· 최신 \(ReleaseNotesParser.displayVersion(tag))")
+                Text(L(L10n.Welcome.latest, ReleaseNotesParser.displayVersion(tag)))
                     .font(DS.captionFont).foregroundStyle(.secondary)
             }
             if update != nil {
-                Text("업데이트 있음")
+                Text(L(L10n.Welcome.updateAvailable))
                     .font(DS.captionFont.weight(.semibold)).foregroundStyle(.orange)
             }
         }
@@ -104,11 +104,11 @@ struct WelcomeView: View {
     var newsCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("새소식")
+                Text(L(L10n.Welcome.releaseNotes))
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 if notes.showingCache {
-                    Text("오프라인 — 저장된 소식")
+                    Text(L(L10n.Welcome.offlineSaved))
                         .font(DS.captionFont).foregroundStyle(.secondary)
                 }
                 if notes.isLoading {
@@ -119,11 +119,11 @@ struct WelcomeView: View {
                             .font(.system(size: 12, weight: .semibold))
                     }
                     .buttonStyle(.plain).foregroundStyle(.secondary)
-                    .help("새소식 새로고침")
+                    .help(L(L10n.Welcome.refreshNotes))
                 }
             }
             if notes.featured.isEmpty, !notes.isLoading {
-                Text("소식을 불러오지 못했습니다. 새로고침을 눌러 다시 시도해 주세요.")
+                Text(L(L10n.Welcome.notesFailed))
                     .font(DS.captionFont).foregroundStyle(.secondary)
             }
             ForEach(notes.featured) { rel in
@@ -140,7 +140,7 @@ struct WelcomeView: View {
                 Text(ReleaseNotesParser.displayVersion(rel.tag))
                     .font(.system(size: 13, weight: .semibold))
                 if rel.prerelease {
-                    Text("프리릴리즈").font(DS.captionFont).foregroundStyle(.secondary)
+                    Text(L(L10n.Welcome.prerelease)).font(DS.captionFont).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if let date = rel.publishedAt {
@@ -152,7 +152,7 @@ struct WelcomeView: View {
                 Text(line).font(DS.captionFont).foregroundStyle(.secondary).lineLimit(2)
             }
             if let url = URL(string: rel.url), !rel.url.isEmpty {
-                Link("자세히 보기", destination: url)
+                Link(L(L10n.Welcome.readMore), destination: url)
                     .font(DS.captionFont)
             }
         }
@@ -164,15 +164,15 @@ struct WelcomeView: View {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.down.circle.fill").foregroundStyle(.orange)
                 if let tag = update?.tag {
-                    Text("v\(ReleaseNotesParser.displayVersion(tag)) 사용 가능")
+                    Text(L(L10n.Welcome.available, ReleaseNotesParser.displayVersion(tag)))
                         .font(.system(size: 13, weight: .semibold))
                 }
                 Spacer()
                 if upgrading {
                     ProgressView().scaleEffect(0.7)
-                    Text("업데이트 중…").font(DS.captionFont).foregroundStyle(.secondary)
+                    Text(L(L10n.Welcome.updating)).font(DS.captionFont).foregroundStyle(.secondary)
                 } else {
-                    Button("업데이트") { showUpgradeConfirm = true }
+                    Button(L(L10n.Welcome.update)) { showUpgradeConfirm = true }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
                 }
@@ -186,7 +186,7 @@ struct WelcomeView: View {
     /// 추천 링크 카드 4행.
     var linksCard: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("추천 링크")
+            Text(L(L10n.Welcome.recommendedLinks))
                 .font(.system(size: 13, weight: .semibold))
                 .padding(.bottom, 4)
             ForEach(WelcomeLink.all, id: \.url) { link in
@@ -208,9 +208,9 @@ struct WelcomeView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("\(link.title) 열기")
+                .help(L(L10n.Welcome.openLink, link.title))
             }
-            Text("출처: LiteRT-LM 커뮤니티 안내")
+            Text(L(L10n.Welcome.source))
                 .font(DS.captionFont).foregroundStyle(.tertiary)
                 .padding(.top, 4)
         }.cardBox()
@@ -220,7 +220,7 @@ struct WelcomeView: View {
     var serverHint: some View {
         Group {
             if !daemonRunning {
-                Text("사이드바에서 모델을 고르고 ▶ 버튼(⌘R)으로 데몬을 띄우세요")
+                Text(L(L10n.Welcome.startHint))
                     .font(DS.captionFont).foregroundStyle(.secondary)
             }
         }
@@ -250,10 +250,10 @@ struct WelcomeView: View {
         if code == 0 {
             await uv.refresh()
             await notes.refresh()
-            upgradeNote = "업데이트 완료 (litert-lm \(installed ?? ""))"
+            upgradeNote = L(L10n.Welcome.upgradeDone, installed ?? "")
             DebugLogger.shared.info(feature: "업데이트", "완료: \(out.prefix(120))")
         } else {
-            upgradeNote = "업데이트 실패 (E-MAC-ENG-0003)"
+            upgradeNote = L(L10n.Welcome.upgradeFailed)
             DebugLogger.shared.error(code: "E-MAC-ENG-0003", feature: "업데이트", out)
         }
     }

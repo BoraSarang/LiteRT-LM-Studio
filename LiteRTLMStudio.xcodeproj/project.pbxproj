@@ -110,6 +110,7 @@
 				500000000000000000000161,
 				500000000000000000000163,
 				500000000000000000000165,
+				500000000000000000000166,
 				500000000000000000000164,
 				500000000000000000000024,
 				500000000000000000000027,
@@ -333,6 +334,7 @@
 				400000000000000000000161,
 				400000000000000000000163,
 				400000000000000000000165,
+				400000000000000000000166,
 				400000000000000000000164,
 				400000000000000000000012,
 				400000000000000000000013,
@@ -534,6 +536,7 @@
 		400000000000000000000162 = { isa = PBXBuildFile; fileRef = 500000000000000000000162; };
 		400000000000000000000163 = { isa = PBXBuildFile; fileRef = 500000000000000000000163; };
 		400000000000000000000165 = { isa = PBXBuildFile; fileRef = 500000000000000000000165; };
+		400000000000000000000166 = { isa = PBXBuildFile; fileRef = 500000000000000000000166; };
 		400000000000000000000164 = { isa = PBXBuildFile; fileRef = 500000000000000000000164; };
 		400000000000000000000012 = { isa = PBXBuildFile; fileRef = 500000000000000000000022; };
 		400000000000000000000013 = { isa = PBXBuildFile; fileRef = 500000000000000000000023; };
@@ -694,6 +697,7 @@
 		500000000000000000000110 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioModelTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000119 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioModelIOTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000164 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeysScreens.swift"; sourceTree = "<group>"; };
+		500000000000000000000166 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeysViews.swift"; sourceTree = "<group>"; };
 		500000000000000000000165 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeysModels.swift"; sourceTree = "<group>"; };
 		500000000000000000000163 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeyIndex.swift"; sourceTree = "<group>"; };
 		500000000000000000000162 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioLocalizationTests.swift"; sourceTree = "<group>"; };

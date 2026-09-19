@@ -14,15 +14,15 @@ struct AboutView: View {
                     Text("LiteRT-LM Studio")
                         .font(.title.weight(.semibold))
 
-                    Text("버전 \(Self.appVersion) (build \(Self.buildNumber))")
+                    Text(L(L10n.About.version, Self.appVersion, Self.buildNumber))
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    Text("제작자: BoRaSaRang")
+                    Text(L(L10n.About.author))
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    Text("macOS 전용 온디바이스 LLM 채팅 매니저")
+                    Text(L(L10n.About.tagline))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -32,7 +32,7 @@ struct AboutView: View {
                 .padding(.vertical, 4)
 
             if !AboutLibraries.all.isEmpty {
-                Text("사용한 라이브러리")
+                Text(L(L10n.About.libraries))
                     .font(.caption.weight(.semibold))
 
                 ForEach(AboutLibraries.all, id: \.name) { lib in
