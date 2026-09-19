@@ -227,13 +227,13 @@ extension ContentView {
             .overlay(alignment: .bottom) {
                 if !pinnedToBottom { scrollBottomButton }
             }
-            .overlay(alignment: .bottomTrailing) {
-                // T-258 대화 목차 플로팅 (T-332 우측 하단, 맨 아래로 버튼과 분리).
+            .overlay(alignment: .trailing) {
+                // T-258 대화 목차 플로팅 (우측 중앙).
                 if outlineEnabled {
                     let entries = ChatOutline.entries(from: chat.messages)
                     if !entries.isEmpty {
                         ChatOutlineView(entries: entries) { id in jumpToOutline(id: id) }
-                            .padding(.trailing, 8).padding(.bottom, 12)
+                            .padding(.trailing, 8)
                     }
                 }
             }
