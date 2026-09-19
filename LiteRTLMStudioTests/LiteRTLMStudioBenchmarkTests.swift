@@ -166,7 +166,7 @@ final class LiteRTLMStudioBenchmarkTests: XCTestCase {
     func testPowerLine() {
         let (t1, w1) = BatteryStatus.powerLine(mtp: true, battery: nil)
         XCTAssertTrue(w1)
-        XCTAssertTrue(t1.contains("MTP 켬"))
+        XCTAssertTrue(t1.contains("MTP 제한"))
         let (t2, w2) = BatteryStatus.powerLine(
             mtp: false, battery: BatteryStatus(percent: 10, discharging: true))
         XCTAssertTrue(w2)

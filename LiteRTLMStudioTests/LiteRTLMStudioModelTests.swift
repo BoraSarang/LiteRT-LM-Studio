@@ -129,6 +129,21 @@ final class LiteRTLMStudioModelTests: XCTestCase {
         XCTAssertNil(ModelCatalog.parseDetail(repo: "org/m", data: Data("{}".utf8))?.lastModified)
     }
 
+    /// 게이트 판정 (T-335): false/문자열/없음.
+    func testCatalogGated() {
+        XCTAssertFalse(ModelCatalog.isGated(false))
+        XCTAssertFalse(ModelCatalog.isGated(nil))
+        XCTAssertTrue(ModelCatalog.isGated("auto"))
+        XCTAssertTrue(ModelCatalog.isGated("manual"))
+        XCTAssertTrue(ModelCatalog.isGated(true))
+        let gated = ModelCatalog.parseDetail(
+            repo: "org/g", data: Data("{\"modelId\": \"org/g\", \"gated\": \"manual\"}".utf8))
+        XCTAssertEqual(gated?.gated, true)
+        let open = ModelCatalog.parseDetail(
+            repo: "org/o", data: Data("{\"modelId\": \"org/o\", \"gated\": false}".utf8))
+        XCTAssertEqual(open?.gated, false)
+    }
+
     /// 뱃지·패밀리 판정 (T-234).
     func testCatalogBadgesAndFamily() {
         XCTAssertEqual(ModelCatalog.badges(pipelineTag: "image-text-to-text"), [.vision])
@@ -244,6 +259,31 @@ final class LiteRTLMStudioModelTests: XCTestCase {
         let blocks = NativeMarkdown.parseProse("<3\n\n<div>hi</div>")
         XCTAssertTrue(blocks.contains(.paragraph(text: "<3")))
         XCTAssertTrue(blocks.contains(.paragraph(text: "hi")))
+    }
+
+    /// 표 셀 svg 링크 라벨화 (T-335): `[<svg>](url)` → `[아이콘](url)`.
+    func testSvgLinkLabeled() {
+        let cell = "[<svg xmlns=\"http://x\" height=\"72px\"><path d=\"M0\"/></svg>](https://ai.google.dev/x)"
+        XCTAssertEqual(NativeMarkdown.svgLinkLabeled(cell), "[아이콘](https://ai.google.dev/x)")
+        XCTAssertEqual(NativeMarkdown.svgLinkLabeled("일반 텍스트"), "일반 텍스트")
+        let code = "`[<svg></svg>](u)`"
+        XCTAssertEqual(NativeMarkdown.svgLinkLabeled(code), code)
+    }
+
+    /// 파이프 표 svg 행 종단 (T-335): 셀이 아이콘 링크로 바뀜.
+    func testPipeTableSvgRow() {
+        let doc = "| A | B |\n|---|---|\n| [<svg><path d=\"M0\"/></svg>](https://x) | y |"
+        let blocks = NativeMarkdown.parseProse(doc)
+        let tables = blocks.compactMap { b -> [[String]]? in
+            guard case .table(let rows, _) = b else { return nil }
+            return rows
+        }
+        XCTAssertEqual(tables.count, 1)
+        // styled() 진입 전에 셀이 아니라 렌더 시점에 변환되므로 원문 유지 확인
+        XCTAssertTrue(tables[0][1][0].contains("<svg"))
+        let rendered = String(NativeMarkdown.styled(tables[0][1][0], size: 13).characters)
+        XCTAssertTrue(rendered.contains("아이콘"))
+        XCTAssertFalse(rendered.contains("M0"))
     }
 
     /// 파일명 → 검색어 정제 (T-251).

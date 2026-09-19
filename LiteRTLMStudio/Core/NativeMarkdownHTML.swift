@@ -46,6 +46,27 @@ extension NativeMarkdown {
         return String(t[start ..< idx]).lowercased()
     }
 
+    /// svg 링크 라벨화 (T-335, 순수): `[<svg…>…</svg>](url)` → `[아이콘](url)`.
+    /// 코드 스팬(백틱) 안은 손대지 않음. 표 셀·문단 공통 (styled 진입 전).
+    nonisolated static func svgLinkLabeled(_ s: String) -> String {
+        guard s.lowercased().contains("<svg") else { return s }
+        let parts = s.components(separatedBy: "`")
+        var out = parts
+        for i in parts.indices where i % 2 == 0 {
+            out[i] = replaceSvgLink(in: parts[i])
+        }
+        return out.joined(separator: "`")
+    }
+
+    /// 단일 일반 구간의 svg 링크 치환 (순수).
+    nonisolated static func replaceSvgLink(in s: String) -> String {
+        guard let re = try? NSRegularExpression(
+            pattern: #"\[<svg[\s\S]*?</svg>\]\(([^)]+)\)"#,
+            options: .caseInsensitive) else { return s }
+        let range = NSRange(s.startIndex..., in: s)
+        return re.stringByReplacingMatches(in: s, range: range, withTemplate: "[아이콘]($1)")
+    }
+
     /// HTML 표 줄 소비 (T-237): 해당하면 누적하고 true.
     nonisolated static func consumeHtmlLine(_ t: String, acc: inout ProseAccumulator) -> Bool {
         guard acc.htmlRows != nil || t.lowercased().contains("<table") else { return false }

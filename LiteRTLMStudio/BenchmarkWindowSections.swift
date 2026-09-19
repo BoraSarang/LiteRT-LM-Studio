@@ -109,6 +109,7 @@ extension BenchmarkWindowView {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 12)
+                .padding(.bottom, 12) // T-335 맨 아래 잘림 방지
             }
         }
     }
@@ -197,7 +198,7 @@ extension BenchmarkWindowView {
                         .help("MTP(추측적 디코딩)가 켜져 있거나 배터리가 20% 이하로 방전 중이면 측정값이 흔들릴 수 있어요.")
                     Image(systemName: "info.circle")
                         .font(DS.captionFont).foregroundStyle(.secondary)
-                        .help("배터리 절약 모드에서는 추측적 디코딩(MTP) 가속이 제한됩니다")
+                        .help("배터리 충전 중에는 속도 제한")
                 }
             } else {
                 Text(powerStatus.text)

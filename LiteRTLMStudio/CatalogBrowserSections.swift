@@ -105,9 +105,11 @@ extension CatalogBrowserView {
                         .disabled(detailFile(detail).isEmpty
                             || detailLocalID.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                SecureField("Hugging Face 토큰 (게이트 저장소만)", text: $catalog.token)
-                    .textFieldStyle(.roundedBorder)
-                    .help("google 계열 등 승인 필요 저장소는 HF에서 접근 승인 후 토큰 입력 (세션만 유지)")
+                if detail.gated {
+                    SecureField("Hugging Face 토큰 (게이트 저장소만)", text: $catalog.token)
+                        .textFieldStyle(.roundedBorder)
+                        .help("google 계열 등 승인 필요 저장소는 HF에서 접근 승인 후 토큰 입력 (세션만 유지)")
+                }
                 if let notice = downloadNotice {
                     Text(notice).font(DS.captionFont).foregroundStyle(.orange)
                 }

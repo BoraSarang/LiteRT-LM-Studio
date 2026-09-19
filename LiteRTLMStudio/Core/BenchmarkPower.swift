@@ -36,7 +36,7 @@ struct BatteryStatus: Equatable {
     nonisolated static func powerLine(mtp: Bool?, battery: BatteryStatus?) -> (String, Bool) {
         var parts: [String] = []
         if let mtp {
-            parts.append(mtp ? "MTP 켬" : "MTP 끔")
+            parts.append(mtp ? "MTP 제한" : "MTP 끔")
         } else {
             parts.append("MTP 미설정(기본 끔)")
         }

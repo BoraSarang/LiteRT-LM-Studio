@@ -76,10 +76,11 @@ enum NativeMarkdown {
     nonisolated static func styled(_ s: String, size: CGFloat, weight: Font.Weight = .regular)
         -> AttributedString {
         var out = AttributedString()
+        let clean = svgLinkLabeled(s) // T-335 표 셀 svg 링크 → 아이콘 링크
         let segOptions = AttributedString.MarkdownParsingOptions(
             interpretedSyntax: .inlineOnlyPreservingWhitespace)
         // T-195: 코드 구간 분리 후 처리, 이후 볼드 처리.
-        for seg in splitStrong(normalizeStrong(s)) {
+        for seg in splitStrong(normalizeStrong(clean)) {
             // T-195: 코드 구간은 파서 우회 (Apple 파서의 `<...>` 삼킴 회피).
             for span in splitCodeRuns(seg.text) {
                 var part: AttributedString

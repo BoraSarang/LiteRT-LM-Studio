@@ -76,6 +76,7 @@ struct CatalogEntry: Identifiable, Hashable, Sendable {
     var lastModified: String?
     var pipelineTag: String?
     var siblings: [String] = []
+    var gated: Bool = false
 
     /// 목록행 표시명 (`org` 제외, `litert-lm` 접미사 제거).
     var shortName: String {
@@ -138,6 +139,16 @@ enum ModelCatalog {
         return comps?.url
     }
 
+    /// 게이트 판정 (순수, T-335): HF `gated`는 false 또는 "auto"/"manual".
+    nonisolated static func isGated(_ value: Any?) -> Bool {
+        if let b = value as? Bool { return b }
+        if let s = value as? String {
+            let lower = s.lowercased()
+            return lower == "auto" || lower == "manual" || lower == "true"
+        }
+        return false
+    }
+
     /// 목록 응답 파싱 (순수).
     nonisolated static func parseList(_ data: Data) -> [CatalogEntry] {
         guard let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
@@ -146,12 +157,14 @@ enum ModelCatalog {
         return arr.compactMap { obj -> CatalogEntry? in
             guard let repo = (obj["modelId"] as? String) ?? (obj["id"] as? String) else { return nil }
             return CatalogEntry(
-                repo: repo,
+                repo: (obj["modelId"] as? String) ?? repo,
                 likes: obj["likes"] as? Int ?? 0,
                 downloads: obj["downloads"] as? Int ?? 0,
                 createdAt: obj["createdAt"] as? String,
                 lastModified: obj["lastModified"] as? String,
-                pipelineTag: obj["pipeline_tag"] as? String
+                pipelineTag: obj["pipeline_tag"] as? String,
+                siblings: ModelDownload.litertlmSiblings(from: data),
+                gated: isGated(obj["gated"])
             )
         }
     }
@@ -184,7 +197,8 @@ enum ModelCatalog {
             createdAt: obj["createdAt"] as? String,
             lastModified: obj["lastModified"] as? String,
             pipelineTag: obj["pipeline_tag"] as? String,
-            siblings: ModelDownload.litertlmSiblings(from: data)
+            siblings: ModelDownload.litertlmSiblings(from: data),
+            gated: isGated(obj["gated"])
         )
     }
 
