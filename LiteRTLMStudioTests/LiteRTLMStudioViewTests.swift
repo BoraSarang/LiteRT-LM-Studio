@@ -274,6 +274,16 @@ final class LiteRTLMStudioViewTests: XCTestCase {
                        "온도 1.00 · 상위K 64")
     }
 
+    /// 인스펙터 탭 (T-324): 실행 기본, 불일치 원시값도 실행으로.
+    func testInspectorTabDefault() {
+        XCTAssertEqual(ContentView.InspectorTab(rawValue: "backend"), .backend)
+        XCTAssertEqual(ContentView.InspectorTab(rawValue: "generate"), .generate)
+        XCTAssertNil(ContentView.InspectorTab(rawValue: "없음"))
+        XCTAssertEqual(ContentView.InspectorTab(rawValue: "없음") ?? .backend, .backend)
+        XCTAssertEqual(ContentView.InspectorTab.backend.title, "실행 설정")
+        XCTAssertEqual(ContentView.InspectorTab.generate.title, "생성 설정")
+    }
+
     /// 회귀: 툴바 SF Symbol 실렌더 가능 (외부 link.badge.minus 링 현상 방지).
     func testToolbarSymbolsResolve() {
         for name in ["play.fill", "stop.fill", "terminal", "command", "sidebar.right",

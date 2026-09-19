@@ -3,60 +3,96 @@ import Combine
 import SwiftUI
 
 extension ContentView {
-    // MARK: - 인스펙터 (T-323 사이드바식: List+헤더 요약+호버 메뉴, on/off는 툴바 토글)
+    /// 인스펙터 탭 (T-324): 사이드바 채팅|모델 패턴 이식.
+    enum InspectorTab: String, CaseIterable {
+        case backend
+        case generate
+
+        var title: String {
+            switch self {
+            case .backend: return InspectorTitle.backend
+            case .generate: return InspectorTitle.generate
+            }
+        }
+    }
+
+    // MARK: - 인스펙터 (T-324 탭식: 시스템 고정+실행/생성 탭, on/off는 툴바 단일 토글)
     var inspector: some View {
-        List {
+        VStack(spacing: 0) {
             if showSystem {
-                Section {
-                    SystemMetersView(monitor: monitor)
-                } header: {
+                VStack(alignment: .leading, spacing: 4) {
                     InspectorSectionHeader(
                         title: InspectorTitle.system,
                         summary: InspectorDefaults.systemSummary(live: monitor.live),
                         onHide: { showSystem = false })
+                    SystemMetersView(monitor: monitor)
                 }
+                .padding(.horizontal, 12).padding(.vertical, 8)
                 .contextMenu {
                     Button("이 섹션 숨기기") { showSystem = false }
                 }
             }
-            if showBackend {
-                Section {
-                    BackendSectionView(config: config, model: selectedModel,
-                                       isNativeRoute: chat.route == .native) {
-                        applyBackend()
+            HStack(spacing: 0) {
+                ForEach(InspectorTab.allCases, id: \.rawValue) { t in
+                    Button {
+                        inspectorTabRaw = t.rawValue
+                        DebugLogger.shared.info(feature: "인스펙터", "탭 전환: \(t.title)")
+                    } label: {
+                        Text(t.title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 7)
+                            .background {
+                                if inspectorTab == t {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(DSColor.primary.opacity(0.15))
+                                }
+                            }
+                            .contentShape(Rectangle())
                     }
-                } header: {
-                    InspectorSectionHeader(
-                        title: InspectorTitle.backend,
-                        summary: InspectorDefaults.backendSummary(hasChanges: config.hasChanges),
-                        onReset: resetBackend,
-                        onHide: { showBackend = false })
-                }
-                .contextMenu {
-                    Button("기본값으로 되돌리기") { resetBackend() }
-                    Button("이 섹션 숨기기") { showBackend = false }
+                    .buttonStyle(.plain)
                 }
             }
-            if showGenerate {
-                Section {
-                    generateSectionBody
-                } header: {
-                    InspectorSectionHeader(
-                        title: InspectorTitle.generate,
-                        summary: InspectorDefaults.generateSummary(
-                            temperature: chat.temperature, topK: chat.topK),
-                        onReset: resetGenerate,
-                        onHide: { showGenerate = false })
-                }
-                .contextMenu {
-                    Button("기본값으로 되돌리기") { resetGenerate() }
-                    Button("이 섹션 숨기기") { showGenerate = false }
+            .padding(.horizontal, 8).padding(.vertical, 6)
+            Divider()
+            List {
+                if inspectorTab == .backend {
+                    Section {
+                        BackendSectionView(config: config, model: selectedModel,
+                                           isNativeRoute: chat.route == .native) {
+                            applyBackend()
+                        }
+                    } header: {
+                        InspectorSectionHeader(
+                            title: InspectorTitle.backend,
+                            summary: InspectorDefaults.backendSummary(hasChanges: config.hasChanges),
+                            onReset: resetBackend)
+                    }
+                    .contextMenu {
+                        Button("기본값으로 되돌리기") { resetBackend() }
+                    }
+                } else {
+                    Section {
+                        generateSectionBody
+                    } header: {
+                        InspectorSectionHeader(
+                            title: InspectorTitle.generate,
+                            summary: InspectorDefaults.generateSummary(
+                                temperature: chat.temperature, topK: chat.topK),
+                            onReset: resetGenerate)
+                    }
+                    .contextMenu {
+                        Button("기본값으로 되돌리기") { resetGenerate() }
+                    }
                 }
             }
+            .listStyle(.sidebar)
         }
-        .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 320, ideal: 320, max: 320) // T-072 사이드바 접힘 영향 차단
     }
+
+    /// 현재 탭 (원시값 불일치 시 실행 설정 기본).
+    var inspectorTab: InspectorTab { InspectorTab(rawValue: inspectorTabRaw) ?? .backend }
 
     /// 실행 설정 되돌리기 (T-323): 초안 파기, 변경 없으면 모델 기준 재로드.
     private func resetBackend() {
@@ -187,12 +223,12 @@ enum InspectorDefaults {
     }
 }
 
-/// 인스펙터 섹션 헤더 (T-323, 사이드바식): 제목+요약+호버 ⋯ 메뉴.
+/// 인스펙터 섹션 헤더 (T-323 사이드바식, T-324 숨기기 선택화): 제목+요약+호버 ⋯ 메뉴.
 struct InspectorSectionHeader: View {
     let title: String
     let summary: String
     var onReset: (() -> Void)?
-    let onHide: () -> Void
+    var onHide: (() -> Void)?
     @State private var hovering = false
 
     var body: some View {
@@ -201,12 +237,14 @@ struct InspectorSectionHeader: View {
             Spacer()
             Text(summary).font(.system(size: 11)).foregroundStyle(.secondary)
                 .lineLimit(1).truncationMode(.tail)
-            if hovering {
+            if hovering, onReset != nil || onHide != nil {
                 Menu {
                     if let reset = onReset {
                         Button("기본값으로 되돌리기", action: reset)
                     }
-                    Button("이 섹션 숨기기", action: onHide)
+                    if let hide = onHide {
+                        Button("이 섹션 숨기기", action: hide)
+                    }
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 11, weight: .bold))
@@ -223,17 +261,13 @@ struct InspectorSectionHeader: View {
     }
 }
 
-/// 툴바 섹션 토글 3칸 (T-016 보기 옵션): 눌러서 켜고 끄는 버튼, 인디게이터 아님.
+/// 툴바 시스템 토글 1칸 (T-324 탭식: 실행/생성은 탭 전환, 시스템만 on/off).
 struct SectionSegments: View {
     @Binding var system: Bool
-    @Binding var backend: Bool
-    @Binding var generate: Bool
 
     var body: some View {
         HStack(spacing: 3) {
             seg(icon: "gauge", on: $system, help: "시스템 현황 보기/숨기기")
-            seg(icon: "server.rack", on: $backend, help: "실행 설정 보기/숨기기")
-            seg(icon: "wand.and.stars", on: $generate, help: "생성 설정 보기/숨기기")
         }
         .padding(4)
         .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlColor)))

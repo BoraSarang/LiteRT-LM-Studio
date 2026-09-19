@@ -33,9 +33,8 @@ struct ContentView: View {
     @SceneStorage("logPanelVisible")  var logPanelVisible = false
     // 표시 상태 4종은 재실행 유지가 필요해서 AppStorage (SceneStorage는 메뉴바 상주 생명주기에서 복원 불안정).
     @AppStorage("showSystem")  var showSystem = true
-    @AppStorage("showBackend")  var showBackend = true
-    @AppStorage("showGenerate")  var showGenerate = true
     @AppStorage("inspectorVisible")  var inspectorVisible = true
+    @AppStorage("inspectorTab")  var inspectorTabRaw = InspectorTab.backend.rawValue // T-324 탭 영속
     @AppStorage("chatFontScale")  var chatFontScale = 1.0 // T-070 채팅 폰트 줌
     @AppStorage("sidebarTab")  var sidebarTabRaw = SidebarTab.chat.rawValue // T-230 탭 영속
     @AppStorage("appearance")  var appearanceRaw = AppearanceMode.system.rawValue
@@ -279,9 +278,8 @@ struct ContentView: View {
             .disabled(daemon.status != .running)
         }
         ToolbarItem(placement: .primaryAction) {
-            // 인스펙터 3섹션 on/off 분할 컨트롤 (진실원천).
-            SectionSegments(system: $showSystem, backend: $showBackend,
-                            generate: $showGenerate)
+            // 인스펙터 시스템 현황 on/off (T-324 탭식: 실행/생성은 탭 전환).
+            SectionSegments(system: $showSystem)
         }
         ToolbarItem(placement: .primaryAction) {
             // 인스펙터 전체 보이기/숨기기 (맨 오른쪽 끝).

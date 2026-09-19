@@ -230,7 +230,7 @@ extension ContentView {
     }
 
     var anySectionVisible: Bool {
-        Self.anyVisible(showSystem, showBackend, showGenerate)
+        Self.anyVisible(showSystem)
     }
 
     /// 컬럼 표시 여부 (순수, 테스트 가능).
@@ -239,17 +239,16 @@ extension ContentView {
     }
 
     var inspectorColumnShown: Bool {
-        Self.columnShown(columnOn: inspectorVisible, sections: showSystem, showBackend, showGenerate)
+        // T-324 탭식: 실행/생성은 항상 존재, 시스템만 on/off.
+        inspectorVisible
     }
 
-    /// 마스터 토글: 전체 off 상태면 전체 복원(보이기), 아니면 컬럼 토글.
+    /// 마스터 토글: 시스템 off 상태면 복원(보이기), 아니면 컬럼 토글.
      func toggleInspectorColumn() {
         if !anySectionVisible {
             showSystem = true
-            showBackend = true
-            showGenerate = true
             inspectorVisible = true
-            logger.info(feature: "인스펙터", "전체 섹션 복원 (보이기)")
+            logger.info(feature: "인스펙터", "시스템 현황 복원 (보이기)")
         } else {
             inspectorVisible.toggle()
         }
