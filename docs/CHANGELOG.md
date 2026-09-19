@@ -1,6 +1,6 @@
 # CHANGELOG — LiteRT-LM Studio
 
-## [Unreleased] (macos)
+## [0.7.150] - 2026-09-20 (macos)
 
 * 시스템 표면·문서 (T-366): 캘린더·미리 알림 권한 설명을 `InfoPlist.xcstrings`(ko/en)로 옮기고, 한국어 단일 파일이던 `error_message_ko.json`(E-MAC 코드 29개)을 카탈로그 `error.<코드>` 키로 이관해 영어 문구까지 채웠다. 코드 전수가 두 언어로 해석되는지 테스트가 막는다. README(한/영)·사용설명서에 언어 설정과 'macOS가 그리는 문구는 다음 실행 때 반영' 안내를 넣었다. [macos]
 
