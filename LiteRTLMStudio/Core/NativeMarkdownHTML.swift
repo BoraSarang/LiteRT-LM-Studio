@@ -3,6 +3,49 @@ import Foundation
 // MARK: - HTML 표 처리 (T-237 분리: 파일 길이 분산)
 
 extension NativeMarkdown {
+    /// 줄 분류 누적기 (T-156에서 이동, 파일 길이 분산).
+    struct NativeMarkdownAccumulator {
+        var out: [ProseBlock] = []
+        var pending: [String] = []
+        var rows: [[String]] = []
+        var header = false
+        var blankRun = false
+        var htmlRows: [[String]]?
+        var htmlCurrent: [String] = []
+        var htmlHeader = false
+        var htmlSkipTag: String?
+    }
+
+    /// 멀티라인 HTML 블록 스킵 (T-331, 순수): `<svg`처럼 `>` 없이 시작하면
+    /// `</` 포함 줄까지 통째로 버림. 표 누적 중·한 줄 완성 태그·비태그는 제외.
+    nonisolated static func consumeHtmlBlock(_ t: String,
+                                             acc: inout ProseAccumulator) -> Bool {
+        if acc.htmlSkipTag != nil {
+            acc.blankRun = false
+            if t.contains("</") { acc.htmlSkipTag = nil }
+            return true
+        }
+        guard acc.htmlRows == nil, t.hasPrefix("<"),
+              let name = htmlTagName(t), !t.contains(">") else { return false }
+        acc.htmlSkipTag = name
+        acc.blankRun = false
+        return true
+    }
+
+    /// 여는 태그명 추출 (순수): `<` 다음 영문 시작 이름, 아니면 nil.
+    nonisolated static func htmlTagName(_ t: String) -> String? {
+        var idx = t.startIndex
+        guard idx < t.endIndex, t[idx] == "<" else { return nil }
+        idx = t.index(after: idx)
+        if idx < t.endIndex, t[idx] == "/" { idx = t.index(after: idx) }
+        guard idx < t.endIndex, t[idx].isLetter else { return nil }
+        let start = idx
+        while idx < t.endIndex, t[idx].isLetter || t[idx].isNumber {
+            idx = t.index(after: idx)
+        }
+        return String(t[start ..< idx]).lowercased()
+    }
+
     /// HTML 표 줄 소비 (T-237): 해당하면 누적하고 true.
     nonisolated static func consumeHtmlLine(_ t: String, acc: inout ProseAccumulator) -> Bool {
         guard acc.htmlRows != nil || t.lowercased().contains("<table") else { return false }

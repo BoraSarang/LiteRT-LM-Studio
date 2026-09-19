@@ -109,17 +109,8 @@ enum NativeMarkdown {
         return out
     }
 
-    /// 줄 분류 누적기 (T-156, 함수 길이 관리용).
-    struct ProseAccumulator {
-        var out: [ProseBlock] = []
-        var pending: [String] = []
-        var rows: [[String]] = []
-        var header = false
-        var blankRun = false
-        var htmlRows: [[String]]?
-        var htmlCurrent: [String] = []
-        var htmlHeader = false
-    }
+    /// 줄 분류 누적기 (T-156, 함수 길이 관리용, 본체는 NativeMarkdownHTML).
+    typealias ProseAccumulator = NativeMarkdownAccumulator
 
     /// 문단 줄 분류 (순수, 테스트 가능, T-151/T-152/T-155): 제목·목록·표·구분선·문단 판정.
     /// 연속 빈줄은 blank 1개로 수렴 (T-155): 앞뒤 내용 있을 때만, 선행 빈줄은 무시.
@@ -159,6 +150,8 @@ enum NativeMarkdown {
     /// 단일 줄 분류·누적 (T-156 분리, T-169 인용 추가).
     nonisolated static func appendParsedLine(_ line: String, to acc: inout ProseAccumulator) {
         let t = line.trimmingCharacters(in: .whitespaces)
+        // 멀티라인 HTML 블록 스킵 (T-331, 빈줄 포함): 닫힘 전까지 통째로 버림.
+        if consumeHtmlBlock(t, acc: &acc) { return }
         if t.isEmpty {
             flushPara(acc: &acc)
             flushTable(acc: &acc)

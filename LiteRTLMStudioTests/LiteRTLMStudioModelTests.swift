@@ -210,6 +210,42 @@ final class LiteRTLMStudioModelTests: XCTestCase {
         XCTAssertTrue(blocks.contains(.paragraph(text: "끝")))
     }
 
+    /// 멀티라인 HTML 블록 제거 (T-331): svg 통째로 버리고 앞뒤 문단 유지.
+    func testMultilineHtmlBlockSkipped() {
+        let doc = """
+        앞 문단
+        <svg xmlns="http://www.w3.org/2000/svg" height="72px"
+        viewBox="0 -960 960 960" width="72px"
+        fill="currentColor"><path d="M320-120v-40l80-80H160q-33
+        0-56.5-23.5T80-320v-440q0-33
+        23.5-56.5T160-840h640q33 0 56.5 23.5T880-760v440q0
+        33-23.5 56.5T800-240H560l80
+        80v40H320ZM160-440h640v-320H160v320Zm0 0v-320
+        320Z"/></svg>
+        뒤 문단
+        """
+        let blocks = NativeMarkdown.parseProse(doc)
+        let texts = blocks.compactMap { b -> String? in
+            guard case .paragraph(let text) = b else { return nil }
+            return text
+        }.joined(separator: "\n")
+        XCTAssertTrue(texts.contains("앞 문단"))
+        XCTAssertTrue(texts.contains("뒤 문단"))
+        XCTAssertFalse(texts.contains("svg"))
+        XCTAssertFalse(texts.contains("w3.org"))
+        XCTAssertFalse(texts.contains("M320"))
+    }
+
+    /// 한 줄 태그·비태그 기존 동작 유지 (T-331).
+    func testSingleLineTagUnchanged() {
+        XCTAssertEqual(NativeMarkdown.htmlTagName("<svg"), "svg")
+        XCTAssertEqual(NativeMarkdown.htmlTagName("</div>"), "div")
+        XCTAssertNil(NativeMarkdown.htmlTagName("<3"))
+        let blocks = NativeMarkdown.parseProse("<3\n\n<div>hi</div>")
+        XCTAssertTrue(blocks.contains(.paragraph(text: "<3")))
+        XCTAssertTrue(blocks.contains(.paragraph(text: "hi")))
+    }
+
     /// 파일명 → 검색어 정제 (T-251).
     func testSearchStem() {
         XCTAssertEqual(ModelCatalog.searchStem(fileName: "qwen3_4b_mixed_int4.litertlm"), "qwen3 4b")
