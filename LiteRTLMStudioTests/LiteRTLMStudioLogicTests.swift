@@ -1176,6 +1176,18 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertTrue(gate.isStalled())
     }
 
+    /// 스톨 게이트 무수신 경과 (T-344): 서버 워치독 대기 로그용.
+    func testStreamProgressGateIdle() {
+        var clock = 100.0
+        let date: () -> Date = { Date(timeIntervalSince1970: clock) }
+        let gate = StreamProgressGate(idleLimit: 60, now: date)
+        XCTAssertEqual(gate.idle(), 0, accuracy: 0.001)
+        clock += 25
+        XCTAssertEqual(gate.idle(), 25, accuracy: 0.001)
+        gate.tic()
+        XCTAssertEqual(gate.idle(), 0, accuracy: 0.001)
+    }
+
     /// 1회 실행 마커 (T-311): 중복 완료·저장 방지.
     @MainActor
     func testOnceMarker() {

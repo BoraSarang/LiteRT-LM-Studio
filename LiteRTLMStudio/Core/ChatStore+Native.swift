@@ -34,6 +34,9 @@ final class StreamProgressGate {
     /// 진행 발생 (토큰 1건마다 호출).
     func tic() { lastProgress = now() }
 
+    /// 마지막 진행 이후 경과 (T-344): 서버 워치독 대기 로그용.
+    func idle() -> TimeInterval { now().timeIntervalSince(lastProgress) }
+
     /// idle 초과 여부 (1회 발화 후 계속 true, 병합 처리용).
     func isStalled() -> Bool {
         if !fired, now().timeIntervalSince(lastProgress) > idleLimit { fired = true }

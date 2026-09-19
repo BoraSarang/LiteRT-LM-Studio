@@ -16,6 +16,7 @@ final class LiteRTLMStudioTests: XCTestCase {
         let dict = try JSONSerialization.jsonObject(with: data) as? [String: String]
         XCTAssertNotNil(dict?["E-MAC-VALID-0001"])
         XCTAssertNotNil(dict?["E-MAC-NET-0002"])
+        XCTAssertNotNil(dict?["E-MAC-NET-0006"])
         XCTAssertNotNil(dict?["E-MAC-ENG-0001"])
         XCTAssertNotNil(dict?["E-MAC-ENG-0002"])
     }

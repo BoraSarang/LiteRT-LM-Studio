@@ -1,5 +1,8 @@
 import Foundation
 
+/// 서버 무수신 타임아웃 (T-344, 파일 스코프): 워치독 발화 시 전송 실패로 전환.
+struct ServerStallError: Error {}
+
 /// SSE 스트림 누적 확장 (T-266 분리: ChatStore 본문 길이 관리).
 /// T-148 한 줄 적용 + T-266 생각·도구 델타 누적.
 extension ChatStore {
@@ -80,49 +83,91 @@ extension ChatStore {
         var state = SSEStreamState(lastFlush: started)
         var extraHistory: [[String: Any]] = []
         var turn = 0
-        while true {
-            try Task.checkCancellation()
-            let legStart = Date()
-            let hadFirstToken = state.firstTokenAt != nil
-            logTurnRequest(turn: turn, extraHistory: extraHistory)
-            let req = try chatRequest(prompt: prompt, image: image, extraHistory: extraHistory)
-            let (bytes, resp) = try await URLSession.shared.bytes(for: req)
-            guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
-                throw URLError(.badServerResponse)
+        // T-344: 서버 무수신 워치독 (네이티브 stallWatch 대응). 60초 무수신이면
+        // 전송 태스크를 취소해 명확한 타임아웃 실패로 전환한다 (300초 방치 방지).
+        let gate = StreamProgressGate(idleLimit: Self.stallIdleLimit)
+        let watch = startServerWatch(gate: gate, myTask: currentTask)
+        defer { watch.cancel() }
+        do {
+            while true {
+                try Task.checkCancellation()
+                let legStart = Date()
+                let hadFirstToken = state.firstTokenAt != nil
+                logTurnRequest(turn: turn, extraHistory: extraHistory)
+                let req = try chatRequest(prompt: prompt, image: image, extraHistory: extraHistory)
+                let (bytes, resp) = try await URLSession.shared.bytes(for: req)
+                guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
+                    throw URLError(.badServerResponse)
+                }
+                for try await line in bytes.lines {
+                    gate.tic()
+                    if applySSELine(line, state: &state, idx: idx, started: started) { break }
+                }
+                flushTurn(state: state, idx: idx)
+                // T-343 최종 답변 TTFT: guard보다 먼저 (텍스트 턴은 guard에서 break).
+                if turn > 0, !hadFirstToken, let first = state.firstTokenAt {
+                    logger.perf(feature: "채팅전송",
+                                "최종 답변 TTFT=\(Self.elapsed(from: legStart, to: first))s (재전송 후)")
+                }
+                let calls = state.toolAcc.finalized()
+                guard state.toolAcc.finishReason == "tool_calls",
+                      !calls.isEmpty, turn < ServerToolHistory.maxTurns else { break }
+                let names = calls.map(\.name).joined(separator: ", ")
+                logger.perf(feature: "도구",
+                            "\(turn + 1)턴 판단 \(Self.elapsed(from: legStart))s (\(names))")
+                turn += 1
+                _ = await runTurnCalls(calls, extraHistory: &extraHistory, idx: idx, turn: turn)
+                state.toolAcc = ToolCallAccumulator()
+                logger.info(feature: "도구", "서버 \(turn)턴 재전송 (\(names), \(calls.count)건 실행)")
             }
-            for try await line in bytes.lines where !applySSELine(
-                line, state: &state, idx: idx, started: started) {
-            }
-            flushTurn(state: state, idx: idx)
-            let calls = state.toolAcc.finalized()
-            guard state.toolAcc.finishReason == "tool_calls",
-                  !calls.isEmpty, turn < ServerToolHistory.maxTurns else { break }
-            let names = calls.map(\.name).joined(separator: ", ")
-            logger.perf(feature: "도구",
-                        "\(turn + 1)턴 판단 \(Self.elapsed(from: legStart))s (\(names))")
-            if turn > 0, !hadFirstToken, let first = state.firstTokenAt {
-                logger.perf(feature: "채팅전송",
-                            "최종 답변 TTFT=\(Self.elapsed(from: legStart, to: first))s (재전송 후)")
-            }
-            turn += 1
-            let execStart = Date()
-            extraHistory.append(ServerToolHistory.assistantMessage(calls: calls))
-            var toolChars = 0
-            for call in calls {
-                let content = await executeServerTool(call)
-                toolChars += content.count
-                extraHistory.append(ServerToolHistory.toolMessage(
-                    callID: call.callID, content: content))
-            }
-            logger.perf(feature: "도구",
-                        "\(turn)턴 실행 \(Self.elapsed(from: execStart))s 결과 \(toolChars)자")
-            let outcomes = await ToolLedger.shared.drain(since: execStart)
-            mergeToolOutcomes(idx: idx, calls: calls, outcomes: outcomes)
-            state.toolAcc = ToolCallAccumulator()
-            logger.info(feature: "도구", "서버 \(turn)턴 재전송 (\(names), \(calls.count)건 실행)")
+        } catch is CancellationError {
+            if gate.isStalled() { throw ServerStallError() }
+            throw CancellationError()
         }
         // T-278: 전체 종료 시 미닫힘 꼬리 답변 분리.
         flushText(idx: idx, acc: state.acc, thinkingAcc: state.thinkingAcc, final: true)
+    }
+
+    /// 서버 무수신 워치독 시작 (T-344 분리): 20초마다 대기 로그, 60초에 전송 취소.
+    func startServerWatch(gate: StreamProgressGate,
+                          myTask: Task<Void, Never>?) -> Task<Void, Never> {
+        Task { [weak self] in
+            var lastWarn = Date.distantPast
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                guard let self else { return }
+                let idle = gate.idle()
+                if idle >= 20, Date().timeIntervalSince(lastWarn) >= 20 {
+                    lastWarn = Date()
+                    self.logger.info(feature: "채팅전송", "서버 응답 대기 중 (\(Int(idle))s 무수신)")
+                }
+                if gate.isStalled() {
+                    self.logger.error(code: "E-MAC-NET-0006", feature: "채팅전송",
+                                      "서버 \(Int(Self.stallIdleLimit))초 무수신 — 전송 중단")
+                    myTask?.cancel()
+                    return
+                }
+            }
+        }
+    }
+
+    /// 도구 실행+원장 반영 (T-344 분리): 실행 결과 문자 수 반환.
+    func runTurnCalls(_ calls: [ToolCallRecord], extraHistory: inout [[String: Any]],
+                      idx: Int, turn: Int) async -> Int {
+        let execStart = Date()
+        extraHistory.append(ServerToolHistory.assistantMessage(calls: calls))
+        var toolChars = 0
+        for call in calls {
+            let content = await executeServerTool(call)
+            toolChars += content.count
+            extraHistory.append(ServerToolHistory.toolMessage(
+                callID: call.callID, content: content))
+        }
+        logger.perf(feature: "도구",
+                    "\(turn)턴 실행 \(Self.elapsed(from: execStart))s 결과 \(toolChars)자")
+        let outcomes = await ToolLedger.shared.drain(since: execStart)
+        mergeToolOutcomes(idx: idx, calls: calls, outcomes: outcomes)
+        return toolChars
     }
 
     /// 턴 요청 크기 로그 (순수 조회+기록, T-343): 히스토리·도구결과·도구 수.

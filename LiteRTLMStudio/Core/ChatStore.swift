@@ -135,7 +135,7 @@ final class ChatStore: ObservableObject {
     /// 앱 내 엔진 엔진 주입 (T-130, nil이면 CLI 전용). ContentView가 AppServices에서 연결.
     var inferenceEngine: (any InferenceEngine)?
 
-    private var currentTask: Task<Void, Never>?
+    var currentTask: Task<Void, Never>? // T-344: 서버 워치독이 스톨 시 취소 (Stream 확장 접근)
     let logger = DebugLogger.shared
     let storageURL: URL
 
@@ -208,6 +208,8 @@ final class ChatStore: ObservableObject {
                 logger.perf(feature: "채팅전송", "완료 elapsed=\(String(format: "%.1f", elapsed))s chars=\(chars)")
             } catch is CancellationError {
                 logger.info(feature: "채팅중단", "사용자 중단")
+            } catch is ServerStallError {
+                self.requestTimedOut(at: idx)
             } catch {
                 self.requestFailed(at: idx, error: error)
             }
@@ -243,6 +245,16 @@ final class ChatStore: ObservableObject {
         streaming = false
         logger.info(feature: "채팅전송", "앱 내 엔진 미준비 — 전송 차단")
         save()
+    }
+
+    /// 서버 무응답 타임아웃 반영 (T-344 분리): 60초 무수신 시 스톨 확정.
+    func requestTimedOut(at idx: Int) {
+        lastError = "E-MAC-NET-0006"
+        messages[idx].text = "서버 응답이 60초간 없어 중단했습니다. "
+            + "데몬 상태를 확인한 뒤 다시 시도해 주세요. (E-MAC-NET-0006)"
+        messages[idx].isError = true
+        messages[idx].finishedAt = Date()
+        logger.error(code: "E-MAC-NET-0006", feature: "채팅전송", "서버 스톨 타임아웃")
     }
 
     /// 요청 실패 반영 (T-127 분리): 에러 버블+시각+로그.
