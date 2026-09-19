@@ -2,12 +2,6 @@
 
 ## [Unreleased] (macos)
 
-* 메인 사이드바 리스트 배경 (T-328, PLAN_v102): 스크롤 List만 회색,
-  환경 고정 영역 현행 유지. [macos]
-* 생성 설정 입력 교체 (T-329, PLAN_v103): 입력창 roundedBorder,
-  상위 K 슬라이더 1~100+값 표시(초과값 클램프),
-  시스템 프롬프트 TextEditor 64pt+플레이스홀더. [macos]
-
 * 리스트 배경·카드화 (T-327, PLAN_v101): 3 리스트 회색(controlBackground)+
   상세 흰색(textBackground) 명시, HSplit 네이티브 스플리터 유지,
   내 모델 4행 공용 DSCardRow(흰 카드·radius 12·padding 12·shadow),
