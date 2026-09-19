@@ -1393,6 +1393,134 @@
         }
       }
     },
+    "catalog.blurb.gemma3n_e2b": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mobile-first E2B"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모바일 우선 E2B"
+          }
+        }
+      }
+    },
+    "catalog.blurb.gemma3n_e4b": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mobile-first E4B"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모바일 우선 E4B"
+          }
+        }
+      }
+    },
+    "catalog.blurb.gemma4_12b": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Balanced 12B with QAT quantization"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "균형형 12B, QAT 양자화"
+          }
+        }
+      }
+    },
+    "catalog.blurb.gemma4e2b": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lightweight for laptops; inference, tools, and images"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "노트북용 경량, 추론·도구·이미지 지원"
+          }
+        }
+      }
+    },
+    "catalog.blurb.qwen2_5_1_5b": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ultra-light 1.5B for beginners"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "초경량 1.5B 입문용"
+          }
+        }
+      }
+    },
+    "catalog.blurb.qwen2vl_2b": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image + text 2B"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미지+텍스트 2B"
+          }
+        }
+      }
+    },
+    "catalog.blurb.qwen3_4b": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Great-value 4B for text"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가성비 4B 텍스트"
+          }
+        }
+      }
+    },
+    "catalog.blurb.qwen3asr_0_6b": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speech recognition 0.6B"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "음성 인식 0.6B"
+          }
+        }
+      }
+    },
     "catalog.copyRepoID": {
       "localizations": {
         "en": {
@@ -1501,6 +1629,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "같은 파일을 이미 받는 중입니다."
+          }
+        }
+      }
+    },
+    "catalog.fetchDetailFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not load the details: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "상세 조회 실패: %@"
+          }
+        }
+      }
+    },
+    "catalog.fetchListFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not load the list: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "목록 조회 실패: %@"
           }
         }
       }
@@ -2337,6 +2497,102 @@
         }
       }
     },
+    "chatError.engineInference": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In-app engine inference failed. Switch to another engine mode and try again. (E-MAC-ENG-0002)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 내 엔진 추론에 실패했습니다. 다른 엔진 모드로 바꿔 다시 시도해 주세요. (E-MAC-ENG-0002)"
+          }
+        }
+      }
+    },
+    "chatError.engineInit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not initialize the engine. Check the model file and available memory. (E-MAC-ENG-0001)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "엔진 초기화에 실패했습니다. 모델 파일과 메모리를 확인해 주세요. (E-MAC-ENG-0001)"
+          }
+        }
+      }
+    },
+    "chatError.engineTimeout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopped because generation stalled. Please try again. (E-MAC-ENG-0005)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "응답 생성이 멈춰 중지했습니다. 다시 시도해 주세요. (E-MAC-ENG-0005)"
+          }
+        }
+      }
+    },
+    "chatError.nativeNotReady": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The in-app engine is not ready. Press the run button on the engine row in the sidebar, then send again."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 내 엔진이 준비되지 않았습니다. 사이드바 엔진 행의 실행 버튼을 눌러 준비한 뒤 다시 전송해 주세요."
+          }
+        }
+      }
+    },
+    "chatError.request": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request failed: check the server status. (E-MAC-NET-0005)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요청 실패: 서버 상태를 확인해 주세요. (E-MAC-NET-0005)"
+          }
+        }
+      }
+    },
+    "chatError.timeout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopped because the server did not respond for 60 seconds. Check the daemon status and try again. (E-MAC-NET-0006)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 응답이 60초간 없어 중단했습니다. 데몬 상태를 확인한 뒤 다시 시도해 주세요. (E-MAC-NET-0006)"
+          }
+        }
+      }
+    },
     "common.cancel": {
       "localizations": {
         "en": {
@@ -2429,6 +2685,214 @@
           "stringUnit": {
             "state": "translated",
             "value": "선택"
+          }
+        }
+      }
+    },
+    "config.auto": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동"
+          }
+        }
+      }
+    },
+    "config.budget": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Budget %@→%@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "예산 %@→%@"
+          }
+        }
+      }
+    },
+    "config.builtin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Built-in"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내장"
+          }
+        }
+      }
+    },
+    "config.cache": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache %@→%@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "캐시 %@→%@"
+          }
+        }
+      }
+    },
+    "config.default": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본"
+          }
+        }
+      }
+    },
+    "config.kv": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KV %@→%@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KV %@→%@"
+          }
+        }
+      }
+    },
+    "config.mtp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTP %@→%@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTP %@→%@"
+          }
+        }
+      }
+    },
+    "config.off": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "off"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "끔"
+          }
+        }
+      }
+    },
+    "config.on": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "on"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "켬"
+          }
+        }
+      }
+    },
+    "config.precision": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Precision %@→%@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "정밀도 %@→%@"
+          }
+        }
+      }
+    },
+    "config.thinking": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thinking %@→%@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thinking %@→%@"
+          }
+        }
+      }
+    },
+    "config.threads": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Threads %@→%@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "스레드 %@→%@"
+          }
+        }
+      }
+    },
+    "config.unlimited": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlimited"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "무제한"
           }
         }
       }
@@ -3249,6 +3713,86 @@
         }
       }
     },
+    "downloader.internalPathError": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Internal path error"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내부 경로 오류"
+          }
+        }
+      }
+    },
+    "downloader.openFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open the file: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "파일 열기 실패: %@"
+          }
+        }
+      }
+    },
+    "downloader.renameFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not rename: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개명 실패: %@"
+          }
+        }
+      }
+    },
+    "downloader.responseError": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bad response"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "응답 오류"
+          }
+        }
+      }
+    },
+    "downloader.writeFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not write the file: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "파일 쓰기 실패: %@"
+          }
+        }
+      }
+    },
     "engine.mode.native": {
       "localizations": {
         "en": {
@@ -3277,6 +3821,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "서버"
+          }
+        }
+      }
+    },
+    "engineNotice.noFile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model file not found: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모델 파일 없음: %@"
+          }
+        }
+      }
+    },
+    "engineNotice.noModel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No model selected — pick a model first"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모델 미선택 — 모델을 먼저 고르세요"
           }
         }
       }
@@ -8449,6 +9025,22 @@
         }
       }
     },
+    "perf.line": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1fs · about %d tokens/s"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1fs · 약 %d 토큰/초"
+          }
+        }
+      }
+    },
     "permission.allowAll": {
       "localizations": {
         "en": {
@@ -10845,6 +11437,86 @@
           "stringUnit": {
             "state": "translated",
             "value": "어제"
+          }
+        }
+      }
+    },
+    "toolArg.code": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "code, %d chars"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "코드 %d자"
+          }
+        }
+      }
+    },
+    "toolArg.content": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "content, %d chars"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내용 %d자"
+          }
+        }
+      }
+    },
+    "toolArg.days": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d days"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d일"
+          }
+        }
+      }
+    },
+    "toolArg.includeCompleted": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "including completed"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "완료 포함"
+          }
+        }
+      }
+    },
+    "toolArg.onlyIncomplete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "incomplete only"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "미완료만"
           }
         }
       }

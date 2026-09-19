@@ -33,7 +33,7 @@ enum ToolCallFormat {
         case "calculate": return text(dict["expression"])
         case "write_clipboard":
             let n = text(dict["text"]).count
-            return n == 0 ? "" : "내용 \(n)자"
+            return n == 0 ? "" : L(L10n.ToolArg.content, n)
         case "open_url": return text(dict["url"])
         case "run_shortcut": return text(dict["shortcut"])
         default: return ""
@@ -53,9 +53,10 @@ enum ToolCallFormat {
     /// 캘린더·미리 알림 도구.
     private nonisolated static func eventArgument(_ dict: [String: Any], tool: String) -> String {
         switch tool {
-        case "list_calendar_events": return "\(dict["days"] as? Int ?? 7)일"
+        case "list_calendar_events": return L(L10n.ToolArg.days, dict["days"] as? Int ?? 7)
         case "list_reminders":
-            return (dict["includeCompleted"] as? Bool ?? false) ? "완료 포함" : "미완료만"
+            return L((dict["includeCompleted"] as? Bool ?? false)
+                     ? L10n.ToolArg.includeCompleted : L10n.ToolArg.onlyIncomplete)
         case "add_reminder", "delete_reminder", "add_calendar_event", "delete_calendar_event":
             return join([text(dict["title"]), text(dict["when"])])
         default: return ""
@@ -98,7 +99,7 @@ enum ToolCallFormat {
     /// 코드 길이 표시: "코드 N자" (빈 값은 생략).
     private nonisolated static func codeLength(_ any: Any?) -> String {
         let n = text(any).count
-        return n == 0 ? "" : "코드 \(n)자"
+        return n == 0 ? "" : L(L10n.ToolArg.code, n)
     }
 
     /// 미지 도구 폴백: 값만 `·`로 연결 (빈 값·null 제외, 각 40자).

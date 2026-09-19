@@ -78,30 +78,36 @@ var hasChanges: Bool {
         if draftBackend != appliedBackend { parts.append("LLM \(appliedBackend)→\(draftBackend)") }
         if draftVision != appliedVision { parts.append("Vision \(appliedVision)→\(draftVision)") }
         if draftMTP != appliedMTP {
-            parts.append("MTP \(appliedMTP ? "켬" : "끔")→\(draftMTP ? "켬" : "끔")")
+            let on = L(L10n.Config.on)
+            let off = L(L10n.Config.off)
+            parts.append(L(L10n.Config.mtp, appliedMTP ? on : off, draftMTP ? on : off))
         }
         if draftAudio != appliedAudio { parts.append("Audio \(appliedAudio)→\(draftAudio)") }
         if draftThreads != appliedThreads {
-            let before = appliedThreads.isEmpty ? "자동" : appliedThreads
-            let after = draftThreads.isEmpty ? "자동" : draftThreads
-            parts.append("스레드 \(before)→\(after)")
+            let before = appliedThreads.isEmpty ? L(L10n.Config.auto) : appliedThreads
+            let after = draftThreads.isEmpty ? L(L10n.Config.auto) : draftThreads
+            parts.append(L(L10n.Config.threads, before, after))
         }
-        if draftCache != appliedCache { parts.append("캐시 \(appliedCache)→\(draftCache)") }
+        if draftCache != appliedCache { parts.append(L(L10n.Config.cache, appliedCache, draftCache)) }
         if draftKV != appliedKV {
-            parts.append("KV \(appliedKV.isEmpty ? "기본" : appliedKV)→\(draftKV.isEmpty ? "기본" : draftKV)")
+            let before = appliedKV.isEmpty ? L(L10n.Config.defaultValue) : appliedKV
+            let after = draftKV.isEmpty ? L(L10n.Config.defaultValue) : draftKV
+            parts.append(L(L10n.Config.kv, before, after))
         }
         if draftThinking != appliedThinking {
-            parts.append("Thinking \(appliedThinking ? "켬" : "끔")→\(draftThinking ? "켬" : "끔")")
+            let on = L(L10n.Config.on)
+            let off = L(L10n.Config.off)
+            parts.append(L(L10n.Config.thinking, appliedThinking ? on : off, draftThinking ? on : off))
         }
         if draftBudget != appliedBudget {
-            let before = appliedBudget.isEmpty ? "무제한" : appliedBudget
-            let after = draftBudget.isEmpty ? "무제한" : draftBudget
-            parts.append("예산 \(before)→\(after)")
+            let before = appliedBudget.isEmpty ? L(L10n.Config.unlimited) : appliedBudget
+            let after = draftBudget.isEmpty ? L(L10n.Config.unlimited) : draftBudget
+            parts.append(L(L10n.Config.budget, before, after))
         }
         if draftPrecision != appliedPrecision {
-            let before = appliedPrecision.isEmpty ? "내장" : appliedPrecision
-            let after = draftPrecision.isEmpty ? "내장" : draftPrecision
-            parts.append("정밀도 \(before)→\(after)")
+            let before = appliedPrecision.isEmpty ? L(L10n.Config.builtin) : appliedPrecision
+            let after = draftPrecision.isEmpty ? L(L10n.Config.builtin) : draftPrecision
+            parts.append(L(L10n.Config.precision, before, after))
         }
         return parts.joined(separator: " · ")
     }

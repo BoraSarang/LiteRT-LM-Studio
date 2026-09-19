@@ -114,6 +114,16 @@ extension L10n {
         static let supportNote = L10nKey("catalog.supportNote")
         static let modelDescription = L10nKey("catalog.modelDescription")
         static let noDescription = L10nKey("catalog.noDescription")
+        static let blurbGemma4E2B = L10nKey("catalog.blurb.gemma4e2b")
+        static let blurbGemma4_12B = L10nKey("catalog.blurb.gemma4_12b")
+        static let blurbGemma3nE2B = L10nKey("catalog.blurb.gemma3n_e2b")
+        static let blurbGemma3nE4B = L10nKey("catalog.blurb.gemma3n_e4b")
+        static let blurbQwen3_4B = L10nKey("catalog.blurb.qwen3_4b")
+        static let blurbQwen2_5_1_5B = L10nKey("catalog.blurb.qwen2_5_1_5b")
+        static let blurbQwen2VL_2B = L10nKey("catalog.blurb.qwen2vl_2b")
+        static let blurbQwen3ASR_0_6B = L10nKey("catalog.blurb.qwen3asr_0_6b")
+        static let fetchListFailed = L10nKey("catalog.fetchListFailed")
+        static let fetchDetailFailed = L10nKey("catalog.fetchDetailFailed")
     }
 
     enum Import {

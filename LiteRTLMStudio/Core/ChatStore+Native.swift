@@ -308,12 +308,12 @@ extension ChatStore {
         let code = (error as? EngineError)?.code ?? EngineError.inferenceFailed("").code
         lastError = code
         if code == EngineError.initFailed("").code {
-            messages[idx].text = "엔진 초기화에 실패했습니다. 모델 파일과 메모리를 확인해 주세요. (E-MAC-ENG-0001)"
+            messages[idx].text = L(L10n.ChatError.engineInit)
         } else if code == EngineError.timeout("").code {
             // T-311: 스톨 워치독 — 무한 "응답중" 방지.
-            messages[idx].text = "응답 생성이 멈춰 중지했습니다. 다시 시도해 주세요. (E-MAC-ENG-0005)"
+            messages[idx].text = L(L10n.ChatError.engineTimeout)
         } else {
-            messages[idx].text = "앱 내 엔진 추론에 실패했습니다. 다른 엔진 모드로 바꿔 다시 시도해 주세요. (E-MAC-ENG-0002)"
+            messages[idx].text = L(L10n.ChatError.engineInference)
         }
         messages[idx].isError = true
         messages[idx].finishedAt = Date()
