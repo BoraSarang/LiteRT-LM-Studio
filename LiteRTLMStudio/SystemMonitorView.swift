@@ -17,6 +17,7 @@ struct SystemMetersView: View {
     @ObservedObject var monitor: SystemMonitor
     @State private var cpuHover = false
     @State private var ramHover = false
+    @State private var gpuHover = false
 
     var body: some View {
         HStack(spacing: 4) {
@@ -57,6 +58,12 @@ struct SystemMetersView: View {
                            value: monitor.gpu.map { String(format: "%.0f%%", $0) } ?? "–",
                            help: "IOKit 순간 추정치 (Apple Silicon)")
                 miniChart(monitor.gpuHistory, color: .purple, height: 44)
+                    .onHover { gpuHover = $0 }
+                    .popover(isPresented: $gpuHover, arrowEdge: .top) {
+                        MeterPopover(rows: [MeterRow(
+                            color: .purple, label: "사용률",
+                            value: monitor.gpu.map { String(format: "%.0f%%", $0) } ?? "–")])
+                    }
             }
         }
     }

@@ -2,6 +2,15 @@
 
 ## [Unreleased] (macos)
 
+* 디자인 시스템 토큰 + 4화면 개선 (T-318~T-322, PLAN_v96): `Core/DSTokens/`
+  (Colors·Typography·Spacing·Components) 신규, 기존 DS 별칭 유지.
+  Primary `#0A84FF` 고정·Success/Warning/Error 통일, 전 화면 커스텀 스타일 금지.
+  찾아보기 중복 제거(추천 가로 카드+설치 배지만), 다운로드 옵션·매개변수·
+  온도·상위K·상위P·시드·추론·함수 호출·토큰/초 한글화, `.litertlm` 표시 숨김,
+  내 모델 상단 2배 디스크 경고 배너+원본 삭제, 상태 Badge, 벤치 2줄 셀·
+  실패 사유·차트 수치 라벨·MTP 툴팁·GPU hover, 설정 외관·시스템·대화·권한
+  섹션+스크롤. [macos]
+
 * 웹 검색 1위 본문 자동 첨부 (T-316, PLAN_v94): 발췌만으로 답이 안 나오는 질의
   (예: 최신 버전)에 모델이 `web_fetch` 후속 호출 없이 끝나던 문제.
   `web_search` 실행 시 1위 URL 본문을 2000자 상한으로 결과에 덧붙인다
