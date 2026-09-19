@@ -47,6 +47,23 @@ final class LiteRTLMStudioLocalizationTests: LiteRTLMStudioTestCase {
         XCTAssertNil(AppLanguage(rawValue: "zz"))
     }
 
+    /// 시스템 표면(권한 설명)은 `InfoPlist.xcstrings`가 담당한다 (T-366).
+    /// Info.plist가 값이 아니라 키로 조회되므로 ko·en 양쪽 존재를 고정한다.
+    func testInfoPlistPermissionStringsAreLocalized() throws {
+        let keys = ["NSCalendarsUsageDescription", "NSCalendarsFullAccessUsageDescription",
+                    "NSRemindersUsageDescription", "NSRemindersFullAccessUsageDescription"]
+        for language in ["ko", "en"] {
+            guard let path = Bundle.main.path(forResource: language, ofType: "lproj"),
+                  let bundle = Bundle(path: path),
+                  let url = bundle.url(forResource: "InfoPlist", withExtension: "strings"),
+                  let table = NSDictionary(contentsOf: url) as? [String: String]
+            else { return XCTFail("\(language).lproj/InfoPlist.strings 없음") }
+            for key in keys {
+                XCTAssertFalse(table[key]?.isEmpty ?? true, "\(language) 누락: \(key)")
+            }
+        }
+    }
+
     /// 선택 언어에 맞는 번들이 잡히는지 (키 원문이 아니라 번역문이 나와야 한다).
     func testLookupResolvesSelectedLanguage() {
         setAppLanguageForTesting(.ko)

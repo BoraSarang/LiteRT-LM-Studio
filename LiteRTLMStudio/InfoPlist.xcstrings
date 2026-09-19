@@ -1,0 +1,70 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "NSCalendarsFullAccessUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full calendar access is needed to view and add events."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일정을 조회·추가하기 위해 캘린더 전체 접근이 필요합니다."
+          }
+        }
+      }
+    },
+    "NSCalendarsUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calendar access is needed to view and add events."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일정을 조회·추가하기 위해 캘린더 접근이 필요합니다."
+          }
+        }
+      }
+    },
+    "NSRemindersFullAccessUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full access is needed to view and add reminders."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "미리 알림을 조회·추가하기 위해 전체 접근이 필요합니다."
+          }
+        }
+      }
+    },
+    "NSRemindersUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Access is needed to view and add reminders."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "미리 알림을 조회·추가하기 위해 접근이 필요합니다."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
