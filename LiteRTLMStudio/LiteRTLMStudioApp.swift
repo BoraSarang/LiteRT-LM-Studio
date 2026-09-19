@@ -132,6 +132,7 @@ struct WindowTitleSync: NSViewRepresentable {
 }
 
 /// NSWindow 포착 (T-092): 프레임 자동 저장용. 최초 1회만 적용.
+/// T-337: 표시 전에 동기 적용 — async면 중앙에 떴다가 저장 위치로 점프함.
 private struct WindowAccessor: NSViewRepresentable {
     let onWindow: (NSWindow?) -> Void
 
@@ -141,11 +142,15 @@ private struct WindowAccessor: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         guard !context.coordinator.done else { return }
-        let coordinator = context.coordinator
-        DispatchQueue.main.async { [weak nsView] in
-            guard let window = nsView?.window else { return }
+        if let window = nsView.window {
             window.setFrameAutosaveName("LiteRTLMStudioMain")
-            coordinator.done = true
+            context.coordinator.done = true
+        } else {
+            DispatchQueue.main.async { [weak nsView] in
+                guard let window = nsView?.window else { return }
+                window.setFrameAutosaveName("LiteRTLMStudioMain")
+                context.coordinator.done = true
+            }
         }
     }
 
