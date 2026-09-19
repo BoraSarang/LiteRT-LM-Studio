@@ -134,10 +134,10 @@ final class LiteRTLMStudioRefactorTests: XCTestCase {
         try? FileManager.default.removeItem(at: url)
     }
 
-    /// PERF 뱃지 문구 (T-126).
+    /// PERF 뱃지 문구 (T-126, T-325 토큰/초 통일).
     func testPerfLine() {
-        XCTAssertEqual(ChatStore.perfLine(chars: 0, elapsed: 0), "0.0s · 약 0 tok/s")
-        XCTAssertTrue(ChatStore.perfLine(chars: 400, elapsed: 10).contains("tok/s"))
+        XCTAssertEqual(ChatStore.perfLine(chars: 0, elapsed: 0), "0.0s · 약 0 토큰/초")
+        XCTAssertTrue(ChatStore.perfLine(chars: 400, elapsed: 10).contains("토큰/초"))
     }
 }
 

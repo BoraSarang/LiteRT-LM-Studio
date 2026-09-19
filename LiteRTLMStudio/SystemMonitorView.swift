@@ -25,9 +25,9 @@ struct SystemMetersView: View {
             Text(monitor.live ? "LIVE · 1초 갱신" : "중지됨")
                 .font(DS.captionFont).foregroundStyle(.secondary)
             Spacer()
-            Text("GPU는 순간 추정치")
+            Image(systemName: "info.circle")
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
-                .help("IOKit busy 추정치. powermetrics급 정밀도가 아닙니다.")
+                .help("GPU는 순간 추정치 (IOKit busy). powermetrics급 정밀도가 아닙니다.")
         }
         // T-293: 데몬 히어로 카드 완전 삭제 (양 경로 무의미). CPU/RAM/GPU 미터만 유지.
         VStack(alignment: .leading, spacing: 10) {
@@ -40,6 +40,10 @@ struct SystemMetersView: View {
                     .popover(isPresented: $cpuHover, arrowEdge: .top) {
                         MeterPopover(rows: cpuRows())
                     }
+                HStack(spacing: 8) {
+                    legendDot(color: MeterColor.cpuUser, label: "사용자")
+                    legendDot(color: MeterColor.cpuSystem, label: "시스템")
+                }
             }
             VStack(alignment: .leading, spacing: 4) {
                 meterTitle(label: "RAM",
@@ -97,7 +101,6 @@ struct SystemMetersView: View {
         let colors: [Color] = [.yellow, .red, .blue, .secondary]
         return zip(colors, base).map { MeterRow(color: $0, label: $1.label, value: $1.value) }
     }
-
     private func meterTitle(label: String, value: String, help: String) -> some View {
         HStack(spacing: 8) {
             Text(label).font(.system(size: 12, weight: .medium))
@@ -105,6 +108,14 @@ struct SystemMetersView: View {
             Text(value).font(.system(size: 11).monospacedDigit()).foregroundStyle(.secondary)
             Image(systemName: "info.circle").font(.system(size: 10)).foregroundStyle(.tertiary)
                 .help(help)
+        }
+    }
+
+    /// 범례 1점 (T-325): CPU 선 색 표시.
+    private func legendDot(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(label).font(DS.captionFont).foregroundStyle(.secondary)
         }
     }
 

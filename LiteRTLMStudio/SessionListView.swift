@@ -91,13 +91,14 @@ struct SessionListView: View {
         return HStack(spacing: 8) {
             Image(systemName: "circle")
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+                .foregroundStyle(selected ? DSColor.primary : Color.secondary)
             if s.pinned {
                 Image(systemName: "pin.fill")
                     .font(.system(size: 10)).foregroundStyle(.secondary)
             }
             Text(s.displayTitle).lineLimit(1).truncationMode(.tail)
                 .font(.system(size: 13))
+                .help(s.displayTitle)
             Spacer(minLength: 4)
             if hoverID == s.id || selected {
                 Menu {

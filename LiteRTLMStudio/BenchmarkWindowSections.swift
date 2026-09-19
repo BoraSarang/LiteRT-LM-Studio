@@ -31,7 +31,7 @@ extension BenchmarkWindowView {
             HStack(spacing: 6) {
                 Text("필터").font(DS.captionFont).foregroundStyle(.secondary)
                 Picker("", selection: $filterModel) {
-                    Text("전체").tag("전체")
+                    Text("전체 기록").tag("전체 기록")
                     ForEach(modelIDs, id: \.self) { id in
                         Text(ModelAlias.display(id: id)).tag(id)
                     }
@@ -64,6 +64,7 @@ extension BenchmarkWindowView {
                         }
                     }
                     .tag(rec.id)
+                    .help(ModelAlias.display(id: rec.modelID))
                     .contextMenu {
                         Button("삭제", role: .destructive) { history.remove(rec.id) }
                     }
@@ -189,9 +190,14 @@ extension BenchmarkWindowView {
             Text(BenchmarkStore.estimateText(route: selectedRoute, avgDuration: avgDuration))
                 .font(DS.captionFont).foregroundStyle(.secondary)
             if powerStatus.warn {
-                Label(powerStatus.text, systemImage: "exclamationmark.triangle")
-                    .font(DS.captionFont).foregroundStyle(.orange)
-                    .help("MTP(추측적 디코딩)가 켜져 있거나 배터리가 20% 이하로 방전 중이면 측정값이 흔들릴 수 있어요.")
+                HStack(spacing: 4) {
+                    Label(powerStatus.text, systemImage: "exclamationmark.triangle")
+                        .font(DS.captionFont).foregroundStyle(.orange)
+                        .help("MTP(추측적 디코딩)가 켜져 있거나 배터리가 20% 이하로 방전 중이면 측정값이 흔들릴 수 있어요.")
+                    Image(systemName: "info.circle")
+                        .font(DS.captionFont).foregroundStyle(.secondary)
+                        .help("배터리 절약 모드에서는 추측적 디코딩(MTP) 가속이 제한됩니다")
+                }
             } else {
                 Text(powerStatus.text)
                     .font(DS.captionFont).foregroundStyle(.secondary)

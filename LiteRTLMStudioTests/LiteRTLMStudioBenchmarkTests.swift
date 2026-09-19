@@ -106,7 +106,7 @@ final class LiteRTLMStudioBenchmarkTests: XCTestCase {
                                 durationSec: 60, status: .done)
         let b = BenchmarkRecord(modelID: "b", route: .cli, metrics: nil,
                                 durationSec: 5, status: .cancelled)
-        XCTAssertEqual(BenchmarkHistoryStore.filtered([a, b], modelID: "전체").count, 2)
+        XCTAssertEqual(BenchmarkHistoryStore.filtered([a, b], modelID: "전체 기록").count, 2)
         XCTAssertEqual(BenchmarkHistoryStore.filtered([a, b], modelID: "a").count, 1)
         XCTAssertTrue(a.summary.contains("a"))
         XCTAssertEqual(BenchmarkHistoryStore.averageDuration([a, b], modelID: "a"), 60)

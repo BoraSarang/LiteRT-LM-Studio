@@ -16,7 +16,7 @@ extension ContentView {
         }
     }
 
-    // MARK: - 인스펙터 (T-324 탭식: 시스템 고정+실행/생성 탭, on/off는 툴바 단일 토글)
+    // MARK: - 인스펙터 (T-325 세그먼트 탭+Sticky 적용바)
     var inspector: some View {
         VStack(spacing: 0) {
             if showSystem {
@@ -32,36 +32,23 @@ extension ContentView {
                     Button("이 섹션 숨기기") { showSystem = false }
                 }
             }
-            HStack(spacing: 0) {
-                ForEach(InspectorTab.allCases, id: \.rawValue) { t in
-                    Button {
-                        inspectorTabRaw = t.rawValue
-                        DebugLogger.shared.info(feature: "인스펙터", "탭 전환: \(t.title)")
-                    } label: {
-                        Text(t.title)
-                            .font(.system(size: 13, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 7)
-                            .background {
-                                if inspectorTab == t {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(DSColor.primary.opacity(0.15))
-                                }
-                            }
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
+            DSSegmented("설정", selection: Binding(
+                get: { inspectorTab },
+                set: {
+                    inspectorTabRaw = $0.rawValue
+                    DebugLogger.shared.info(feature: "인스펙터", "탭 전환: \($0.title)")
                 }
+            )) {
+                Label(InspectorTitle.backend, systemImage: "cpu").tag(InspectorTab.backend)
+                Label(InspectorTitle.generate, systemImage: "slider.horizontal.3").tag(InspectorTab.generate)
             }
+            .frame(maxWidth: .infinity, minHeight: 32)
             .padding(.horizontal, 8).padding(.vertical, 6)
             Divider()
             List {
                 if inspectorTab == .backend {
                     Section {
-                        BackendSectionView(config: config, model: selectedModel,
-                                           isNativeRoute: chat.route == .native) {
-                            applyBackend()
-                        }
+                        BackendSectionView(config: config, model: selectedModel)
                     } header: {
                         InspectorSectionHeader(
                             title: InspectorTitle.backend,
@@ -87,6 +74,23 @@ extension ContentView {
                 }
             }
             .listStyle(.sidebar)
+            if inspectorTab == .backend, config.hasChanges {
+                Divider()
+                HStack(spacing: 8) {
+                    Text("변경 사항이 있습니다")
+                        .font(DS.captionFont).foregroundStyle(.orange)
+                        .lineLimit(1).truncationMode(.tail)
+                    Spacer()
+                    Button("취소") { config.revert() }
+                    Button(chat.route == .native ? "적용" : "적용 후 재시작") {
+                        applyBackend()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DSColor.primary)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .help(config.diffSummary)
+            }
         }
         .navigationSplitViewColumnWidth(min: 320, ideal: 320, max: 320) // T-072 사이드바 접힘 영향 차단
     }
@@ -296,8 +300,6 @@ struct SectionSegments: View {
 struct BackendSectionView: View {
     @ObservedObject var config: ConfigStore
     let model: ModelStore.Model?
-    let isNativeRoute: Bool
-    var onApply: () -> Void
     @AppStorage("metalResidency") private var residency = true // T-177 기본 켬
     @AppStorage("visualTokenBudget") private var visualBudget = 1120 // T-177 describe 상한
 
@@ -333,7 +335,7 @@ struct BackendSectionView: View {
                     .multilineTextAlignment(.trailing).frame(width: 140)
                     .help("컨텍스트+출력 창. 빈칸이면 모델 기본.")
             }
-            Text("빈칸=모델 기본. 크게 잡으면 긴 대화 가능, 메모리 사용 증가.")
+            Text("비워두면 모델 기본값 사용. 크게 잡으면 긴 대화 가능, 메모리 사용 증가.")
                 .font(DS.captionFont).foregroundStyle(.secondary)
         }
         if model?.thinking == true {
@@ -346,9 +348,14 @@ struct BackendSectionView: View {
                     .help("빈칸이면 무제한(-1).")
             }
         }
-        Toggle("MTP (추측적 디코딩)", isOn: $config.draftMTP)
-            .help("GPU 백엔드 권장. 모델이 drafter 포함 시 가속.")
-            .disabled(model?.speculative == false)
+        HStack(spacing: 4) {
+            Toggle("MTP (추측적 디코딩) 활성화", isOn: $config.draftMTP)
+                .help("GPU 백엔드 권장. 모델이 drafter 포함 시 가속.")
+                .disabled(model?.speculative == false)
+            Image(systemName: "info.circle")
+                .font(DS.captionFont).foregroundStyle(.tertiary)
+                .help("답변 생성 속도를 높입니다. 끄면 속도만 느려지고 정확도는 동일합니다.")
+        }
         if let mdl = model {
             LabeledContent("모델 Speculative", value: mdl.speculative ? "지원" : "미포함")
             LabeledContent("모달리티", value: mdl.modalities)
@@ -366,19 +373,6 @@ struct BackendSectionView: View {
                 Text("int8").tag("int8"); Text("int16").tag("int16")
             }.pickerStyle(.segmented)
             .help("연산 정밀도 재지정. serve 경로만 유효, 적용 후 재시작.")
-        }
-        if config.hasChanges {
-            Text(config.diffSummary).font(DS.captionFont).foregroundStyle(.orange)
-            HStack {
-                Button("취소") { config.revert() }
-                Spacer()
-                Button(isNativeRoute ? "적용 (다음 초기화 때 반영)" : "적용 후 재시작", action: onApply)
-                    .buttonStyle(.borderedProminent)
-            }
-        } else {
-            Text(isNativeRoute ? "바꾸면 여기에 적용·취소가 나와요. 앱 내 엔진은 다음 초기화 때 반영됩니다."
-                 : "바꾸면 여기에 적용·취소가 나와요. 적용은 서버 재시작을 동반합니다.")
-                .font(DS.captionFont).foregroundStyle(.secondary)
         }
     }
 }

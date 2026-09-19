@@ -41,7 +41,7 @@ struct BatteryStatus: Equatable {
             parts.append("MTP 미설정(기본 끔)")
         }
         if let battery {
-            parts.append("배터리 \(battery.percent)% \(battery.discharging ? "방전 중" : "충전 중")")
+            parts.append("배터리 \(battery.discharging ? "방전 중" : "충전 중") (\(battery.percent)%)")
         }
         let warn = mtp == true || (battery?.discharging == true && (battery?.percent ?? 100) <= 20)
         return (parts.joined(separator: " · "), warn)

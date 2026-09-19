@@ -21,8 +21,12 @@ extension ContentView {
         VStack(spacing: 0) {
             List(selection: $selectedModelID) {
                 Section("환경") {
-                    LabeledRow(icon: "shippingbox", title: "uv", value: uv.uvVersion)
-                    LabeledRow(icon: "brain", title: "litert-lm", value: uv.litertVersion)
+                    LabeledRow(icon: "shippingbox", title: "uv",
+                               value: Self.envShort(prefix: "uv", full: uv.uvVersion),
+                               full: uv.uvVersion)
+                    LabeledRow(icon: "brain", title: "litert-lm",
+                               value: Self.envShort(prefix: "litert-lm", full: uv.litertVersion),
+                               full: uv.litertVersion)
                     LabeledRow(icon: "info.circle", title: "버전", value: AboutView.appVersion)
                     LabeledRow(icon: "bolt.fill", title: "가속",
                                value: config.configExists ? config.summary : "미설정(CPU 기본값)")
@@ -109,6 +113,13 @@ extension ContentView {
 
     /// 현재 탭 (원시값 불일치 시 채팅 기본).
     var sidebarTab: SidebarTab { SidebarTab(rawValue: sidebarTabRaw) ?? .chat }
+
+    /// 환경 버전 단축 표시 (T-325, 순수): "uv 0.11.29 (Homebrew)" → "uv 0.11.29".
+    /// 파싱 실패·확인 중·없음은 원문 유지. 전체는 툴팁(LabeledRow help)으로 확인.
+    nonisolated static func envShort(prefix: String, full: String) -> String {
+        guard let ver = OnboardingGate.parseVersion(full) else { return full }
+        return "\(prefix) \(ver)"
+    }
 
     /// 모델 섹션 본체 (채팅식: 관리 버튼+선택행+호버 메뉴).
     var modelSection: some View {
@@ -319,13 +330,15 @@ extension ContentView {
 
 }
 
-struct LabeledRow: View {    let icon, title, value: String
+struct LabeledRow: View {
+    let icon, title, value: String
+    var full: String?
     var body: some View {
         HStack {
             Label(title, systemImage: icon).symbolRenderingMode(.hierarchical).font(.system(size: 13))
             Spacer()
             Text(value).font(DS.captionFont).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
         }
-        .help("\(title): \(value)")
+        .help("\(title): \(full ?? value)")
     }
 }

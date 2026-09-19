@@ -251,10 +251,10 @@ final class ChatStore: ObservableObject {
         logger.error(code: "E-MAC-NET-0005", feature: "채팅전송", "\(error)")
     }
 
-    /// PERF 뱃지 문구 (순수, 테스트 가능, T-126): "12.3s · 약 15 tok/s".
+    /// PERF 뱃지 문구 (순수, 테스트 가능, T-126): "12.3s · 약 15 토큰/초".
     nonisolated static func perfLine(chars: Int, elapsed: TimeInterval) -> String {
         let est = chars / max(1, Int(elapsed * 4))
-        return String(format: "%.1fs · 약 %d tok/s", elapsed, est)
+        return String(format: "%.1fs · 약 %d 토큰/초", elapsed, est)
     }
 
     /// 스트리밍 화면 갱신 판정 (순수, 테스트 가능, T-148): 0.1초 간격으로 묶음 처리.

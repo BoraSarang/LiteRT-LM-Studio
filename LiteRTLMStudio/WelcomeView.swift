@@ -55,6 +55,7 @@ struct WelcomeView: View {
             .frame(maxWidth: DS.chatMaxWidth)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)
+            .padding(.bottom, 24) // T-325 하단 잘림 방지 (bottom inset 보강)
         }
         .task { await notes.refreshIfNeeded() }
         .confirmationDialog("litert-lm 업데이트", isPresented: $showUpgradeConfirm,

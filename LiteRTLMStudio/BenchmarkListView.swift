@@ -90,6 +90,7 @@ struct BenchmarkListView: View {
             }
         }
         .contentShape(Rectangle())
+        .help(ModelAlias.display(id: rec.modelID))
         .onTapGesture {
             history.selectedRecordID = rec.id
             NotificationCenter.default.post(name: .openBenchmark, object: nil)

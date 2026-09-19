@@ -35,7 +35,7 @@ struct SettingsView: View {
             ScrollView {
             Form {
                 DSSection("외관") {
-                DSSegmented("외관", selection: $appearanceRaw) {
+                DSSegmented("테마 모드", selection: $appearanceRaw) {
                     ForEach(AppearanceMode.allCases, id: \.rawValue) { mode in
                         Text(mode.title).tag(mode.rawValue)
                     }
@@ -55,16 +55,14 @@ struct SettingsView: View {
                 DSSection("시스템") {
                 Toggle("앱 종료 시 데몬도 함께 종료", isOn: $quitStopsDaemon)
                     .help("끄면 앱을 닫아도 데몬이 남아 다음 실행 때 바로 씁니다. 터미널 데몬은 항상 유지됩니다.")
-                Text("전송 경로(서버·앱 내 엔진)는 채팅 입력창의 피커에서 매번 선택합니다.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Toggle("MTP(추측적 디코딩) 활성화", isOn: Binding(
-                        get: { config.draftMTP },
-                        set: { config.draftMTP = $0 }
-                    ))
-                    .help("Gemma 4 등 지원 모델에서 디코드 속도 2-3배 향상. 모델 재시작 필요.")
-                    .onChange(of: config.draftMTP) { _, on in
-                        DebugLogger.shared.info(feature: "MTP", on ? "활성화" : "비활성화")
-                    }
+                HStack(spacing: 4) {
+                    Text("전송 경로(서버·앱 내 엔진)는 채팅 입력창의 피커에서 매번 선택합니다.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Image(systemName: "info.circle")
+                        .font(.caption).foregroundStyle(.tertiary)
+                        .help("전송할 때마다 입력창에서 경로를 고릅니다. 설정에 고정 저장되지 않습니다.")
+                }
+                mtpRow
                 }
                 DSSection("대화") {
                 DSSegmented("대화 기록 전송", selection: $historyTurns) {
@@ -72,7 +70,8 @@ struct SettingsView: View {
                         Text(w.title).tag(w.rawValue)
                     }
                 }
-                    .help("매 전송에 포함할 과거 대화 범위. 짧을수록 빠르지만 앞부분 맥락이 잘립니다. 제한 없음은 기존 그대로 전부 전송합니다.")
+                    .help("매 전송에 포함할 과거 대화 범위. 이전 대화 N개를 함께 보내서 맥락을 기억하게 합니다. "
+                        + "짧을수록 빠르지만 앞부분 맥락이 잘립니다. 제한 없음은 기존 그대로 전부 전송합니다.")
                     .onChange(of: historyTurns) { _, raw in
                         DebugLogger.shared.info(
                             feature: "히스토리범위",
@@ -129,9 +128,10 @@ if let err = loginError {
                     .disabled(!config.hasChanges)
                 }
             }
-        }.formStyle(.grouped).padding()
+        }.formStyle(.grouped).padding().padding(.bottom, 32)
             }
             .tabItem { Label("일반", systemImage: "gear") }
+            ScrollView {
             Form {
                 Toggle("대화 목차 사용", isOn: $outlineEnabled)
                     .help("채팅 우측 중앙에 질문 목록 플로팅. 끄면 숨겨집니다.")
@@ -160,8 +160,10 @@ if let err = loginError {
                             }
                         }
                     }
-            }.formStyle(.grouped).padding()
+            }.formStyle(.grouped).padding().padding(.bottom, 32)
+            }
                 .tabItem { Label("채팅", systemImage: "bubble.left.and.bubble.right") }
+            ScrollView {
             Form {
                 ForEach(ToolInfo.Category.allCases, id: \.rawValue) { category in
                     Section(category.rawValue) {
@@ -184,7 +186,8 @@ if let err = loginError {
                         Button("기본값") { workspaceRoot = "" }
                     }
                 }.help("셸·파일 도구가 접근할 수 있는 폴더. 밖은 차단됩니다.")
-            }.formStyle(.grouped).padding()
+            }.formStyle(.grouped).padding().padding(.bottom, 32)
+            }
                 .tabItem { Label("도구", systemImage: "wrench") }
             mcpTab
             skillsTab
@@ -250,6 +253,26 @@ if let err = loginError {
         } catch {
             loginError = "로그인 항목 변경 실패: \(error.localizedDescription)"
             launchAtLogin = !on
+        }
+    }
+}
+
+/// 설정 공용 행 (T-325 분리: 본문 길이 분산).
+extension SettingsView {
+    /// MTP 토글 행.
+    var mtpRow: some View {
+        HStack(spacing: 4) {
+            Toggle("MTP(추측적 디코딩) 활성화", isOn: Binding(
+                get: { config.draftMTP },
+                set: { config.draftMTP = $0 }
+            ))
+            .help("Gemma 4 등 지원 모델에서 디코드 속도 2-3배 향상. 모델 재시작 필요.")
+            .onChange(of: config.draftMTP) { _, on in
+                DebugLogger.shared.info(feature: "MTP", on ? "활성화" : "비활성화")
+            }
+            Image(systemName: "info.circle")
+                .font(.caption).foregroundStyle(.tertiary)
+                .help("답변 생성 속도를 높입니다. 끄면 속도만 느려지고 정확도는 동일합니다.")
         }
     }
 }

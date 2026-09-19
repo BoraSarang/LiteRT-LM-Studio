@@ -422,6 +422,15 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(ContentView.SidebarTab.allCases.count, 2)
     }
 
+    /// 환경 버전 단축 (T-325): UI는 짧게, 전체는 툴팁.
+    func testEnvShort() {
+        XCTAssertEqual(ContentView.envShort(prefix: "uv", full: "uv 0.11.29 (Homebrew)"), "uv 0.11.29")
+        XCTAssertEqual(ContentView.envShort(prefix: "litert-lm", full: "litert-lm, version 0.17.1"),
+                       "litert-lm 0.17.1")
+        XCTAssertEqual(ContentView.envShort(prefix: "uv", full: "확인 중…"), "확인 중…")
+        XCTAssertEqual(ContentView.envShort(prefix: "uv", full: "없음"), "없음")
+    }
+
     /// 엔진 수명주기 route 분기 (규칙 1): 네이티브일 때만 네이티브 버튼.
     func testEngineLifecycleRoute() {
         XCTAssertTrue(ContentView.showsNativeLifecycle(route: .native))

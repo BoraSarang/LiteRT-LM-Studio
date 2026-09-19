@@ -73,7 +73,7 @@ struct BenchmarkRecord: Codable, Identifiable, Equatable {
 
     /// 목록 표시 1줄 (순수, 테스트 가능).
     var summary: String {
-        let speed = metrics.map { String(format: "%.1f tok/s", $0.decodeSpeed) } ?? "-"
+        let speed = metrics.map { String(format: "%.1f 토큰/초", $0.decodeSpeed) } ?? "-"
         return "\(modelID) · \(route.title) · \(status.title) · \(speed)"
     }
 }
@@ -179,7 +179,7 @@ final class BenchmarkHistoryStore: ObservableObject {
     /// 모델 필터 (순수, 테스트 가능).
     nonisolated static func filtered(_ records: [BenchmarkRecord],
                                      modelID: String?) -> [BenchmarkRecord] {
-        guard let modelID, !modelID.isEmpty, modelID != "전체" else { return records }
+        guard let modelID, !modelID.isEmpty, modelID != "전체 기록" else { return records }
         return records.filter { $0.modelID == modelID }
     }
 
