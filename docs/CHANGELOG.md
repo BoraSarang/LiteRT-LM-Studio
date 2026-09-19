@@ -2,6 +2,12 @@
 
 _기록 규칙: 작업 중에는 `## [Unreleased] (macos)`에 한 줄씩 쌓고, 릴리스할 때 버전과 날짜를 확정한다. 항목별 상세 로그(이전 릴리스 포함)는 [CHANGELOG-DETAIL.md](CHANGELOG-DETAIL.md)에 두고, 릴리스 본문은 이 요약을 쓴다._
 
+## [0.7.151] - 2026-09-19 (macos)
+
+* 릴리스 자동화: `v*.*.*` 태그 push 시 Release 빌드 → DMG+sha256 생성 → GitHub Release 업로드를
+  수행하는 Actions 워크플로(`release.yml`)를 추가했다. 앱 코드 변경 없음. [macos]
+* 문서: CHANGELOG를 릴리스 요약으로 정리하고 항목별 상세 로그를 CHANGELOG-DETAIL.md로 분리했다. [macos]
+
 ## [0.7.150] - 2026-09-20 (macos)
 
 * 한/영 다국어 지원 (T-361~T-364): `Localizable.xcstrings`(ko 원본, 843키)와 `L10n` 키 레지스트리로 앱이 그리는 문구를
