@@ -45,7 +45,8 @@ extension ChatStore {
             // T-285: 스킬+MCP 안내 + T-312: 오늘 날짜 시스템 메시지 (빈 문자열이면 생략).
             let extras = SkillsStore.extrasBlock(
                 serverNames: MCPStore.shared.enabledServers.map(\.name))
-            sysBlock = [Self.currentDateBlock(), Self.toolHonestyBlock(), extras]
+            sysBlock = [Self.currentDateBlock(), Self.toolHonestyBlock(),
+                        Self.parallelToolCallBlock(), extras]
                 .filter { !$0.isEmpty }.joined(separator: "\n\n")
         }
         let messagesPlus: [[String: Any]] = sysBlock.isEmpty
@@ -63,6 +64,8 @@ extension ChatStore {
            let schema = try? JSONSerialization.jsonObject(with: schemaData) {
             body["tools"] = schema
             body["tool_choice"] = "auto"
+            // T-351: 독립 도구는 한 응답에서 병렬 호출 (OpenAI 표준 필드, 무시돼도 무해).
+            body["parallel_tool_calls"] = true
         }
         if let maxTokens { body["max_tokens"] = maxTokens }
         if let seed { body["seed"] = seed }
@@ -104,5 +107,13 @@ extension ChatStore {
         "[도구 정직 규칙] 클립보드 복사·일정 추가 등은 반드시 도구 호출로만 수행하세요. "
             + "도구를 호출하지 않았으면 '복사했습니다/추가했습니다/열었습니다/실행했습니다'라고 말하지 마세요. "
             + "도구가 목록에 없으면 호출을 시도하지 말고, 설정에서 해당 도구를 켜 달라고 안내하세요."
+    }
+
+    /// 도구 병렬 호출 유도 (T-351): 독립 도구를 한 응답에서 함께 호출해 왕복을 줄인다.
+    /// 고정 문자열이라 KV 캐시 안전. 서버 1턴에만 주입 (재전송 턴은 생략). 순수 함수.
+    nonisolated static func parallelToolCallBlock() -> String {
+        "[도구 병렬 규칙] 맡은 확인을 위한 읽기 전용 도구(클립보드 읽기, 시스템 정보, "
+            + "파일 읽기 등)는 서로 독립적이므로 한 응답에서 여러 도구를 함께 호출하고, "
+            + "모든 결과를 받은 뒤 한 번에 요약하세요. 순차로 하나씩 호출하지 마세요."
     }
 }

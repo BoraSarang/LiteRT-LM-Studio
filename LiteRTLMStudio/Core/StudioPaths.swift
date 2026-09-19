@@ -2,7 +2,7 @@ import Foundation
 
 /// 앱 소유 데이터의 단일 홈 (T-314, PLAN_v92).
 /// 기본 `~/.litert-lm-studio`, UserDefaults "studioHome"으로 재지정(재실행 반영).
-/// 외부 도구 소유(`~/.litert-lm` config·models, `~/.wigolo`)는 여기로 옮기지 않는다.
+/// 외부 도구 소유(`~/.litert-lm` config·models)는 여기로 옮기지 않는다.
 enum StudioPaths {
     nonisolated static var homeKey: String { "studioHome" }
 

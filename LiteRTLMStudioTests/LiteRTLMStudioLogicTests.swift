@@ -943,15 +943,15 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
             }
         }
         names.forEach { ToolCatalog.setEnabled($0, true) }
-        let prevBin = UserDefaults.standard.string(forKey: WigoloManager.binOverrideKey)
+        let prevKey = UserDefaults.standard.string(forKey: WebSearch.apiKeyKey)
         defer {
-            if let prevBin {
-                UserDefaults.standard.set(prevBin, forKey: WigoloManager.binOverrideKey)
+            if let prevKey {
+                UserDefaults.standard.set(prevKey, forKey: WebSearch.apiKeyKey)
             } else {
-                UserDefaults.standard.removeObject(forKey: WigoloManager.binOverrideKey)
+                UserDefaults.standard.removeObject(forKey: WebSearch.apiKeyKey)
             }
         }
-        UserDefaults.standard.set("/tmp/fake-wigolo-bin", forKey: WigoloManager.binOverrideKey)
+        UserDefaults.standard.set("exa-test-key", forKey: WebSearch.apiKeyKey)
         XCTAssertTrue(LocalTools.registered(permission: .off).isEmpty)
         XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 20)
         XCTAssertEqual(LocalTools.registered(permission: .ask).count, 20)
@@ -959,18 +959,29 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 19)
     }
 
-    /// wigolo 응답 파싱 (T-269): url 없는 항목 제외.
-    func testParseWigolo() {
+    /// Exa search 응답 파싱 (T-352): url 없는 항목 제외, 하이라이트 합성.
+    func testParseExaSearch() {
         let json = """
         {"results":[
-        {"title":"A","url":"https://a.example","excerpt":"요약"},
-        {"title":"B","excerpt":"주소 없음"},
-        {"title":"","url":"https://c.example"}]}
+        {"title":"A","url":"https://a.example","highlights":["요약","두번째"]},
+        {"title":"B","highlights":["주소 없음"]},
+        {"title":"","url":"https://c.example","text":"본문"}]}
         """
-        let hits = WebSearch.parseWigolo(Data(json.utf8))
+        let hits = WebSearch.parseExaSearch(Data(json.utf8))
         XCTAssertEqual(hits.count, 2)
         XCTAssertEqual(hits[0].title, "A")
+        XCTAssertEqual(hits[0].excerpt, "요약 두번째")
         XCTAssertEqual(hits[1].title, "https://c.example")
+        XCTAssertEqual(hits[1].excerpt, "본문")
+    }
+
+    /// Exa contents 응답 파싱 (T-352): 첫 결과 본문, fetchCap 절단.
+    func testParseExaContents() {
+        let json = #"{"results":[{"url":"https://a.example","text":"본문 내용"}]}"#
+        XCTAssertEqual(WebSearch.parseExaContents(Data(json.utf8)), "본문 내용")
+        XCTAssertEqual(WebSearch.parseExaContents(Data("{}".utf8)), "")
+        let long = #"{"results":[{"text":"\#(String(repeating: "가", count: 9000))"}]}"#
+        XCTAssertEqual(WebSearch.parseExaContents(Data(long.utf8)).count, WebSearch.fetchCap)
     }
 
     /// 모델 포맷 cap (T-269): 발췌 300자.
@@ -1060,114 +1071,35 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertFalse(WebSearch.enabled(defaults))
     }
 
-    /// 미사용 안내문 (T-286): 설정 유도 포함.
-    func testWigoloUnavailableMessage() {
+    /// 미사용 안내문 (T-352): 설정 유도 + 키 발급 링크.
+    func testWebSearchUnavailableMessage() {
         XCTAssertTrue(WebSearch.unavailableMessage.contains("설정"))
+        XCTAssertTrue(WebSearch.unavailableMessage.contains("dashboard.exa.ai"))
     }
 
-    /// wigolo 바이너리 탐색 (T-269): override 우선.
-    func testResolveWigoloBinary() {
-        XCTAssertEqual(WigoloManager.resolveBinary(home: "/nonexistent",
-                                                   overridePath: "/tmp/fake-wigolo"), "/tmp/fake-wigolo")
-        XCTAssertNil(WigoloManager.resolveBinary(home: "/nonexistent", overridePath: nil))
+    /// Exa 키 실검색 테스트용 요청 본문 (T-353): 라이브 크롤(maxAgeHours=0) 강제.
+    func testExaRequestBodies() {
+        let search = WebSearch.searchBody(query: "릴리스", maxResults: 5)
+        XCTAssertEqual(search["query"] as? String, "릴리스")
+        XCTAssertEqual(search["numResults"] as? Int, 5)
+        let searchContents = search["contents"] as? [String: Any]
+        XCTAssertEqual(searchContents?["highlights"] as? Bool, true)
+        XCTAssertEqual(searchContents?["maxAgeHours"] as? Int, 0)
+
+        let contents = WebSearch.contentsBody(url: "https://x.example/r")
+        XCTAssertEqual(contents["urls"] as? [String], ["https://x.example/r"])
+        XCTAssertEqual(contents["text"] as? Bool, true)
+        XCTAssertEqual(contents["maxAgeHours"] as? Int, 0)
     }
 
-    /// npm 탐색 (T-284): override 우선 (절대경로 후보는 실행 환경 의존이라 미검증).
-    func testResolveNpm() {
-        XCTAssertEqual(WigoloManager.resolveNpm(home: "/nonexistent",
-                                                overridePath: "/tmp/fake-npm"), "/tmp/fake-npm")
-    }
-
-    /// doctor 파싱 (T-288): 실측 포맷 기준.
-    func testParseDoctor() {
-        let ok = """
-        [wigolo doctor] Browser engine:
-          Browsers:      chromium OK  firefox missing  webkit missing
-        [wigolo doctor] Optional components:
-          Embeddings model:   installed (fastembed BGE-small-en-v1.5)
-        """
-        let parsed = WigoloManager.parseDoctor(ok)
-        XCTAssertTrue(parsed.browser)
-        XCTAssertTrue(parsed.models)
-        let missing = """
-        [wigolo doctor] Browser engine:
-          Installation:  not installed
-          Browsers:      chromium missing
-        [wigolo doctor] Optional components:
-          Embeddings model:   not installed
-        """
-        let parsedMissing = WigoloManager.parseDoctor(missing)
-        XCTAssertFalse(parsedMissing.browser)
-        XCTAssertFalse(parsedMissing.models)
-    }
-
-    /// nvm 전버전 스캔 (T-288): 최신 우선 정렬.
-    func testNvmBinDirs() {
-        let home = FileManager.default.temporaryDirectory
-            .appendingPathComponent("nvmtest-\(UUID().uuidString)").path
-        try? FileManager.default.createDirectory(atPath: "\(home)/.nvm/versions/node/v20.20.2",
-                                                 withIntermediateDirectories: true)
-        try? FileManager.default.createDirectory(atPath: "\(home)/.nvm/versions/node/v22.23.1",
-                                                 withIntermediateDirectories: true)
-        let dirs = WigoloManager.nvmBinDirs(home: home)
-        XCTAssertEqual(dirs, ["\(home)/.nvm/versions/node/v22.23.1/bin",
-                              "\(home)/.nvm/versions/node/v20.20.2/bin"])
-        XCTAssertTrue(WigoloManager.nvmBinDirs(home: "/nonexistent-xyz").isEmpty)
-        try? FileManager.default.removeItem(atPath: home)
-    }
-
-    /// serve 실행 로그 상한 (T-308): 300줄 cap·꼬리 유지.
-    func testServeLogCap() {
-        let lines = (0..<350).map { "줄 \($0)" }
-        let capped = WigoloManager.cappedServeLog(lines)
-        XCTAssertEqual(capped.count, 300)
-        XCTAssertEqual(capped.first, "줄 50")
-        XCTAssertEqual(capped.last, "줄 349")
-        XCTAssertEqual(WigoloManager.cappedServeLog(["a", "b"]).count, 2)
-    }
-
-    /// node 실행기 탐색 (T-310): 같은 디렉터리의 실행 node.
-    func testNodeForWigolo() {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("wigolonode-\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let bin = dir.appendingPathComponent("wigolo").path
-        let node = dir.appendingPathComponent("node").path
-        FileManager.default.createFile(atPath: bin, contents: Data("#!node\n".utf8))
-        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: bin)
-        FileManager.default.createFile(atPath: node, contents: Data())
-        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: node)
-        XCTAssertEqual(WigoloManager.nodeForWigolo(bin: bin), node)
-        XCTAssertNil(WigoloManager.nodeForWigolo(bin: "/nonexistent/bin/wigolo"))
-        try? FileManager.default.removeItem(at: dir)
-    }
-
-    /// wigolo 커맨드 (T-310): node 경유 조립·폴백.
-    func testWigoloCommand() {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("wigolocmd-\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let bin = dir.appendingPathComponent("wigolo").path
-        let node = dir.appendingPathComponent("node").path
-        FileManager.default.createFile(atPath: bin, contents: Data())
-        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: bin)
-        FileManager.default.createFile(atPath: node, contents: Data())
-        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: node)
-        let withNode = WigoloManager.wigoloCommand(bin, ["serve"])
-        XCTAssertEqual(withNode.executable, node)
-        XCTAssertEqual(withNode.args, [bin, "serve"])
-        let noNode = WigoloManager.wigoloCommand("/tmp/no-node/wigolo", ["serve"])
-        XCTAssertEqual(noNode.executable, "/tmp/no-node/wigolo")
-        XCTAssertEqual(noNode.args, ["serve"])
-        try? FileManager.default.removeItem(at: dir)
-    }
-
-    /// PATH 디렉터리 목록 (T-310): homebrew·npm-global·nvm 포함.
-    func testNodePathDirs() {
-        let dirs = WigoloManager.nodePathDirs(home: "/nonexistent-home")
-        XCTAssertEqual(Array(dirs.prefix(3)),
-                       ["/opt/homebrew/bin", "/usr/local/bin",
-                        "/nonexistent-home/.npm-global/bin"])
+    /// Exa 키 판정 (T-352): 공백 트림·빈값이면 미사용.
+    func testExaApiKey() {
+        let defaults = UserDefaults(suiteName: "exa-key-test-\(UUID().uuidString)")!
+        XCTAssertTrue(WebSearch.apiKey(defaults).isEmpty)
+        defaults.set("  sk-exa-123  ", forKey: WebSearch.apiKeyKey)
+        XCTAssertEqual(WebSearch.apiKey(defaults), "sk-exa-123")
+        defaults.set("   ", forKey: WebSearch.apiKeyKey)
+        XCTAssertTrue(WebSearch.apiKey(defaults).isEmpty)
     }
 
     /// 응답 스톨 게이트 (T-311): 리셋 유지·무진행 발화·1회만 true 유지.
@@ -1209,10 +1141,10 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
 
     /// 웹 검색 등록 판정 (T-287): 토글 ON + 바이너리 존재.
     func testShouldRegisterWebSearch() {
-        XCTAssertTrue(LocalTools.shouldRegisterWebSearch(webEnabled: true, binaryFound: true))
-        XCTAssertFalse(LocalTools.shouldRegisterWebSearch(webEnabled: false, binaryFound: true))
-        XCTAssertFalse(LocalTools.shouldRegisterWebSearch(webEnabled: true, binaryFound: false))
-        XCTAssertFalse(LocalTools.shouldRegisterWebSearch(webEnabled: false, binaryFound: false))
+        XCTAssertTrue(LocalTools.shouldRegisterWebSearch(webEnabled: true, keyPresent: true))
+        XCTAssertFalse(LocalTools.shouldRegisterWebSearch(webEnabled: false, keyPresent: true))
+        XCTAssertFalse(LocalTools.shouldRegisterWebSearch(webEnabled: true, keyPresent: false))
+        XCTAssertFalse(LocalTools.shouldRegisterWebSearch(webEnabled: false, keyPresent: false))
     }
 
     /// 셸 차단 패턴 (T-272): 위험 6종 거부.
@@ -1421,7 +1353,7 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(SkillsStore.firstLine("# 제목\n본문"), "제목")
         XCTAssertEqual(SkillsStore.firstLine("   \n두번째"), "")
         XCTAssertEqual(SkillsStore.mcpBlock(serverNames: []), "")
-        XCTAssertTrue(SkillsStore.mcpBlock(serverNames: ["wigolo"]).contains("mcp_list_tools"))
+        XCTAssertTrue(SkillsStore.mcpBlock(serverNames: ["exa"]).contains("mcp_list_tools"))
     }
 
     /// 개별 ON/OFF 저장소 (T-271): 기본 켜짐·라운드트립.
@@ -1579,6 +1511,8 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
             with: store.chatRequest(prompt: "hi").httpBody!) as? [String: Any]
         XCTAssertNotNil(allowBody?["tools"])
         XCTAssertEqual(allowBody?["tool_choice"] as? String, "auto")
+        // T-351: 독립 도구 병렬 호출 플래그가 함께 전송.
+        XCTAssertEqual(allowBody?["parallel_tool_calls"] as? Bool, true)
         UserDefaults.standard.set("off", forKey: key)
         let offBody = try JSONSerialization.jsonObject(
             with: store.chatRequest(prompt: "hi").httpBody!) as? [String: Any]
@@ -1750,5 +1684,27 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         let block = ChatStore.toolHonestyBlock()
         XCTAssertTrue(block.contains("호출하지 않았으면"))
         XCTAssertTrue(block.contains("설정에서 해당 도구를 켜"))
+    }
+
+    /// T-351 병렬 호출: 1턴 시스템 프롬프트에 병렬 규칙 포함, 재전송(2턴) 턴엔 생략.
+    @MainActor
+    func testParallelToolCallHint() {
+        func sysText(_ bodyAny: Any) -> String {
+            let body = bodyAny as! [String: Any]
+            let messages = body["messages"] as! [[String: Any]]
+            let match = messages.first { $0["role"] as? String == "system" }
+            return (match?["content"] as? String) ?? ""
+        }
+        XCTAssertTrue(ChatStore.parallelToolCallBlock().contains("한 응답에서 여러 도구"))
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-parallel-\(UUID().uuidString).json")
+        let store = ChatStore(storageURL: url)
+        let body = try! JSONSerialization.jsonObject(
+            with: store.chatRequest(prompt: "hi").httpBody!) as! [String: Any]
+        XCTAssertTrue(sysText(body).contains("[도구 병렬 규칙]"))
+        let body2 = try! JSONSerialization.jsonObject(
+            with: store.chatRequest(prompt: "hi", toolTurn: true).httpBody!) as! [String: Any]
+        XCTAssertFalse(sysText(body2).contains("[도구 병렬 규칙]"))
+        XCTAssertTrue(sysText(body2).contains("[오늘 날짜]"))
     }
 }

@@ -39,12 +39,12 @@
   `litert-lm serve --host 127.0.0.1 --port 9379 --config <audio·vision 없는 config>`
   (앱은 외부 데몬으로 연결됨). 앱 관리 데몬으로는 gemma 계열 사용.
 
-## 웹 검색 (T-269, wigolo 설치 후)
+## 웹 검색 (T-352, Exa API 키 입력 후)
 
 13. `최근 LiteRT 소식을 검색해줘` — 🔧 web_search 칩+인용 답변
     (T-316: 1위 페이지 본문 2000자 자동 첨부, 칩 기본 접힘·T-317)
 14. `이 페이지 읽어줘 https://ai.google.dev/edge/litert-lm` — web_fetch 본문 인용
-15. 데몬 중지 상태로 13번 — DDG/Wikipedia 폴백 또는 정중 거절
+15. 키 미입력 상태로 13번 — 설정 안내 문구 반환, 도구 미등록 확인
 16. 웹 검색 끔 + 13번 — 도구 미호출 확인
 
 ## 셸·파일 (T-272, 매번 묻기 권장)

@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// 설정 MCP·스킬·wigolo 탭 분리 (T-285, T-288 본문 길이 관리).
+/// 설정 MCP·스킬 탭 분리 (T-285, T-288 본문 길이 관리).
 extension SettingsView {
     /// MCP 서버 탭.
     var mcpTab: some View {
@@ -166,140 +166,51 @@ extension SettingsView {
                     DebugLogger.shared.info(feature: "스킬", "\(name) \($0 ? "켜짐" : "꺼짐")")
                 })
     }
-
-    /// wigolo 상태·설치 행 (T-287, T-288 내장 검색 4칸+단계+로그 복사).
-    var wigoloRows: some View {
-        Group {
-            HStack(spacing: 8) {
-                Circle().fill(wigoloDot).frame(width: 8, height: 8)
-                Text("내장 검색 \(wigolo.status.rawValue)\(wigoloVersionSuffix)")
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                if wigolo.status == .missing {
-                    Button("설치") { showInstallConfirm = true }
-                        .buttonStyle(.borderedProminent).controlSize(.small)
-                } else if wigolo.status == .installing {
-                    Button("취소") { wigolo.cancelInstall() }.controlSize(.small)
-                } else if wigolo.status == .running {
-                    Button("중지") { wigolo.stop() }.controlSize(.small)
-                } else {
-                    Button("시작") { wigolo.start() }.controlSize(.small)
-                }
-                Button("다시 확인") { Task { await wigolo.doctor() } }
-                    .controlSize(.small)
-                ServeLogButton(wigolo: wigolo)
-            }
-            .help("내장 검색 엔진 (wigolo 로컬 데몬, 127.0.0.1:3333). 앱 시작 시 자동 실행.")
-            HStack(spacing: 12) {
-                healthLane(title: "CLI", ok: wigolo.health.cli)
-                healthLane(title: "데몬", ok: wigolo.health.daemon)
-                healthLane(title: "브라우저", ok: wigolo.health.browser)
-                healthLane(title: "모델", ok: wigolo.health.models)
-                Spacer()
-            }
-            .font(.caption).foregroundStyle(.secondary)
-            if let stage = wigolo.installStage {
-                Text(stage).font(.caption).foregroundStyle(.orange)
-            }
-            if wigolo.status == .installing || !wigolo.installLog.isEmpty {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 2) {
-                        ForEach(wigolo.installLog.indices, id: \.self) { i in
-                            Text(wigolo.installLog[i])
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .textSelection(.enabled)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                }
-                .frame(height: 120)
-                .background(Color(nsColor: .textBackgroundColor))
-                .clipShape(.rect(cornerRadius: 8))
-                .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) }
-                HStack {
-                    Spacer()
-                    Button("로그 복사") {
-                        PasteboardUtil.copy(wigolo.installLog.joined(separator: "\n"))
-                    }.controlSize(.small)
-                }
-            }
-        }
-    }
-
-    /// 상태 1칸 (T-288).
-    func healthLane(title: String, ok: Bool) -> some View {
-        HStack(spacing: 4) {
-            Circle().fill(ok ? Color.green : Color.gray).frame(width: 6, height: 6)
-            Text(title)
-        }
-    }
-
-    /// wigolo 상태점 (T-284).
-    var wigoloDot: Color {
-        switch wigolo.status {
-        case .running: .green
-        case .starting, .installing: .orange
-        case .failed, .missing: .red
-        case .stopped: .gray
-        }
-    }
-
-    /// wigolo 버전 접미 (T-284).
-    var wigoloVersionSuffix: String {
-        wigolo.version.map { " · \($0)" } ?? ""
-    }
 }
 
-/// 검색 데몬 실행 로그 버튼+팝오버 (T-308): `시작` 출력 확인용.
-struct ServeLogButton: View {
-    @ObservedObject var wigolo: WigoloManager
-    @State private var show = false
-
-    var body: some View {
-        Button("로그 보기") {
-            show = true
-            DebugLogger.shared.info(feature: "웹검색", "실행 로그 보기 열기")
-        }
-        .controlSize(.small)
-        .popover(isPresented: $show, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("검색 데몬 실행 로그")
-                    .font(.system(size: 13, weight: .semibold))
-                if wigolo.serveLog.isEmpty {
-                    Text("아직 실행 로그가 없어요. 시작을 누르면 여기에 표시됩니다.")
-                        .font(.caption).foregroundStyle(.secondary)
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 2) {
-                            ForEach(wigolo.serveLog.indices, id: \.self) { i in
-                                Text(wigolo.serveLog[i])
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                                    .textSelection(.enabled)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
-                    }
-                    .frame(height: 200)
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .clipShape(.rect(cornerRadius: 8))
-                    .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) }
-                }
-                HStack {
-                    Spacer()
-                    if !wigolo.serveLog.isEmpty {
-                        Button("복사") {
-                            PasteboardUtil.copy(wigolo.serveLog.joined(separator: "\n"))
-                        }.controlSize(.small)
-                    }
-                    Button("닫기") { show = false }.controlSize(.small)
-                }
+/// 설정 웹(Exa) 행 분리 (T-325, T-352): 본문 길이 분산.
+extension SettingsView {
+    /// Exa 상태·키 입력 행 (T-352): 키 저장+발급 링크+테스트.
+    var exaRows: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Circle().fill(webSearchEnabled && !exaApiKey.isEmpty ? DSColor.success : .secondary)
+                    .frame(width: 8, height: 8)
+                Text(exaApiKey.isEmpty ? "Exa API 키 없음" : "Exa API 키 설정됨")
+                    .font(.system(size: 12))
+                Spacer()
+                Link("키 발급", destination: URL(string: "https://dashboard.exa.ai")!)
+                    .font(.system(size: 12))
+                Button("테스트") { testExa() }
+                    .controlSize(.small)
+                    .disabled(exaApiKey.isEmpty)
             }
-            .padding(12)
-            .frame(width: 440)
+            SecureField("Exa API 키 (x-api-key)", text: $exaApiKey)
+                .textFieldStyle(.roundedBorder)
+            if let result = exaTestResult {
+                Text(result).font(.caption)
+                    .foregroundStyle(result.hasPrefix("성공") ? Color.secondary : Color.red)
+            }
+            Text("키는 이 Mac에만 저장됩니다. 웹 도구는 키가 있을 때만 모델에게 전달됩니다. "
+                + "발급: https://dashboard.exa.ai")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Exa 키 실검색 테스트 (T-352): 1건 조회, 결과 요약 표시.
+    private func testExa() {
+        exaTestResult = "확인 중…"
+        DebugLogger.shared.info(feature: "웹검색", "Exa 키 테스트 시작")
+        Task {
+            do {
+                let hits = try await WebSearch.search(query: "Swift programming", maxResults: 1)
+                exaTestResult = hits.isEmpty ? "응답은 왔으나 결과가 비었습니다."
+                    : "성공 · \(hits[0].title) — \(hits[0].url)"
+            } catch {
+                exaTestResult = "실패 · \(error.localizedDescription)"
+                DebugLogger.shared.error(code: "E-MAC-NET-0015", feature: "웹검색",
+                                         "Exa 키 테스트 실패: \(error.localizedDescription)")
+            }
         }
     }
 }
@@ -314,7 +225,7 @@ struct MCPAddSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("MCP 서버 추가").font(.system(size: 13, weight: .semibold))
-            TextField("이름 (예: wigolo)", text: $draft.name)
+            TextField("이름 (예: exa)", text: $draft.name)
                 .textFieldStyle(.roundedBorder)
             Picker("전송", selection: $draft.transport) {
                 Text("stdio (로컬 명령)").tag(MCPServerConfig.Transport.stdio)
@@ -323,7 +234,7 @@ struct MCPAddSheet: View {
             if draft.transport == .stdio {
                 TextField("명령 (예: npx)", text: $draft.command)
                     .textFieldStyle(.roundedBorder)
-                TextField("인자 (공백 구분, 예: -y wigolo)", text: $argsText)
+                TextField("인자 (공백 구분, 예: -y exa)", text: $argsText)
                     .textFieldStyle(.roundedBorder)
             } else {
                 TextField("URL (http(s)만, 예: http://127.0.0.1:3333/mcp)", text: $draft.url)

@@ -31,7 +31,7 @@ enum LocalTools {
         guard permission != .off else { return [] }
         var tools: [any Tool] = [GetTimeTool(), CalculatorTool()]
         if Self.shouldRegisterWebSearch(webEnabled: WebSearch.enabled(),
-                                        binaryFound: WigoloManager.resolveBinary() != nil) {
+                                        keyPresent: WebSearch.available()) {
             tools += [WebSearchTool(), WebFetchTool()]
         }
         tools += [RunShellTool(), SaveCodeTool(), ReadFileTool()]
@@ -43,9 +43,9 @@ enum LocalTools {
         return tools.filter { ToolCatalog.isEnabled(type(of: $0).name) }
     }
 
-    /// 웹 검색 등록 판정 (순수, 테스트 가능, T-287): 토글 ON + 바이너리 존재.
-    nonisolated static func shouldRegisterWebSearch(webEnabled: Bool, binaryFound: Bool) -> Bool {
-        webEnabled && binaryFound
+    /// 웹 검색 등록 판정 (순수, 테스트 가능, T-287·T-352): 토글 ON + Exa 키 존재.
+    nonisolated static func shouldRegisterWebSearch(webEnabled: Bool, keyPresent: Bool) -> Bool {
+        webEnabled && keyPresent
     }
 
     /// 실행 결정 (T-266 S-2): Off·거부·타임아웃은 거부, Allow는 진행, Ask는 승인 대기.

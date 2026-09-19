@@ -2,6 +2,26 @@
 
 ## [Unreleased] (macos)
 
+* Exa 라이브 크롤 강제 (T-353): Exa 검색·contents 요청에 `maxAgeHours: 0`을 넣어 캐시 대신
+  항상 새로 크롤한 본문을 받는다. 기본 캐시가 GitHub 릴리스 페이지를 오래된 버전(v0.16.1)에서
+  멈춘 채 반환해 최신 버전(v0.17.1)을 못 읽던 문제 해결. 웹 도구 설명에도 "말로만 예고하지 말고
+  즉시 호출" 지침을 보강했다. [macos]
+
+* 웹 검색 wigolo→Exa REST 교체 (T-352): 내장 wigolo 데몬·설치 파이프라인·설정 UI·설치 제안
+  배너를 전면 삭제하고, Exa API(`api.exa.ai/search`·`/contents`, Bearer 인증)로 교체했다.
+  검색은 `contents.highlights` 기반 발췌(300자 cap), 페이지 가져오기는 text(8K cap). 등록
+  게이트는 바이너리 존재→**API 키 존재**로 바뀌어 키가 없으면 웹 도구가 모델에게 전달되지
+  않는다. 설정 도구 탭 웹 섹션에 Exa 키 입력(SecureField)+`dashboard.exa.ai` 발급 링크+
+  실검색 테스트 버튼을 제공하며, 키는 이 Mac(UserDefaults)에만 저장된다. [macos]
+
+* 1턴 병렬 도구 호출 유도 (T-351): 시스템 프롬프트에 `[도구 병렬 규칙]`을 추가하고 도구가
+  있을 때 본문에 `parallel_tool_calls: true`를 실어, 모델이 한 응답에서 여러 도구를 함께
+  호출하도록 유도. 기존 `runTurnCalls` 멀티콜 루프를 재사용한다. [macos]
+
+* 서버 도구 인자 정규화 (T-350): 인자 없는 도구의 arguments가 빈 문자열·공백·null이거나
+  데몬이 같은 조각을 중복 전송(`{}{}`)해도 첫 완전 JSON 객체를 채택해 실행하도록 수정.
+  파싱 실패 시 원문을 로그로 남긴다. [macos]
+
 * 스톨 자동 복구+대기 경과 표시 (T-345): 스톨 타임아웃 시 앱 소유 데몬을 재시작하고
   1회 자동 재전송 (`restartDaemon` 주입, 외부 데몬은 보호). `runServerSend`로 분리해
   본문 길이 기준 유지. "첫 토큰 대기 중…"에 경과 초를 표시 (`Message.startedAt`). [macos]

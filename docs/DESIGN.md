@@ -53,10 +53,10 @@
      거부·실패는 모델 전달 문자열 (스트림 유지)+칩 결과 2줄.
    - 서버 도구 루프 (T-268 S-3, PLAN_v61): tools 스키마+auto 전송, tool_calls 종료 시
      로컬 실행 후 최대 3턴 재전송. messages[]는 user/assistant만 (tool 턴은 요청에만).
-   - 웹 검색 (T-269, PLAN_v62): wigolo(3333) 우선→DDG IA→Wikipedia 체인,
-     web_search(발췌 300자 cap)+web_fetch(8K cap), 데몬 앱 관리, 채팅 설정 토글.
-   - wigolo 설정 통합 (T-284, PLAN_v72): 설치+상태+시작/중지+터미널 로그,
-     앱 생명주기 연동, 폴백 제거 (미설치 시 사용 불가).
+   - 웹 검색 (T-269 → T-352, PLAN_v62): Exa REST(`api.exa.ai/search`·`/contents`, Bearer 키),
+     web_search(하이라이트 발췌 300자 cap)+web_fetch(8K cap), 키는 설정 도구 탭에 저장, 토글+키 게이트.
+   - Exa 교체 (T-352): wigolo 데몬·설치·설정 UI·배너 제거, 등록 게이트를 바이너리→API 키 존재로 전환.
+   - Exa 라이브 크롤 (T-353): 검색·contents에 `maxAgeHours: 0` — 최신 릴리스의 캐시 노후화 방지.
 - MCP·스킬 (T-285, PLAN_v73 → PLAN_v93): 외부 서버(stdio·SSE) 연결+게이트웨이 2종,
       SKILL.md 폴더+시스템 프롬프트 주입(8KB cap), 설정 MCP·스킬 탭.
       스킬 가져오기: 검색(이름·설명), 출처 뱃지(opencode/claude/agents), 일괄 선택/해제/새로고침.
@@ -91,7 +91,7 @@
 
 * 앱 소유 데이터 단일 홈: `~/.litert-lm-studio/` (`StudioPaths`). `studioHome` 설정으로 재지정(재실행 반영).
   `chats/`·`mcp/`·`skills/`·`benchmarks/`·`engine-cache/`·`staging/`·`workspace/`·`release-notes.json`.
-* 외부 도구 소유는 참조 유지: `~/.litert-lm`(litert-lm CLI config·models), `~/.wigolo`(wigolo 데몬).
+* 외부 도구 소유는 참조 유지: `~/.litert-lm`(litert-lm CLI config·models).
 * 이사: `StudioMigrator`가 1회 실행(앱 시작, 스토어 생성 전). 소형 JSON은 복사(원본=백업), 스테이징은 이동.
 
 ## 토큰

@@ -18,8 +18,6 @@ struct ContentView: View {
     @ObservedObject var benchHistory: BenchmarkHistoryStore
     /// T-262: 웰컴 새소식 공유 (AppServices 단일 인스턴스).
     @ObservedObject var releases: ReleaseNotes
-    /// T-284: wigolo 공유 (자동 시작용).
-    @ObservedObject var wigolo: WigoloManager
     /// T-266 S-2: 도구 승인 요청 공유 (싱글톤 관찰).
     @ObservedObject var toolApproval = ToolApproval.shared
     /// T-297: 설정 단일 진실원천 — AppServices.config 주입 (자체 생성 금지).
@@ -47,8 +45,6 @@ struct ContentView: View {
     @State var showTakeoverConfirm = false
     @State var input = ""
     @State var showPalette = false
-    @State var showWigoloBanner = false // T-286 설치 제안 배너
-    @State var wigoloBannerShown = false // T-286 세션 1회 제한
     @State var attachedImage: ChatStore.ChatImage?
     @State var attachedName: String?
     @State var pinnedToBottom = false // Sticky-Pin: 하단 고정 시만 추종 (T-212 모름=false, 첫 보고에 정정)
@@ -168,8 +164,6 @@ struct ContentView: View {
         view
             .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
                 chat.clear()
-                wigoloBannerShown = false
-                showWigoloBanner = false
                 focusChatInput()
             }
             .onReceive(NotificationCenter.default.publisher(for: .serverStart)) { _ in

@@ -3,7 +3,6 @@ import ServiceManagement
 import SwiftUI
 
 struct SettingsView: View {
-    @ObservedObject var wigolo: WigoloManager
     @ObservedObject var config: ConfigStore
     @AppStorage("showInDock") private var showInDock = false
     @AppStorage("quitStopsDaemon") private var quitStopsDaemon = true
@@ -14,7 +13,8 @@ struct SettingsView: View {
     @AppStorage("globalPermission") private var permissionRaw = GlobalPermission.ask.rawValue
     @AppStorage("chatOutlineEnabled") private var outlineEnabled = true // T-258 대화 목차
     @AppStorage("followUpEnabled") private var followUpEnabled = true // T-261 후속질문 칩
-    @AppStorage("webSearchEnabled") private var webSearchEnabled = true // T-269 웹 검색 도구
+    @AppStorage("webSearchEnabled") var webSearchEnabled = true // T-269 웹 검색 도구
+    @AppStorage("exaApiKey") var exaApiKey = "" // T-352 Exa 검색 API 키
     @AppStorage("prefillWarmup") private var prefillWarmup = false // T-302 첫터치 프리필
     @AppStorage("workspaceRoot") private var workspaceRoot = "" // T-272 작업폴더 (빈값=기본값)
     @AppStorage("selectedModelID") private var selectedModelID: String? // 모델 ID 저장
@@ -28,7 +28,7 @@ struct SettingsView: View {
     @State var mcpDraft = MCPServerConfig(name: "") // T-285 입력 초안
     @State var mcpTestResult: [UUID: String] = [:] // T-285 연결 결과
     @State private var loginError: String?
-    @State var showInstallConfirm = false // T-284 wigolo 설치 확인 (확장 접근용)
+    @State var exaTestResult: String? // T-352 키 테스트 결과
 
     var body: some View {
         TabView {
@@ -149,16 +149,9 @@ if let err = loginError {
                         DebugLogger.shared.info(feature: "프리필", on ? "켜짐" : "꺼짐")
                     }
                 Toggle("웹 도구 사용", isOn: $webSearchEnabled)
-                    .help("모델이 web_search·web_fetch 도구를 쓸 수 있게 합니다. wigolo 설치 필요.")
+                    .help("모델이 web_search·web_fetch 도구를 쓸 수 있게 합니다. Exa API 키 필요 (dashboard.exa.ai).")
                     .onChange(of: webSearchEnabled) { _, on in
                         DebugLogger.shared.info(feature: "웹검색", on ? "켜짐" : "꺼짐")
-                        if on {
-                            if WigoloManager.resolveBinary() == nil {
-                                showInstallConfirm = true
-                            } else {
-                                Task { await wigolo.ensureRunning() }
-                            }
-                        }
                     }
             }.formStyle(.grouped).padding().padding(.bottom, 32)
             }
@@ -172,7 +165,7 @@ if let err = loginError {
                                 .help(info.detail)
                         }
                         if category == .web {
-                            wigoloRows
+                            exaRows
                         }
                     }
                 }
@@ -202,13 +195,6 @@ if let err = loginError {
             .onChange(of: selectedModelID) { _, v in
                 let mid = v ?? UserDefaults.standard.string(forKey: "selectedModelID")
                 if let mid, !mid.isEmpty { config.load(modelID: mid) }
-            }
-            .confirmationDialog("wigolo 설치", isPresented: $showInstallConfirm,
-                                titleVisibility: .visible) {
-                Button("설치 (패키지+초기화, 약 1.5GB 내려받음)") { wigolo.install() }
-                Button("취소", role: .cancel) {}
-            } message: {
-                Text("`npm i -g wigolo` 후 `wigolo init`을 실행합니다. 수 분 걸릴 수 있어요.")
             }
             .sheet(isPresented: $showMCPAdd) {
                 MCPAddSheet(draft: $mcpDraft) {

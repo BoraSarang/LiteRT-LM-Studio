@@ -28,7 +28,6 @@ extension ContentView {
         }
         chat.model = selectedModelID ?? chat.model
         wireBenchmark()
-        await wigolo.ensureRunning() // T-284: 웹검색 켜짐+설치됨이면 serve 자동 시작
         monitor.start()
         monitor.daemonRunning = daemon.status == .running
         daemon.beginPolling()

@@ -95,53 +95,9 @@ extension ContentView {
         DebugLogger.shared.info(feature: "팔레트", "검색 이동 점프: \(messageID)")
     }
 
-    /// 설정 창 열기 (T-286): wigolo 설치 유도 배너용.
-    func openSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        DebugLogger.shared.info(feature: "웹검색", "설치 유도 → 설정 열기")
-    }
-
-    /// wigolo 설치 제안 배너 (T-286, 세션 1회).
-    var wigoloBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            Text("웹 검색에 wigolo가 필요합니다")
-                .font(.system(size: 13))
-            Spacer()
-            Button("설치하러 가기") {
-                showWigoloBanner = false
-                openSettings()
-            }
-            .controlSize(.small)
-            Button {
-                showWigoloBanner = false
-            } label: {
-                Image(systemName: "xmark").foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("닫기")
-        }
-        .padding(.horizontal, 12).padding(.vertical, 8)
-        .frame(maxWidth: DS.chatMaxWidth)
-        .background(Color(nsColor: .textBackgroundColor))
-        .clipShape(.rect(cornerRadius: 10))
-        .overlay { RoundedRectangle(cornerRadius: 10).stroke(.separator) }
-        .padding(.top, 8)
-        .onReceive(NotificationCenter.default.publisher(for: .requestWigoloInstall)) { _ in
-            if !wigoloBannerShown {
-                wigoloBannerShown = true
-                showWigoloBanner = true
-            }
-        }
-    }
-
     /// 하단 섹션 (T-137): chatPane 본문 타입체크 분할용 (터미널+입력).
     var bottomSection: some View {
         VStack(spacing: 0) {
-            if showWigoloBanner {
-                wigoloBanner
-            }
             if logPanelVisible, daemon.status == .running {
                 bottomPanel
                     .frame(maxWidth: DS.chatMaxWidth) // T-093 터미널 로그 열폭 통일

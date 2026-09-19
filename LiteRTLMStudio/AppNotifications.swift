@@ -19,5 +19,4 @@ extension Notification.Name {
     static let runBenchmarkModel = Notification.Name("runBenchmarkModel") // T-247 벤치마크 실행 요청
     static let requestAlias = Notification.Name("requestAlias") // T-232 관리 창에서 표시 이름 바꾸기 요청
     static let requestPinCheck = Notification.Name("requestPinCheck") // T-260 휠 스탬프 시 핀 실측 요청
-    static let requestWigoloInstall = Notification.Name("requestWigoloInstall") // T-286 미설치 설치 제안 배너
 }

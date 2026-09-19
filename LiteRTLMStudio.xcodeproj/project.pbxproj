@@ -82,7 +82,6 @@
 				500000000000000000000131,
 				500000000000000000000132,
 				500000000000000000000133,
-				500000000000000000000134,
 				500000000000000000000135,
 				500000000000000000000136,
 				500000000000000000000137,
@@ -91,7 +90,6 @@
 				500000000000000000000140,
 				500000000000000000000141,
 				500000000000000000000142,
-				500000000000000000000143,
 				500000000000000000000144,
 				500000000000000000000145,
 				500000000000000000000146,
@@ -304,7 +302,6 @@
 				400000000000000000000131,
 				400000000000000000000132,
 				400000000000000000000133,
-				400000000000000000000134,
 				400000000000000000000135,
 				400000000000000000000136,
 				400000000000000000000137,
@@ -313,7 +310,6 @@
 				400000000000000000000140,
 				400000000000000000000141,
 				400000000000000000000142,
-				400000000000000000000143,
 				400000000000000000000144,
 				400000000000000000000145,
 				400000000000000000000012,
@@ -485,7 +481,6 @@
 		400000000000000000000131 = { isa = PBXBuildFile; fileRef = 500000000000000000000131; };
 		400000000000000000000132 = { isa = PBXBuildFile; fileRef = 500000000000000000000132; };
 		400000000000000000000133 = { isa = PBXBuildFile; fileRef = 500000000000000000000133; };
-		400000000000000000000134 = { isa = PBXBuildFile; fileRef = 500000000000000000000134; };
 		400000000000000000000135 = { isa = PBXBuildFile; fileRef = 500000000000000000000135; };
 		400000000000000000000136 = { isa = PBXBuildFile; fileRef = 500000000000000000000136; };
 		400000000000000000000137 = { isa = PBXBuildFile; fileRef = 500000000000000000000137; };
@@ -494,7 +489,6 @@
 		400000000000000000000140 = { isa = PBXBuildFile; fileRef = 500000000000000000000140; };
 		400000000000000000000141 = { isa = PBXBuildFile; fileRef = 500000000000000000000141; };
 		400000000000000000000142 = { isa = PBXBuildFile; fileRef = 500000000000000000000142; };
-		400000000000000000000143 = { isa = PBXBuildFile; fileRef = 500000000000000000000143; };
 		400000000000000000000144 = { isa = PBXBuildFile; fileRef = 500000000000000000000144; };
 		400000000000000000000145 = { isa = PBXBuildFile; fileRef = 500000000000000000000145; };
 		400000000000000000000146 = { isa = PBXBuildFile; fileRef = 500000000000000000000146; };
@@ -623,7 +617,6 @@
 		500000000000000000000131 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalTools.swift"; sourceTree = "<group>"; };
 		500000000000000000000132 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/ToolApproval.swift"; sourceTree = "<group>"; };
 		500000000000000000000133 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/WebSearch.swift"; sourceTree = "<group>"; };
-		500000000000000000000134 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/WigoloManager.swift"; sourceTree = "<group>"; };
 		500000000000000000000135 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/ToolCatalog.swift"; sourceTree = "<group>"; };
 		500000000000000000000136 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/ShellTools.swift"; sourceTree = "<group>"; };
 		500000000000000000000150 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/KoreanDateParser.swift"; sourceTree = "<group>"; };
@@ -636,7 +629,6 @@
 		500000000000000000000140 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/MCPTools.swift"; sourceTree = "<group>"; };
 		500000000000000000000141 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/SkillsStore.swift"; sourceTree = "<group>"; };
 		500000000000000000000142 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsMCPSkillViews.swift"; sourceTree = "<group>"; };
-		500000000000000000000143 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/WigoloSupport.swift"; sourceTree = "<group>"; };
 		500000000000000000000144 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/StudioPaths.swift"; sourceTree = "<group>"; };
 		500000000000000000000145 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/StudioMigrator.swift"; sourceTree = "<group>"; };
 		500000000000000000000146 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/DSTokens/Colors.swift"; sourceTree = "<group>"; };
