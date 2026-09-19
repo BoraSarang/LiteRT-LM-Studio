@@ -10,6 +10,7 @@ struct LiteRTLMStudioApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.openWindow) private var openWindow
     @StateObject private var services: AppServices
+    @StateObject private var language = LanguageManager.shared // T-361 언어 설정
     @AppStorage("showInDock") private var showInDock = false
     @AppStorage("onboardingDone") private var onboardingDone = false
 
@@ -43,6 +44,7 @@ struct LiteRTLMStudioApp: App {
                 openWindow(id: "main")
                 NSApp.activate(ignoringOtherApps: true)
             }
+            .languageAware(language) // T-361 언어 전환 즉시 반영
         }
         .defaultSize(width: 1340, height: 800) // T-092 계산치: 사이드바 220+열 768+여백 32+인스펙터 320
         .windowToolbarStyle(.unified)
@@ -110,7 +112,7 @@ struct LiteRTLMStudioApp: App {
         // T-355: MenuBarExtra 대신 AppDelegate가 수동 NSStatusItem+NSPopover를 소유 (StatusItemController).
         // T-358: 설정 창은 내용 폭(600)에 맞춰 고정 — 넓은 기본 폭에서 그룹 폼이 가운데 정렬돼
         // 좌우 여백이 상하보다 커 보이던 문제 제거.
-        Settings { SettingsView() }
+        Settings { SettingsView().languageAware(language) }
             .windowResizability(.contentSize)
     }
 }

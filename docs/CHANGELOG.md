@@ -2,6 +2,12 @@
 
 ## [Unreleased] (macos)
 
+* 다국어 인프라 (T-361): 설정 > 일반 > 외관에 언어 항목(시스템/한국어/English, 기본 시스템)을 넣고
+  앱 내부 문구를 다시 시작 없이 바로 바꿀 수 있게 했다. 번역은 `Localizable.xcstrings`(String Catalog,
+  소스 언어 한국어)에 모으고 `L10n` 시맨틱 키로만 참조한다. 앱이 직접 그리는 UI는 즉시 바뀌고, 권한
+  대화상자처럼 macOS가 그리는 문구는 다음 실행 때 반영되도록 `AppleLanguages`도 함께 기록한다. ko/en 키
+  누락과 미번역을 잡는 커버리지 테스트를 추가했다. [macos]
+
 * 경고 정리 (T-360): 동작 변경 없이 린트·컴파일러 경고를 정리했다. swiftlint 11건은 파일/함수를
   새 파일이나 헬퍼로 분리해 0으로 만들었고(`ToolCallFormat` 분리, 후속질문 뷰 3종 분리, 벤치마크
   확장 분리, `streamEvents`·`request`·`runServerTurns` 분해, `JSONObjectScanner`·`CachedBackends`

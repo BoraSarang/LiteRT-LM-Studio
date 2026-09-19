@@ -29,11 +29,12 @@ struct SettingsView: View {
     @State var mcpTestResult: [UUID: String] = [:] // T-285 연결 결과
     @State private var loginError: String?
     @State var exaTestResult: String? // T-352 키 테스트 결과
+    @ObservedObject private var language = LanguageManager.shared // T-361 언어 설정
 
     var body: some View {
         TabView {
             Form {
-                DSSection("외관") {
+                DSSection(L(L10n.Settings.generalAppearance)) {
                 DSSegmented("테마 모드", selection: $appearanceRaw) {
                     ForEach(AppearanceMode.allCases, id: \.rawValue) { mode in
                         Text(mode.title).tag(mode.rawValue)
@@ -43,6 +44,12 @@ struct SettingsView: View {
                         AppearanceMode.apply(AppearanceMode(rawValue: raw) ?? .system)
                     }
                     .help("시스템 추종 또는 강제 라이트/다크. 마크다운·차트도 함께 바뀝니다.")
+                DSSegmented(L(L10n.Settings.generalLanguage), selection: $language.selection) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.label).tag(lang)
+                    }
+                }
+                    .help(L(L10n.Settings.generalLanguageHelp))
                 Toggle("Dock에 아이콘 보이기", isOn: $showInDock)
                     .onChange(of: showInDock) { _, dock in
                         NSApp.setActivationPolicy(dock ? .regular : .accessory)
@@ -99,7 +106,7 @@ struct SettingsView: View {
                     }
                 }
             }.dsSettingsForm()
-            .tabItem { Label("일반", systemImage: "gear") }
+            .tabItem { Label(L(L10n.Settings.generalTab), systemImage: "gear") }
             Form {
                 DSSection("표시") {
                 Toggle("대화 목차 사용", isOn: $outlineEnabled)

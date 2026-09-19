@@ -105,6 +105,9 @@
 				500000000000000000000156,
 				500000000000000000000157,
 				500000000000000000000158,
+				500000000000000000000159,
+				500000000000000000000160,
+				500000000000000000000161,
 				500000000000000000000024,
 				500000000000000000000027,
 				500000000000000000000028,
@@ -200,6 +203,7 @@
 				500000000000000000000087,
 				500000000000000000000110,
 				500000000000000000000119,
+				500000000000000000000162,
 			);
 			path = "LiteRTLMStudioTests";
 			sourceTree = "<group>";
@@ -322,6 +326,8 @@
 				400000000000000000000156,
 				400000000000000000000157,
 				400000000000000000000158,
+				400000000000000000000160,
+				400000000000000000000161,
 				400000000000000000000012,
 				400000000000000000000013,
 				400000000000000000000052,
@@ -393,6 +399,7 @@
 				400000000000000000000095,
 				400000000000000000000096,
 				400000000000000000000097,
+				400000000000000000000159,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -408,6 +415,7 @@
 				400000000000000000000075,
 				400000000000000000000110,
 				400000000000000000000119,
+				400000000000000000000162,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -514,6 +522,10 @@
 		400000000000000000000156 = { isa = PBXBuildFile; fileRef = 500000000000000000000156; };
 		400000000000000000000157 = { isa = PBXBuildFile; fileRef = 500000000000000000000157; };
 		400000000000000000000158 = { isa = PBXBuildFile; fileRef = 500000000000000000000158; };
+		400000000000000000000159 = { isa = PBXBuildFile; fileRef = 500000000000000000000159; };
+		400000000000000000000160 = { isa = PBXBuildFile; fileRef = 500000000000000000000160; };
+		400000000000000000000161 = { isa = PBXBuildFile; fileRef = 500000000000000000000161; };
+		400000000000000000000162 = { isa = PBXBuildFile; fileRef = 500000000000000000000162; };
 		400000000000000000000012 = { isa = PBXBuildFile; fileRef = 500000000000000000000022; };
 		400000000000000000000013 = { isa = PBXBuildFile; fileRef = 500000000000000000000023; };
 		400000000000000000000052 = { isa = PBXBuildFile; fileRef = 500000000000000000000064; };
@@ -643,6 +655,9 @@
 		500000000000000000000156 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/ToolCallFormat.swift"; sourceTree = "<group>"; };
 		500000000000000000000157 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FollowUpChipsView.swift"; sourceTree = "<group>"; };
 		500000000000000000000158 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/NativeEngine+Benchmark.swift"; sourceTree = "<group>"; };
+		500000000000000000000159 = { isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = "Localizable.xcstrings"; sourceTree = "<group>"; };
+		500000000000000000000160 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/Localization.swift"; sourceTree = "<group>"; };
+		500000000000000000000161 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeys.swift"; sourceTree = "<group>"; };
 		500000000000000000000137 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/NativeEngine+Backends.swift"; sourceTree = "<group>"; };
 		500000000000000000000138 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/MCPClient.swift"; sourceTree = "<group>"; };
 		500000000000000000000139 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/MCPStore.swift"; sourceTree = "<group>"; };
@@ -669,6 +684,7 @@
 		500000000000000000000068 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioSessionTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000110 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioModelTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000119 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioModelIOTests.swift"; sourceTree = "<group>"; };
+		500000000000000000000162 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioLocalizationTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000087 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioBenchmarkTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000070 = {
 			isa = XCLocalSwiftPackageReference;
@@ -769,6 +785,7 @@
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = LiteRTLMStudio/Info.plist;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -796,6 +813,7 @@
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = LiteRTLMStudio/Info.plist;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
