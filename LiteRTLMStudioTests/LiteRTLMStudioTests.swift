@@ -257,4 +257,14 @@ final class LiteRTLMStudioTests: XCTestCase {
         XCTAssertTrue(ChatOutline.entries(
             from: [ChatStore.Message(role: "assistant", text: "답변")]).isEmpty)
     }
+
+    /// 대화 목차 높이 맞춤 (T-258 후속): 내용만큼, 최대 400 클램프.
+    func testChatOutlineCappedHeight() {
+        XCTAssertEqual(ChatOutline.cappedHeight(120), 120)
+        XCTAssertEqual(ChatOutline.cappedHeight(400), 400)
+        XCTAssertEqual(ChatOutline.cappedHeight(1000), 400)
+        XCTAssertEqual(ChatOutline.cappedHeight(1000, maxHeight: 250), 250)
+        XCTAssertEqual(ChatOutline.cappedHeight(0), 0)
+        XCTAssertEqual(ChatOutline.cappedHeight(-5), 0)
+    }
 }

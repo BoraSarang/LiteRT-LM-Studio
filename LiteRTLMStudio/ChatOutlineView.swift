@@ -8,6 +8,9 @@ struct ChatOutlineEntry: Identifiable, Hashable, Sendable {
 
 /// 대화 목차 추출 (T-258, AI Model Talk 질문 목차와 동일 규칙).
 enum ChatOutline {
+    /// 목록 최대 높이 (T-258 후속): 넘으면 스크롤.
+    nonisolated static let maxListHeight: CGFloat = 400
+
     /// 사용자 메시지 첫 줄 40자. 빈 본문은 이미지 첨부 표기.
     nonisolated static func entries(from messages: [ChatStore.Message]) -> [ChatOutlineEntry] {
         messages.filter { $0.role == "user" }.map { msg in
@@ -17,22 +20,37 @@ enum ChatOutline {
             return ChatOutlineEntry(id: msg.id, preview: preview)
         }
     }
+
+    /// 내용 높이 → 목록 높이 (순수, 테스트 가능, T-258 후속): 최대 400 클램프.
+    nonisolated static func cappedHeight(_ content: CGFloat,
+                                         maxHeight: CGFloat = maxListHeight) -> CGFloat {
+        max(0, min(content, maxHeight))
+    }
+}
+
+/// 목록 실측 높이 키 (T-258 후속).
+private struct OutlineHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
 }
 
 /// 우측 하단 플로팅 목차 (T-258/T-259/T-332): 평상시 바 3개, 호버 시 확장.
-/// 불투명 캡슐·우측 정렬·맨 아래 배치, 펼치면 최근 질문이 보이게 하단 스크롤.
+/// 반투명 머티리얼 캡슐(입력창과 구분), 펼치면 최근 질문이 보이게 하단 스크롤.
 struct ChatOutlineView: View {
     let entries: [ChatOutlineEntry]
     var onJump: (UUID) -> Void = { _ in }
     @State private var expanded = false
     @State private var hideWork: DispatchWorkItem?
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
         HStack(spacing: 0) {
             if expanded {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        VStack(alignment: .trailing, spacing: 6) {
+                        VStack(alignment: .trailing, spacing: 3) {
                             ForEach(entries) { entry in
                                 Button {
                                     onJump(entry.id)
@@ -40,10 +58,9 @@ struct ChatOutlineView: View {
                                     Text(entry.preview)
                                         .font(.system(size: 12))
                                         .lineLimit(1).truncationMode(.tail)
-                                        .padding(.horizontal, 12).padding(.vertical, 7)
-                                        .background(DSColor.primary.opacity(0.12))
-                                        .background(Color(nsColor: .textBackgroundColor))
-                                        .clipShape(Capsule())
+                                        .padding(.horizontal, 12).padding(.vertical, 5)
+                                        .background(.thinMaterial, in: Capsule())
+                                        .overlay(Capsule().stroke(.separator))
                                         .contentShape(Capsule())
                                 }
                                 .buttonStyle(.plain)
@@ -52,9 +69,17 @@ struct ChatOutlineView: View {
                                 .id(entry.id)
                             }
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 2)
+                        .background {
+                            GeometryReader { geo in
+                                Color.clear.preference(key: OutlineHeightKey.self,
+                                                       value: geo.size.height)
+                            }
+                        }
                     }
-                    .frame(maxWidth: 220, maxHeight: 400)
+                    .frame(maxWidth: 220)
+                    .frame(height: max(contentHeight, 1))
+                    .onPreferenceChange(OutlineHeightKey.self) { contentHeight = $0 }
                     .onAppear { scrollToBottom(proxy: proxy) }
                     .onChange(of: expanded) { _, open in
                         if open { scrollToBottom(proxy: proxy) }
