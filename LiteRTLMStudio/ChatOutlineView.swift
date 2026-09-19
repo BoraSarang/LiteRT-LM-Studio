@@ -70,6 +70,7 @@ struct ChatOutlineView: View {
                             }
                         }
                         .padding(.vertical, 2)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                         .background {
                             GeometryReader { geo in
                                 Color.clear.preference(key: OutlineHeightKey.self,
