@@ -385,6 +385,694 @@
         }
       }
     },
+    "benchmark.ui.aiAnalysis": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI Analysis"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 분석"
+          }
+        }
+      }
+    },
+    "benchmark.ui.analysisHelp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uses the model from the measured route to interpret the results and suggest improvements."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "측정한 경로의 모델로 결과를 해석하고 개선안을 제안합니다."
+          }
+        }
+      }
+    },
+    "benchmark.ui.analysisSubtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measured %@ · Analyzed %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "측정 %@ · 분석 %@"
+          }
+        }
+      }
+    },
+    "benchmark.ui.analyzing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analyzing…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "분석 중…"
+          }
+        }
+      }
+    },
+    "benchmark.ui.backendSummary": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backend %@ · prefill %d tokens · decode %d tokens"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "백엔드 %@ · 프리필 %d토큰 · 디코드 %d토큰"
+          }
+        }
+      }
+    },
+    "benchmark.ui.batteryHelp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speed is limited while charging"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "배터리 충전 중에는 속도 제한"
+          }
+        }
+      }
+    },
+    "benchmark.ui.beforeMeasure.desc": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a model and mode, then start measuring."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모델과 모드를 고르고 측정을 시작하세요."
+          }
+        }
+      }
+    },
+    "benchmark.ui.beforeMeasure.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready to Measure"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "측정 전이에요"
+          }
+        }
+      }
+    },
+    "benchmark.ui.cancelledNoResult": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No results because you cancelled."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용자 중단으로 결과가 없어요."
+          }
+        }
+      }
+    },
+    "benchmark.ui.chart.decode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decode"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "답 생성"
+          }
+        }
+      }
+    },
+    "benchmark.ui.chart.perSecond": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tokens per second"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "초당 토큰"
+          }
+        }
+      }
+    },
+    "benchmark.ui.chart.prefill": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prefill"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "입력 처리"
+          }
+        }
+      }
+    },
+    "benchmark.ui.chart.section": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phase"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구간"
+          }
+        }
+      }
+    },
+    "benchmark.ui.clearAll": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear All"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전체 지우기"
+          }
+        }
+      }
+    },
+    "benchmark.ui.cliTimeout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The CLI can time out for 12B-class models when warm-up exceeds 10 minutes. Stop (⌘.) and try the in-app engine instead."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLI는 12B급에서 워밍업 10분을 넘기면 타임아웃될 수 있어요. 중지(⌘.) 후 앱 내 엔진으로 시도해 보세요."
+          }
+        }
+      }
+    },
+    "benchmark.ui.copyResultHelp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy the analysis result"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "분석 결과 복사"
+          }
+        }
+      }
+    },
+    "benchmark.ui.delete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "삭제"
+          }
+        }
+      }
+    },
+    "benchmark.ui.elapsed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Took %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "소요 %@"
+          }
+        }
+      }
+    },
+    "benchmark.ui.elapsedShort": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ elapsed"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "경과 %@"
+          }
+        }
+      }
+    },
+    "benchmark.ui.failedNoResult": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No results because it failed. Check the log."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실패로 결과가 없어요. 로그를 확인해 주세요."
+          }
+        }
+      }
+    },
+    "benchmark.ui.filter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "필터"
+          }
+        }
+      }
+    },
+    "benchmark.ui.heading": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benchmarks"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "벤치마크"
+          }
+        }
+      }
+    },
+    "benchmark.ui.iterProgress": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measuring iteration %d/%d… · %@ elapsed"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "반복 %d/%d 측정 중… · 경과 %@"
+          }
+        }
+      }
+    },
+    "benchmark.ui.menu": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benchmark Menu"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "벤치마크 메뉴"
+          }
+        }
+      }
+    },
+    "benchmark.ui.modePicker": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모드"
+          }
+        }
+      }
+    },
+    "benchmark.ui.modelPicker": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모델"
+          }
+        }
+      }
+    },
+    "benchmark.ui.mtpHelp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTP is off by default. Turning it on speeds things up but can change the measurements."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTP는 기본 꺼짐. 켜면 가속되지만 측정값이 달라질 수 있어요."
+          }
+        }
+      }
+    },
+    "benchmark.ui.mtpUnstableHelp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measurements can be unstable when MTP (speculative decoding) is on or the battery is discharging below 20%."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MTP(추측적 디코딩)가 켜져 있거나 배터리가 20% 이하로 방전 중이면 측정값이 흔들릴 수 있어요."
+          }
+        }
+      }
+    },
+    "benchmark.ui.new": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Benchmark"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 벤치마크"
+          }
+        }
+      }
+    },
+    "benchmark.ui.newHelp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New benchmark (ready to measure)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 벤치마크 (측정 준비)"
+          }
+        }
+      }
+    },
+    "benchmark.ui.newMeasurement": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Measurement"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 측정"
+          }
+        }
+      }
+    },
+    "benchmark.ui.noRecord": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Record"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기록 없음"
+          }
+        }
+      }
+    },
+    "benchmark.ui.noRecords.desc": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a measurement and the results will pile up here."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "측정을 시작하면 결과가 여기에 쌓여요."
+          }
+        }
+      }
+    },
+    "benchmark.ui.noRecords.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Records Yet"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기록이 없어요"
+          }
+        }
+      }
+    },
+    "benchmark.ui.noSavedLog": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No saved raw output (recorded by an earlier version)."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장된 원문이 없어요 (이전 버전 기록)."
+          }
+        }
+      }
+    },
+    "benchmark.ui.perSecond": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1f tokens/s"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1f 토큰/초"
+          }
+        }
+      }
+    },
+    "benchmark.ui.rawOutput": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raw Output"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "원문 출력"
+          }
+        }
+      }
+    },
+    "benchmark.ui.records": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Records"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기록"
+          }
+        }
+      }
+    },
+    "benchmark.ui.showPrompt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Analysis Prompt"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "분석 프롬프트 보기"
+          }
+        }
+      }
+    },
+    "benchmark.ui.stageProgress": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in progress… · %@ elapsed"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 진행 중… · 경과 %@"
+          }
+        }
+      }
+    },
+    "benchmark.ui.startAnalysis": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Analysis"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "분석 시작"
+          }
+        }
+      }
+    },
+    "benchmark.ui.startMeasure": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Measurement"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "측정 시작"
+          }
+        }
+      }
+    },
+    "benchmark.ui.stop": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "중지"
+          }
+        }
+      }
+    },
     "chat.copy.answer": {
       "localizations": {
         "en": {
