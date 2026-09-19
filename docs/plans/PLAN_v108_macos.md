@@ -27,9 +27,12 @@
   `ModelStore`·`ChatStore`·`SkillsStore`·`UnifiedStatus`·`MessageBubbles`(상대 시간)를 키 기반으로 전환.
   카탈로그 147키(도구 40키 포함), `LocalizationKeyIndex`로 전 키 인덱스 분리. 테스트는
   `LiteRTLMStudioTestCase`에서 한국어 고정 + 영어 전환·포맷·전 키 해석 검증. 318/318·build OK·lint 0.
-* T-363 화면 치환(영역별 커밋): 사이드바 → 메인/채팅 → 인스펙터 → 설정 5탭 → 모델관리/벤치 →
-  팔레트/온보딩/웰컴/정보 → MCP·스킬.
-* T-364 카탈로그 채우기: ko 원문 + en 번역 100%.
+* T-363 화면 치환(**완료**): 사이드바 → 메인/채팅 → 인스펙터 → 설정 5탭 → 모델관리/다운로드 → 벤치마크 →
+  MCP·스킬 → 웰컴/정보/팔레트 → 카탈로그/가져오기 → 시스템 모니터·디버그·메뉴바·단축어 → 창 제목/앱 메뉴/마크다운
+  순서로 영역별 12커밋. 키 파일은 `LocalizationKeys{Screens,Models,Views,Core}.swift`로 분할(file_length 회피).
+  남은 한국어는 로그·도구 결과·프롬프트라 의도적 유지. 창 제목·앱 메뉴만 다음 실행 반영.
+* T-364 카탈로그 채우기(**완료**): 표시 문자열이 있는 Core 로직까지 키 전환(설정 요약·추천 설명·PERF 뱃지·오류 문구·
+  전원 요약·세션 기본 제목·칩 툴팁). 레지스트리 774키 / 카탈로그 814키, ko·en 100%.
 * T-365 한국어 다듬기: korean-humanizer 적용(긴 문장 + 라벨), 카탈로그 ko 값만 수정.
 * T-366 시스템/문서: `InfoPlist.xcstrings`(권한 설명), "시스템 문구는 다음 실행 때 반영" 안내,
   README·TODO·CHANGELOG·세션 로그.
