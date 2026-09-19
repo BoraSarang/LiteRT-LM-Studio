@@ -27,6 +27,15 @@ enum ModelAlias {
         return pretty(id: id)
     }
 
+    /// 모달리티 한글 표기 (T-334, 순수): "Text Vision Audio" → "텍스트·이미지·음성".
+    nonisolated static func modalitiesKorean(_ raw: String) -> String {
+        let map = ["text": "텍스트", "vision": "이미지", "audio": "음성"]
+        let parts = raw.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        let converted = parts.map { map[$0.lowercased()] ?? $0 }
+        guard !converted.isEmpty else { return raw }
+        return converted.joined(separator: "·")
+    }
+
     static func setAlias(id: String, name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty {

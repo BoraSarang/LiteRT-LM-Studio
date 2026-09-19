@@ -42,6 +42,7 @@ extension ContentView {
                 Label(InspectorTitle.backend, systemImage: "cpu").tag(InspectorTab.backend)
                 Label(InspectorTitle.generate, systemImage: "slider.horizontal.3").tag(InspectorTab.generate)
             }
+            .labelsHidden()
             .frame(maxWidth: .infinity, minHeight: 32)
             .padding(.horizontal, 8).padding(.vertical, 6)
             Divider()
@@ -339,6 +340,7 @@ struct BackendSectionView: View {
             }
             Text("비워두면 모델 기본값 사용. 크게 잡으면 긴 대화 가능, 메모리 사용 증가.")
                 .font(DS.captionFont).foregroundStyle(.secondary)
+                .lineLimit(3).fixedSize(horizontal: false, vertical: true)
         }
         if model?.thinking == true {
             Toggle("추론 기본값", isOn: $config.draftThinking)
@@ -352,6 +354,7 @@ struct BackendSectionView: View {
         }
         HStack(spacing: 4) {
             Toggle("MTP (추측적 디코딩) 활성화", isOn: $config.draftMTP)
+                .toggleStyle(.switch)
                 .help("GPU 백엔드 권장. 모델이 drafter 포함 시 가속.")
                 .disabled(model?.speculative == false)
             Image(systemName: "info.circle")
@@ -359,22 +362,31 @@ struct BackendSectionView: View {
                 .help("답변 생성 속도를 높입니다. 끄면 속도만 느려지고 정확도는 동일합니다.")
         }
         if let mdl = model {
-            LabeledContent("모델 Speculative", value: mdl.speculative ? "지원" : "미포함")
-            LabeledContent("모달리티", value: mdl.modalities)
+            LabeledContent("추측 디코딩", value: mdl.speculative ? "지원" : "미포함")
+            LabeledContent("지원 입력", value: ModelAlias.modalitiesKorean(mdl.modalities))
         }
         DisclosureGroup("고급") {
-            Toggle("Metal residency", isOn: $residency)
+            Toggle("Metal 상주", isOn: $residency)
+                .toggleStyle(.switch)
                 .help("GPU 메모리에 모델을 상주시켜 스와핑 방지. 앱 내 엔진 초기화 때 적용 (모델 전환·재실행 후).")
-            Picker("Visual 예산", selection: $visualBudget) {
-                Text("70").tag(70); Text("140").tag(140); Text("280").tag(280)
-                Text("560").tag(560); Text("1120").tag(1120)
-            }.pickerStyle(.segmented)
-            .help("이미지당 시각 토큰 상한 (Gemma4 전용). 엔진 초기화 때 적용.")
-            Picker("정밀도", selection: $config.draftPrecision) {
-                Text("내장").tag(""); Text("fp16").tag("fp16"); Text("fp32").tag("fp32")
-                Text("int8").tag("int8"); Text("int16").tag("int16")
-            }.pickerStyle(.segmented)
-            .help("연산 정밀도 재지정. serve 경로만 유효, 적용 후 재시작.")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Visual 예산")
+                Picker("Visual 예산", selection: $visualBudget) {
+                    Text("70").tag(70); Text("140").tag(140); Text("280").tag(280)
+                    Text("560").tag(560); Text("1120").tag(1120)
+                }.pickerStyle(.segmented)
+                .labelsHidden()
+                .help("이미지당 시각 토큰 상한 (Gemma4 전용). 엔진 초기화 때 적용.")
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("정밀도")
+                Picker("정밀도", selection: $config.draftPrecision) {
+                    Text("내장").tag(""); Text("fp16").tag("fp16"); Text("fp32").tag("fp32")
+                    Text("int8").tag("int8"); Text("int16").tag("int16")
+                }.pickerStyle(.segmented)
+                .labelsHidden()
+                .help("연산 정밀도 재지정. serve 경로만 유효, 적용 후 재시작.")
+            }
         }
     }
 }

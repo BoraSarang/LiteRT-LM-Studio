@@ -14,6 +14,13 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(ModelAlias.display(id: "test-model-x"), ModelAlias.pretty(id: "test-model-x"))
     }
 
+    /// 모달리티 한글 표기 (T-334).
+    func testModalitiesKorean() {
+        XCTAssertEqual(ModelAlias.modalitiesKorean("Text Vision Audio"), "텍스트·이미지·음성")
+        XCTAssertEqual(ModelAlias.modalitiesKorean("Text"), "텍스트")
+        XCTAssertEqual(ModelAlias.modalitiesKorean("-"), "-")
+    }
+
     /// 초안/적용/취소: 임시 경로로 실제 디스크 왕복 (실제 config 불변).
     @MainActor
     func testConfigDraftApplyRevert() async throws {
