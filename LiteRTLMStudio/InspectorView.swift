@@ -130,9 +130,12 @@ extension ContentView {
                     }
                     HStack {
                         Text("상위 K")
-                        Spacer()
-                        Text("\(chat.topK)").monospacedDigit()
-                        Stepper("", value: $chat.topK, in: 1...256).labelsHidden()
+                        Slider(value: Binding(
+                            get: { Double(min(max(chat.topK, 1), 100)) },
+                            set: { chat.topK = Int($0) }
+                        ), in: 1...100, step: 1)
+                        Text("\(min(max(chat.topK, 1), 100))").monospacedDigit()
+                            .frame(minWidth: 28, alignment: .trailing)
                     }
                     HStack {
                         Text("상위 P"); Slider(value: $chat.topP, in: 0...1, step: 0.05)
@@ -144,7 +147,8 @@ extension ContentView {
                         TextField("예: 500", text: Binding(
                             get: { chat.maxTokens.map(String.init) ?? "" },
                             set: { chat.maxTokens = ConfigStore.intOrNil($0, min: 1) }
-                        )).multilineTextAlignment(.trailing).frame(width: 140)
+                        )).textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.trailing).frame(width: 140)
                     }
                     .help("응답 길이 상한. 빈칸이면 무제한.")
                     HStack {
@@ -153,12 +157,29 @@ extension ContentView {
                         TextField("예: 7", text: Binding(
                             get: { chat.seed.map(String.init) ?? "" },
                             set: { chat.seed = Int($0.trimmingCharacters(in: .whitespaces)) }
-                        )).multilineTextAlignment(.trailing).frame(width: 140)
+                        )).textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.trailing).frame(width: 140)
                     }
                     .help("빈칸이면 랜덤. 숫자를 고정하면 같은 질문에 같은 답.")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("시스템 프롬프트")
-                        TextField("예: 간결하게 답해", text: $chat.systemPrompt)
+                        TextEditor(text: $chat.systemPrompt)
+                            .font(.system(size: 13))
+                            .frame(height: 64)
+                            .scrollContentBackground(.hidden)
+                            .background(Color(nsColor: .textBackgroundColor))
+                            .clipShape(.rect(cornerRadius: 6))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 6).stroke(.separator)
+                            }
+                            .overlay(alignment: .topLeading) {
+                                if chat.systemPrompt.isEmpty {
+                                    Text("예: 간결하게 답해")
+                                        .font(.system(size: 13)).foregroundStyle(.tertiary)
+                                        .padding(EdgeInsets(top: 8, leading: 5, bottom: 0, trailing: 0))
+                                        .allowsHitTesting(false)
+                                }
+                            }
                     }
                     .help("앱 내 엔진 대화에만 전달됩니다. 서버 경로는 미지원.")
                     if selectedModel?.thinking == true {
