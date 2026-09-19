@@ -2,11 +2,10 @@
 
 ## [Unreleased] (macos)
 
-* 윈도우 루트 Accessor (T-338): T-337 후속. ContentView 해석을 기다리느라
-  표시 이후에 복원되던 문제를 루트 부착으로 해소 시도. [macos]
-
-* 윈도우 위치 점프 제거 (T-337): 프레임 autosave를 표시 전 동기 적용.
-  중앙에 떴다가 이전 위치로 이동하던 문제 해소. [macos]
+* 윈도우 시작 위치 점프 근본 수정 (T-339): T-337/T-338(뷰 트리 `WindowAccessor`)은
+  복원이 표시 이후에 실행되는 타이밍을 이기지 못해 실패(중앙 → 저장 위치 이동 지속).
+  AppKit 런치 단계(`applicationDidFinishLaunching`)에서 표시 전 창을 잡아
+  `setFrameAutosaveName`을 적용해 해소. 중복 `WindowAccessor` 제거. [macos]
 
 * 초기화 실패 원인 표시 (T-336, PLAN_v107): 모델 파일 선확인(없으면 경로 명시),
   사이드바에 코드 대신 원인 2줄+전체 툴팁. [macos]
