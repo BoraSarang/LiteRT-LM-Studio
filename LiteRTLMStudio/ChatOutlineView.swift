@@ -30,28 +30,28 @@ struct ChatOutlineView: View {
     var body: some View {
         HStack(spacing: 0) {
             if expanded {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(entries) { entry in
-                        Button {
-                            onJump(entry.id)
-                        } label: {
-                            Text(entry.preview)
-                                .font(.system(size: 12))
-                                .lineLimit(1).truncationMode(.tail)
-                                .frame(maxWidth: 200, alignment: .leading)
-                                .padding(.horizontal, 10).padding(.vertical, 5)
-                                .contentShape(Rectangle())
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(entries) { entry in
+                            Button {
+                                onJump(entry.id)
+                            } label: {
+                                Text(entry.preview)
+                                    .font(.system(size: 12))
+                                    .lineLimit(1).truncationMode(.tail)
+                                    .padding(.horizontal, 12).padding(.vertical, 7)
+                                    .background(DSColor.primary.opacity(0.12))
+                                    .clipShape(Capsule())
+                                    .contentShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.primary)
+                            .help(entry.preview)
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.primary)
                     }
+                    .padding(.vertical, 4)
                 }
-                .padding(.vertical, 8)
-                .background {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(.textBackgroundColor).opacity(0.5))
-                        .shadow(radius: 4)
-                }
+                .frame(maxWidth: 220, maxHeight: 400)
                 .transition(.opacity.combined(with: .move(edge: .trailing)))
             }
             // 축소 바 3개 (히트 영역).

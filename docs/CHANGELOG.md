@@ -2,6 +2,10 @@
 
 ## [Unreleased] (macos)
 
+* 대화 목차 후속칩 스타일 (T-330, PLAN_v104): 확장 패널 행을 캡슐 칩으로
+  (Primary 0.12, 바깥 카드 제거), 전체 표시 + 패널 내 스크롤(maxHeight 400),
+  행 전체 제목 툴팁. 후속 칩 배경도 Primary 통일. [macos]
+
 * 리스트 배경·카드화 (T-327, PLAN_v101): 3 리스트 회색(controlBackground)+
   상세 흰색(textBackground) 명시, HSplit 네이티브 스플리터 유지,
   내 모델 4행 공용 DSCardRow(흰 카드·radius 12·padding 12·shadow),

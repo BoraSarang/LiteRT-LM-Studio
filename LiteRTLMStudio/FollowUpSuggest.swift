@@ -315,7 +315,7 @@ struct FollowUpChipsView: View {
                             .lineLimit(1)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
-                            .background(Color.accentColor.opacity(0.12))
+                            .background(DSColor.primary.opacity(0.12))
                             .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
