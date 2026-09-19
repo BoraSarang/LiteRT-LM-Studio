@@ -2,6 +2,9 @@
 
 ## [Unreleased] (macos)
 
+* 윈도우 루트 Accessor (T-338): T-337 후속. ContentView 해석을 기다리느라
+  표시 이후에 복원되던 문제를 루트 부착으로 해소 시도. [macos]
+
 * 윈도우 위치 점프 제거 (T-337): 프레임 autosave를 표시 전 동기 적용.
   중앙에 떴다가 이전 위치로 이동하던 문제 해소. [macos]
 

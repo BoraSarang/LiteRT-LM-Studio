@@ -20,18 +20,21 @@ struct LiteRTLMStudioApp: App {
         // 단일 창: openWindow(id:)가 기존 창을 앞으로 올림 (중복 생성 방지).
         Window("LiteRT-LM Studio", id: "main") {
             // T-257 온보딩 게이트: 미통과 시 랜딩, 통과 후 메인.
-            if onboardingDone {
-                ContentView(models: services.models, daemon: services.daemon, monitor: services.monitor,
-                            nativeEngine: services.nativeEngine, chat: services.chat,
-                            bench: services.bench, benchHistory: services.benchHistory,
-                            releases: services.releases,
-                            wigolo: services.wigolo, config: services.config)
-                    .frame(minWidth: 1000, minHeight: 640)
-                    .background {
-                        WindowAccessor { $0?.setFrameAutosaveName("LiteRTLMStudioMain") }
-                    }
-            } else {
-                LandingView(done: $onboardingDone)
+            Group {
+                if onboardingDone {
+                    ContentView(models: services.models, daemon: services.daemon, monitor: services.monitor,
+                                nativeEngine: services.nativeEngine, chat: services.chat,
+                                bench: services.bench, benchHistory: services.benchHistory,
+                                releases: services.releases,
+                                wigolo: services.wigolo, config: services.config)
+                        .frame(minWidth: 1000, minHeight: 640)
+                } else {
+                    LandingView(done: $onboardingDone)
+                }
+            }
+            // T-338: 루트에 부착해 ContentView 해석 전에 autosave 복원 (중앙 점프 방지).
+            .background {
+                WindowAccessor { $0?.setFrameAutosaveName("LiteRTLMStudioMain") }
             }
         }
         .defaultSize(width: 1340, height: 800) // T-092 계산치: 사이드바 220+열 768+여백 32+인스펙터 320
