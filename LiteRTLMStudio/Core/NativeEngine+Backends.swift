@@ -1,8 +1,7 @@
 import Foundation
 
 /// 앱 내 엔진 백엔드 묶음 확장 (T-273 분리: 본문 길이 관리).
-extension NativeEngine {
-    /// 엔진 백엔드 묶음 (T-177): config.json 추종 결과.
+extension NativeEngine {    /// 엔진 백엔드 묶음 (T-177): config.json 추종 결과.
     struct EngineBackends: Equatable {
         var backend: Backend = .gpu
         var vision: Backend? = .cpu()
@@ -44,5 +43,21 @@ extension NativeEngine {
     nonisolated static func modalFallback(_ backends: EngineBackends) -> EngineBackends? {
         guard backends.vision != nil || backends.audio != nil else { return nil }
         return EngineBackends(backend: backends.backend, vision: nil, audio: nil)
+    }
+
+    /// MTP 플래그 결정 (T-336 분리): 사용자 설정 × 모델 지원, 로그 포함.
+    func resolveMTP(modelID: String, supported: Bool) -> Bool {
+        let userMTP = ConfigStore.savedMTP(modelID: modelID) ?? false
+        let mtp = userMTP && supported
+        ExperimentalFlags.enableSpeculativeDecoding = mtp
+        let log = DebugLogger.shared
+        if mtp {
+            log.info(feature: "앱내엔진", "MTP 활성화: 사용자 설정=\(userMTP), 모델지원=\(supported)")
+        } else if userMTP {
+            log.info(feature: "앱내엔진", "MTP 비활성화: 모델이 지원하지 않음 (\(modelID))")
+        } else if supported {
+            log.info(feature: "앱내엔진", "MTP 비활성화: 사용자 설정 OFF")
+        }
+        return mtp
     }
 }

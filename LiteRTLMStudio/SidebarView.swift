@@ -255,9 +255,10 @@ extension ContentView {
                     Task { try? await nativeEngine.restart(modelID: chat.model) }
                 }
             case .failed:
-                Text(nativeEngine.lastError ?? "")
+                Text(nativeEngine.lastErrorDetail ?? nativeEngine.lastError ?? "")
                     .font(DS.captionFont).foregroundStyle(.red)
-                    .help("앱 내 엔진 초기화 실패 코드")
+                    .lineLimit(2).truncationMode(.tail)
+                    .help("\(nativeEngine.lastError ?? "") — \(nativeEngine.lastErrorDetail ?? "")")
                 lifecycleActionRow(icon: "arrow.clockwise", title: "다시 실행",
                                    help: "반납 후 처음부터 다시 준비") {
                     Task { try? await nativeEngine.restart(modelID: chat.model) }

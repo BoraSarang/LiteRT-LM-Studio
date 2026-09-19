@@ -39,6 +39,8 @@ final class NativeEngine: InferenceEngine, ObservableObject {
     @Published private(set) var preparedModelIDs: Set<String> = []
     @Published private(set) var state: State = .idle
     @Published private(set) var lastError: String?
+    /// 실패 원인 원문 (T-336): 코드만 보이던 사이드바에 원인 표시.
+    @Published private(set) var lastErrorDetail: String?
     /// 현재 활성 대화 (UI 바인딩용, T-266).
     var activeConversation: Conversation?
     /// 현재 활성 키 (T-191, T-290).
@@ -78,23 +80,21 @@ final class NativeEngine: InferenceEngine, ObservableObject {
             logger.info(feature: "앱내엔진", "캐시 히트: \(modelID) 이미 준비됨")
             return
         }
+        // T-336: 파일 선확인 — 없으면 엔진까지 가지 않고 원인 확정.
+        let path = Self.modelPath(for: modelID)
+        guard FileManager.default.fileExists(atPath: path) else {
+            markInitFailed("모델 파일 없음: \(path)")
+            throw EngineError.initFailed("모델 파일 없음: \(path)")
+        }
         state = .preparing
         lastError = nil
+        lastErrorDetail = nil
         Self.installFlags()
 
         // MTP: 사용자 설정(ConfigStore) 우선, 모델 메타데이터는 지원 여부만 확인 (폴백용)
-        let caps = Capabilities(modelPath: Self.modelPath(for: modelID))
+        let caps = Capabilities(modelPath: path)
         let modelSupportsMTP = caps?.hasSpeculativeDecodingSupport() ?? false
-        let userMTP = ConfigStore.savedMTP(modelID: modelID) ?? false
-        let mtp = userMTP && modelSupportsMTP
-        ExperimentalFlags.enableSpeculativeDecoding = mtp
-        if mtp {
-            logger.info(feature: "앱내엔진", "MTP 활성화: 사용자 설정=\(userMTP), 모델지원=\(modelSupportsMTP)")
-        } else if userMTP && !modelSupportsMTP {
-            logger.info(feature: "앱내엔진", "MTP 비활성화: 모델이 지원하지 않음 (\(modelID))")
-        } else if !userMTP && modelSupportsMTP {
-            logger.info(feature: "앱내엔진", "MTP 비활성화: 사용자 설정 OFF")
-        }
+        let mtp = resolveMTP(modelID: modelID, supported: modelSupportsMTP)
 
         // T-290: 도구 미지원 모델은 도구 없이 대화 (강제 등록 시 추론 실패).
         let supportsFC = caps?.supportsFunctionCalling() ?? false
@@ -141,6 +141,7 @@ final class NativeEngine: InferenceEngine, ObservableObject {
     private func markInitFailed(_ message: String) {
         state = .failed
         lastError = EngineError.initFailed("").code
+        lastErrorDetail = message
         logger.error(code: "E-MAC-ENG-0001", feature: "앱내엔진", "초기화 실패: \(message)")
     }
 
@@ -189,6 +190,7 @@ final class NativeEngine: InferenceEngine, ObservableObject {
             } catch {
                 state = .failed
                 lastError = EngineError.initFailed("").code
+                lastErrorDetail = "\(error)"
                 logger.error(code: "E-MAC-ENG-0001", feature: "앱내엔진",
                              "초기화 실패 (\(modelID)): \(error)")
                 throw EngineError.initFailed("\(error)")

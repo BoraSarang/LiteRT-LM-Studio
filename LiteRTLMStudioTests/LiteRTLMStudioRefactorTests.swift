@@ -314,9 +314,21 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         XCTAssertFalse(fake.lastSessionID.isEmpty)
     }
 
-    /// 세션 제거 (T-301): 해당 방 풀 항목+활성 포인터 정리, 타방 유지.
-    func testEvictSessionClearsActive() {
+    /// 파일 선확인 (T-336): 없는 모델은 엔진까지 가지 않고 원인 확정.
+    func testPrepareMissingFileFailsFast() async {
         let engine = NativeEngine()
+        do {
+            try await engine.prepare(modelID: "no-such-model-xyz")
+            XCTFail("없는 모델은 실패해야 함")
+        } catch {
+            XCTAssertEqual(engine.state, .failed)
+            XCTAssertEqual(engine.lastError, "E-MAC-ENG-0001")
+            XCTAssertTrue(engine.lastErrorDetail?.contains("모델 파일 없음") == true)
+        }
+    }
+
+    /// 세션 제거 (T-301): 해당 방 풀 항목+활성 포인터 정리, 타방 유지.
+    func testEvictSessionClearsActive() {        let engine = NativeEngine()
         let key = ConvKey(modelID: "m", sessionID: "s", options: GenerationOptions())
         engine.activeKey = key
         engine.evictSession(modelID: "m", sessionID: "s")
