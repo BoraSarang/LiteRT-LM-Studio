@@ -1,8 +1,13 @@
 import AppKit
 import SwiftUI
 
+/// 메인 창 프레임 autosave 이름·타이틀 (T-339: AppDelegate가 표시 전 창을 식별·복원하는 데 사용).
+let mainWindowFrameName = "LiteRTLMStudioMain"
+let mainWindowTitle = "LiteRT-LM Studio"
+
 @main
 struct LiteRTLMStudioApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var services: AppServices
     @AppStorage("showInDock") private var showInDock = false
     @AppStorage("onboardingDone") private var onboardingDone = false
@@ -31,10 +36,6 @@ struct LiteRTLMStudioApp: App {
                 } else {
                     LandingView(done: $onboardingDone)
                 }
-            }
-            // T-338: 루트에 부착해 ContentView 해석 전에 autosave 복원 (중앙 점프 방지).
-            .background {
-                WindowAccessor { $0?.setFrameAutosaveName("LiteRTLMStudioMain") }
             }
         }
         .defaultSize(width: 1340, height: 800) // T-092 계산치: 사이드바 220+열 768+여백 32+인스펙터 320
@@ -134,32 +135,15 @@ struct WindowTitleSync: NSViewRepresentable {
     }
 }
 
-/// NSWindow 포착 (T-092): 프레임 자동 저장용. 최초 1회만 적용.
-/// T-337: 표시 전에 동기 적용 — async면 중앙에 떴다가 저장 위치로 점프함.
-private struct WindowAccessor: NSViewRepresentable {
-    let onWindow: (NSWindow?) -> Void
-
-    func makeNSView(context: Context) -> NSView {
-        NSView()
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        guard !context.coordinator.done else { return }
-        if let window = nsView.window {
-            window.setFrameAutosaveName("LiteRTLMStudioMain")
-            context.coordinator.done = true
-        } else {
-            DispatchQueue.main.async { [weak nsView] in
-                guard let window = nsView?.window else { return }
-                window.setFrameAutosaveName("LiteRTLMStudioMain")
-                context.coordinator.done = true
-            }
-        }
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator {
-        var done = false
+/// T-339: 첫 창 프레임 복원 타이밍 처방.
+/// SwiftUI `Window` 씬은 `defaultSize` 기준 중앙에 창을 띄운 뒤, 뷰 트리 복원(NSViewRepresentable)이
+/// 표시 이후에 실행되어 "중앙 → 저장 위치" 점프가 생긴다. T-337/T-338의 뷰 트리 방식은 이 타이밍을
+/// 이기지 못했다. AppKit 런치 단계(표시 전)에서 창을 잡아 autosave 프레임을 적용한다.
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        guard let window = NSApp.windows.first(where: { $0.title == mainWindowTitle })
+                ?? NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { return }
+        window.setFrameAutosaveName(mainWindowFrameName)
     }
 }
