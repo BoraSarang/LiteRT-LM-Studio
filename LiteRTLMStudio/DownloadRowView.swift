@@ -78,17 +78,17 @@ struct DownloadRow: View {
     }
 
     private var metaColor: Color {
-        if downloader.errorMessage != nil { return .red }
-        if downloader.finished { return .orange }
+        if downloader.errorMessage != nil { return DSColor.error }
+        if downloader.finished { return DSColor.warning }
         return .secondary
     }
 
     private var statusIcon: some View {
         Group {
             if downloader.finished {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(DSColor.success)
             } else if downloader.errorMessage != nil {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DSColor.error)
             } else if downloader.cancelled {
                 Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
             } else if downloader.paused {
@@ -115,6 +115,7 @@ struct DownloadRow: View {
             Button("이어받기") { downloader.resume() }
                 .controlSize(.small)
                 .buttonStyle(.borderedProminent)
+                .tint(DSColor.primary)
             Button("취소") { downloader.cancel(silent: true) }
                 .controlSize(.small)
             Button("삭제") { confirmDelete() }

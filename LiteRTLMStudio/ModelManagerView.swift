@@ -150,15 +150,18 @@ struct ModelManagerView: View {
     @State var notice: String?
     // Sections 확장에서 접근하므로 internal (T-240).
     @State var browseSelected = true
-    @State private var highlightModelID: String?
+    // Sections 확장에서 접근하므로 internal (T-321 행 분리).
+    @State var highlightModelID: String?
     @State private var highlightTask: Task<Void, Never>?
+    @State private var showPurgeConfirm = false
 
     /// 하이라이트 만료 판정 (순수, T-247).
     nonisolated static func shouldClearHighlight(setAt: Date, now: Date = Date()) -> Bool {
         now.timeIntervalSince(setAt) >= 3
     }
 
-    private var installedIDs: Set<String> { Set(models.models.map(\.id)) }
+    // Sections 확장에서 접근하므로 internal (T-321 행 분리).
+    var installedIDs: Set<String> { Set(models.models.map(\.id)) }
     // Sections 확장에서 접근하므로 internal (T-247).
     var mapping: [String: FileMapping] { models.loadMapping() }
 
@@ -199,6 +202,15 @@ struct ModelManagerView: View {
     private var myModelsBody: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
+            // T-321: 디스크 2배 사용 경고 배너 (설치됨+스테이징 중복분 정리 액션).
+            if !purgeableStaged.isEmpty {
+                DSWarningBanner(
+                    text: "설치된 모델의 원본 \(purgeableStaged.count)개가 스테이징에 남아 디스크를 2배 씁니다.",
+                    actionTitle: "원본 삭제") {
+                    guard checkPermission() else { return }
+                    showPurgeConfirm = true
+                }
+            }
             if models.models.isEmpty, models.staged.isEmpty,
                center.items.isEmpty, center.orphans.isEmpty {
                 ContentUnavailableView("모델이 없어요", systemImage: "archivebox",
@@ -235,6 +247,50 @@ struct ModelManagerView: View {
             }
             footer
         }
+        .confirmationDialog("설치된 모델의 원본 \(purgeableStaged.count)개를 지울까요?",
+                            isPresented: $showPurgeConfirm, titleVisibility: .visible) {
+            Button("원본 삭제", role: .destructive) { purgeStagedOriginals() }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("설치된 모델은 유지되고 스테이징 원본만 지워집니다. 다시 설치하려면 다시 받아야 합니다.")
+        }
+    }
+
+    /// 설치된 모델의 스테이징 원본 목록 (T-321): 2배 디스크 정리 대상.
+    private var purgeableStaged: [StagedEntry] {
+        let map = models.loadMapping()
+        return models.staged.filter { entry in
+            let localID = map[entry.fileName]?.localID
+                ?? (entry.fileName as NSString).deletingPathExtension
+            return installedIDs.contains(localID)
+        }
+    }
+
+    /// 스테이징 원본 일괄 삭제 (T-321): 설치 모델은 유지.
+    private func purgeStagedOriginals() {
+        var failed = 0
+        for entry in purgeableStaged where !models.deleteStaged(fileName: entry.fileName) {
+            failed += 1
+        }
+        models.scanStaging()
+        models.invalidateListCache()
+        if failed > 0 {
+            notice = "원본 삭제 중 \(failed)개가 실패했습니다."
+        } else {
+            notice = nil
+        }
+        DebugLogger.shared.info(feature: "모델관리", "원본 삭제 \(purgeableStaged.count)건 (실패 \(failed)건)")
+    }
+
+    /// 친화적 표시명 (T-321): `.litertlm` 숨김 + 별칭 우선.
+    /// Sections 확장에서 접근하므로 internal.
+    func friendlyFileName(_ fileName: String) -> String {
+        let stem = ModelDownload.fileStem(fileName)
+        if let localID = mapping[fileName]?.localID, !localID.isEmpty {
+            return ModelAlias.display(id: localID)
+        }
+        let pretty = ModelAlias.pretty(id: stem)
+        return pretty == stem ? stem : pretty
     }
 
     // MARK: - 상·하단
@@ -263,6 +319,7 @@ struct ModelManagerView: View {
                 Label("새 모델 가져오기", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
+            .tint(DSColor.primary)
             .help("Hugging Face 저장소에서 직접 다운로드")
             Button {
                 guard checkPermission() else { return }
@@ -289,87 +346,7 @@ struct ModelManagerView: View {
         }
     }
 
-    // MARK: - 행
-
-    private func installedRow(_ m: ModelStore.Model) -> some View {
-        HStack(spacing: 8) {
-            Circle().fill(Color.green).frame(width: 8, height: 8)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(ModelAlias.display(id: m.id)).font(.system(size: 13, weight: .medium))
-                Text("\(m.id) · \(m.listedSize) · 실점유 \(m.realSize)")
-                    .font(DS.captionFont).foregroundStyle(.secondary)
-            }
-            .lineLimit(1).truncationMode(.tail)
-            Spacer(minLength: 4)
-            Text(StageState.installed(localID: m.id).title)
-                .font(DS.captionFont).foregroundStyle(.secondary)
-            Menu {
-                Button("채팅 모델로 선택") {
-                    NotificationCenter.default.post(name: .selectChatModel, object: m.id)
-                }
-                Button("표시 이름 바꾸기") {
-                    NotificationCenter.default.post(name: .requestAlias, object: m.id)
-                }
-                Button("실제 ID 변경") { renameDialog(id: m.id) }
-                Button("벤치마크 실행") {
-                    NotificationCenter.default.post(name: .runBenchmarkModel, object: m.id)
-                }
-                Divider()
-                Button("모델 삭제", role: .destructive) {
-                    Task { await deleteInstalled(id: m.id) }
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(.primary)
-                    .frame(width: 24, height: 20).contentShape(Rectangle())
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .help("모델 메뉴")
-        }
-        .padding(.vertical, 2)
-        .background {
-            if highlightModelID == m.id {
-                RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15))
-            }
-        }
-    }
-
-    private func stagedRow(_ s: StagedEntry) -> some View {
-        let state = ModelStore.stageState(fileName: s.fileName,
-                                          installedIDs: installedIDs, mapping: mapping)
-        return HStack(spacing: 8) {
-            Circle().fill(state == .downloadedUninstalled ? Color.orange : Color.green)
-                .frame(width: 8, height: 8)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(s.fileName).font(.system(size: 13, weight: .medium))
-                Text("\(ModelDownload.formatBytes(s.sizeBytes)) · \(state.title)")
-                    .font(DS.captionFont).foregroundStyle(.secondary)
-            }
-            .lineLimit(1).truncationMode(.tail)
-            Spacer(minLength: 4)
-            if state == .downloadedUninstalled {
-                Button("설치") { installDialog(entry: s) }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .help("레지스트리에 설치 (litert-lm import)")
-            }
-            Menu {
-                if state == .downloadedUninstalled {
-                    Button("설치") { installDialog(entry: s) }
-                }
-                Button("파일 삭제", role: .destructive) { deleteStagedDialog(entry: s) }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(.primary)
-                    .frame(width: 24, height: 20).contentShape(Rectangle())
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .help("스테이징 메뉴")
-        }
-        .padding(.vertical, 2)
-    }
+    // MARK: - 행 (본체는 ModelManagerSections.swift)
 
     // MARK: - 액션
 

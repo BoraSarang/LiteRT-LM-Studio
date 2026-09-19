@@ -20,7 +20,7 @@ extension ModelManagerView {
                 .padding(.vertical, 7)
                 .background {
                     if selected {
-                        RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15))
+                        RoundedRectangle(cornerRadius: 8).fill(DSColor.primary.opacity(0.15))
                     }
                 }
                 .contentShape(Rectangle())
@@ -118,16 +118,101 @@ extension ModelManagerView {
     }
 }
 
+// MARK: - 내 모델 행 (T-321: 파일 길이 분산, ModelManagerView 경량화)
+
+extension ModelManagerView {
+    func installedRow(_ m: ModelStore.Model) -> some View {
+        HStack(spacing: 8) {
+            DSBadge(text: "설치됨", kind: .success)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ModelAlias.display(id: m.id)).font(.system(size: 13, weight: .medium))
+                Text("\(m.id) · \(m.listedSize) · 실점유 \(m.realSize)")
+                    .font(DS.captionFont).foregroundStyle(.secondary)
+            }
+            .lineLimit(1).truncationMode(.tail)
+            Spacer(minLength: 4)
+            Menu {
+                Button("채팅 모델로 선택") {
+                    NotificationCenter.default.post(name: .selectChatModel, object: m.id)
+                }
+                Button("표시 이름 바꾸기") {
+                    NotificationCenter.default.post(name: .requestAlias, object: m.id)
+                }
+                Button("실제 ID 변경") { renameDialog(id: m.id) }
+                Button("벤치마크 실행") {
+                    NotificationCenter.default.post(name: .runBenchmarkModel, object: m.id)
+                }
+                Divider()
+                Button("모델 삭제", role: .destructive) {
+                    Task { await deleteInstalled(id: m.id) }
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .foregroundStyle(.primary)
+                    .frame(width: 24, height: 20).contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .help("모델 메뉴")
+        }
+        .padding(.vertical, 2)
+        .background {
+            if highlightModelID == m.id {
+                RoundedRectangle(cornerRadius: 8).fill(DSColor.primary.opacity(0.15))
+            }
+        }
+    }
+
+    func stagedRow(_ s: StagedEntry) -> some View {
+        let state = ModelStore.stageState(fileName: s.fileName,
+                                          installedIDs: installedIDs, mapping: mapping)
+        return HStack(spacing: 8) {
+            DSBadge(text: state == .downloadedUninstalled ? "미설치" : "설치됨",
+                    kind: state == .downloadedUninstalled ? .warning : .success)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(friendlyFileName(s.fileName)).font(.system(size: 13, weight: .medium))
+                Text("\(ModelDownload.formatBytes(s.sizeBytes)) · \(state.title)")
+                    .font(DS.captionFont).foregroundStyle(.secondary)
+            }
+            .lineLimit(1).truncationMode(.tail)
+            .help(s.fileName)
+            Spacer(minLength: 4)
+            if state == .downloadedUninstalled {
+                Button("설치") { installDialog(entry: s) }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DSColor.primary)
+                    .controlSize(.small)
+                    .help("레지스트리에 설치 (litert-lm import)")
+            }
+            Menu {
+                if state == .downloadedUninstalled {
+                    Button("설치") { installDialog(entry: s) }
+                }
+                Button("파일 삭제", role: .destructive) { deleteStagedDialog(entry: s) }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .foregroundStyle(.primary)
+                    .frame(width: 24, height: 20).contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .help("스테이징 메뉴")
+        }
+        .padding(.vertical, 2)
+    }
+}
+
 /// 미완성 1행 (T-249/T-251/T-252): repo 알면 이어받기, 모르면 다시 받기+삭제.
 extension ModelManagerView {
     func orphanRow(_ part: OrphanPart) -> some View {
         let entry = models.loadMapping()[part.fileName]
         return HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
+            Image(systemName: "exclamationmark.circle").foregroundStyle(DSColor.warning)
                 .font(.system(size: 13))
             VStack(alignment: .leading, spacing: 2) {
-                Text(part.fileName).font(.system(size: 12, weight: .medium))
+                Text(ModelDownload.fileStem(part.fileName)).font(.system(size: 12, weight: .medium))
                     .lineLimit(1).truncationMode(.middle)
+                    .help(part.fileName)
                 Text("미완성 · \(ModelDownload.formatBytes(part.sizeBytes))")
                     .font(DS.captionFont).foregroundStyle(.secondary)
             }
@@ -170,6 +255,7 @@ extension ModelManagerView {
             }
             .controlSize(.small)
             .buttonStyle(.borderedProminent)
+            .tint(DSColor.primary)
             .help("미완성 파일을 이어서 받기")
         } else {
             Button("다시 받기") {

@@ -131,12 +131,13 @@ struct ImportSheet: View {
             if !siblings.isEmpty {
                 Picker("", selection: $fileIndex) {
                     ForEach(siblings.indices, id: \.self) { i in
-                        Text(siblings[i]).tag(i)
+                        Text(ModelDownload.fileStem(siblings[i])).tag(i)
                     }
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .disabled(locked)
+                .help(siblings.indices.contains(fileIndex) ? siblings[fileIndex] : "파일 선택")
             } else {
                 TextField("파일명 (예: gemma-4-E2B-it.litertlm)", text: $customFile)
                     .textFieldStyle(.roundedBorder)
@@ -144,7 +145,7 @@ struct ImportSheet: View {
             }
             // 에러 고정 슬롯 (줄 점프 방지).
             Text(fetchError ?? " ")
-                .font(DS.captionFont).foregroundStyle(.red)
+                .font(DS.captionFont).foregroundStyle(DSColor.error)
                 .lineLimit(1).truncationMode(.tail)
         }
     }
@@ -162,7 +163,7 @@ struct ImportSheet: View {
                 .disabled(locked)
             if duplicateActive {
                 Text("같은 파일을 이미 받는 중입니다.")
-                    .font(DS.captionFont).foregroundStyle(.orange)
+                    .font(DS.captionFont).foregroundStyle(DSColor.warning)
             }
         }
     }
