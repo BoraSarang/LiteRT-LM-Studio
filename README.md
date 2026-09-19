@@ -38,11 +38,14 @@ The server runs at `127.0.0.1:9379` (fixed port).
 
 The settings window has five tabs:
 
-- **일반 (General)** — theme, Dock icon, launch at login, daemon shutdown, first-touch prefill, benchmark retention, and app permissions
+- **일반 (General)** — theme, Dock icon, launch at login, daemon shutdown, first-touch prefill, benchmark retention, app permissions, and language
 - **채팅 (Chat)** — table of contents, follow-up suggestions, font size, session sorting, and history sharing
 - **도구 (Tools)** — individual tool toggles, web search (Exa API key), and the working folder
 - **MCP** — registered MCP servers
 - **스킬 (Skills)** — installed skills and their prompt budget
+
+The app UI is available in Korean and English. Switch languages under **Settings > General > Appearance**;
+it applies without restarting, while text drawn by macOS itself (permission dialogs) follows on the next launch.
 
 Engine-level options (backend, MTP, and similar) live in the main window's **inspector → 실행 설정 (Run settings)** tab.
 
