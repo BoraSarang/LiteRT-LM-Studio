@@ -87,6 +87,8 @@ extension ContentView {
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .background(Color(nsColor: .controlBackgroundColor))
             .padding(.top, 6)
         }
         .toolbar {
