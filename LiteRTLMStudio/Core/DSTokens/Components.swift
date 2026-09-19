@@ -110,3 +110,21 @@ struct DSWarningBanner: View {
         .clipShape(.rect(cornerRadius: DSSpace.radiusS))
     }
 }
+
+/// 리스트 카드 행 (T-327): 회색 리스트 위 흰색 카드.
+struct DSCardRow<Content: View>: View {
+    let content: Content
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+    var body: some View {
+        content
+            .padding(DSSpace.m)
+            .background(Color(nsColor: .textBackgroundColor))
+            .clipShape(.rect(cornerRadius: DSSpace.radiusL))
+            .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
+            .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
+}

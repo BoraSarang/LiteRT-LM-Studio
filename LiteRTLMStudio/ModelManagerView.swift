@@ -221,29 +221,39 @@ struct ModelManagerView: View {
                     if !center.items.isEmpty {
                         Section("다운로드 중") {
                             ForEach(center.items) { item in
-                                DownloadRow(item: item, center: center, models: models)
+                                DSCardRow {
+                                    DownloadRow(item: item, center: center, models: models)
+                                }
                             }
                         }
                     }
                     if !center.orphans.isEmpty {
                         Section("미완성") {
                             ForEach(center.orphans) { part in
-                                orphanRow(part)
+                                DSCardRow {
+                                    orphanRow(part)
+                                }
                             }
                         }
                     }
                     Section("설치됨 (\(models.models.count))") {
                         ForEach(models.models) { m in
-                            installedRow(m)
+                            DSCardRow {
+                                installedRow(m)
+                            }
                         }
                     }
                     Section("스테이징 (\(models.staged.count))") {
                         ForEach(models.staged) { s in
-                            stagedRow(s)
+                            DSCardRow {
+                                stagedRow(s)
+                            }
                         }
                     }
                 }
                 .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
+                .background(Color(nsColor: .controlBackgroundColor))
             }
             footer
         }

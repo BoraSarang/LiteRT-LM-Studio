@@ -70,6 +70,7 @@ extension BenchmarkWindowView {
                     }
                 }
                 .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
             }
             HStack {
                 Spacer()

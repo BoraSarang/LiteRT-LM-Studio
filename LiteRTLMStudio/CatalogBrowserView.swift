@@ -29,6 +29,7 @@ struct CatalogBrowserView: View {
                         .frame(width: 264)
                     detailPane
                         .frame(maxWidth: .infinity)
+                        .background(Color(nsColor: .textBackgroundColor))
                 }
             }
             footerBar
@@ -186,8 +187,10 @@ struct CatalogBrowserView: View {
                     }
                 }
                 .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
             }
         }
+        .background(Color(nsColor: .controlBackgroundColor))
     }
 
     /// 목록행 통계 1줄 (순수 조합).

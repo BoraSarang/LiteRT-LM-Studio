@@ -48,8 +48,8 @@ struct DownloadRow: View {
             .padding(.bottom, 6)
             if downloader.isDownloading {
                 GeometryReader { geo in
-                    Rectangle().fill(Color.accentColor.opacity(0.2))
-                    Rectangle().fill(Color.accentColor)
+                    Rectangle().fill(DSColor.primary.opacity(0.2))
+                    Rectangle().fill(DSColor.primary)
                         .frame(width: geo.size.width * fraction)
                 }
                 .frame(height: 2)

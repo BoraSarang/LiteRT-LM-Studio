@@ -2,6 +2,11 @@
 
 ## [Unreleased] (macos)
 
+* 리스트 배경·카드화 (T-327, PLAN_v101): 3 리스트 회색(controlBackground)+
+  상세 흰색(textBackground) 명시, HSplit 네이티브 스플리터 유지,
+  내 모델 4행 공용 DSCardRow(흰 카드·radius 12·padding 12·shadow),
+  다운로드 진행바 Primary 통일. [macos]
+
 * 팔레트 개편 (T-326, PLAN_v100): 초성 하이라이트(Bold+Primary, `ㅅㅊㅌ`→새 채팅),
   빈 질의면 최근 사용 5개, 섹션=최근 사용/명령/채팅 기록/벤치마크(새 측정·열기),
   행 아이콘+단축키 없으면 설명 문구, 선택 틴트 Primary 통일. [macos]

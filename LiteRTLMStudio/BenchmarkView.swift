@@ -25,9 +25,11 @@ struct BenchmarkWindowView: View {
             historyPane
                 .frame(width: 264)
                 .padding(.trailing, 8)
+                .background(Color(nsColor: .controlBackgroundColor))
             measurePane
                 .frame(maxWidth: .infinity)
                 .padding(.leading, 8)
+                .background(Color(nsColor: .textBackgroundColor))
         }
         .padding(16)
         .task {
