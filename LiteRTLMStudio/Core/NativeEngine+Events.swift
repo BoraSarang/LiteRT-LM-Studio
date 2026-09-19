@@ -17,64 +17,93 @@ extension NativeEngine {
               let engine = engines[modelID] else {
             return AsyncThrowingStream { $0.finish(throwing: EngineError.notReady) }
         }
-        let mid = modelID
-        let sid = sessionID
-        let past = history.map { turn in
-            Message(turn.text, role: turn.role == "user" ? .user : .model)
-        }
-        let message: Message = if let image {
-            Message(contents: [Content.imageData(image.data), Content.text(prompt)])
-        } else {
-            Message(prompt)
-        }
-        let opts = options
-        let toolChannel = ExperimentalFlags.conversationToolCallStreamingChannelName
-
+        let input = StreamInput(
+            engine: engine,
+            modelID: modelID,
+            sessionID: sessionID,
+            past: history.map { turn in
+                Message(turn.text, role: turn.role == "user" ? .user : .model)
+            },
+            message: Self.initialMessage(prompt: prompt, image: image),
+            options: options,
+            toolChannel: ExperimentalFlags.conversationToolCallStreamingChannelName)
         return AsyncThrowingStream { continuation in
-            Task {
-                do {
-                    // P1: preparedStream 직접 호출, 재시도 로직 인라인
-                    var allowReuse = true
-                    while true {
-                        let setup = try await self.preparedStream(
-                            engine: engine, modelID: mid, past: past,
-                            sessionID: sid, opts: opts, allowReuse: allowReuse)
-                        do {
-                            let gen = setup.conversation.sendMessageStream(
-                                message, maxOutputTokens: opts.maxTokens,
-                                thinkingConfig: setup.thinking)
-                            var loggedChannels = Set<String>()
-                            for try await chunk in gen {
-                                for key in chunk.channels.keys where !loggedChannels.contains(key) {
-                                    loggedChannels.insert(key)
-                                    DebugLogger.shared.info(feature: "도구", "앱 내 엔진 채널 발견: \(key)")
-                                }
-                                for event in Self.events(from: chunk, toolChannel: toolChannel) {
-                                    continuation.yield(event)
-                                }
-                            }
-                            Self.logStreamDone()
-                            // T-311 근본원인: 정상 완료 시 finish를 빼먹으면 AsyncThrowingStream이
-                            // 끝나지 않아 소비 루프가 영원히 대기한다 (무한 "응답중").
-                            continuation.finish()
-                            return
-                        } catch {
-                            // T-289: 취소는 재시도 없이 즉시 전파
-                            if error is CancellationError { throw error }
-                            Self.logStreamError(error)
-                            // 실패한 대화는 풀에서 제거 (오염 루프 방지).
-                            // 시작 실패가 아니면 재시도 없이 전파 — 다음 전송(재시도 버튼)이 새로 만든다.
-                            invalidateReuse()
-                            guard allowReuse, setup.reused, Self.isStartStreamFailure(error) else { throw error }
-                            DebugLogger.shared.info(feature: "앱내엔진", "재사용 시작 실패 → 새 대화 재시도")
-                            allowReuse = false
-                        }
+            Task { await self.pump(input, to: continuation) }
+        }
+    }
+
+    /// 스트림 1회 입력 묶음 (T-360 분리): 파라미터·본문 길이 관리.
+    private struct StreamInput {
+        let engine: Engine
+        let modelID: String
+        let sessionID: String
+        let past: [Message]
+        let message: Message
+        let options: GenerationOptions
+        let toolChannel: String
+    }
+
+    /// 첫 메시지 구성 (T-360 분리): 이미지가 있으면 멀티모달, 없으면 텍스트.
+    private static func initialMessage(prompt: String, image: ChatStore.ChatImage?) -> Message {
+        if let image {
+            return Message(contents: [Content.imageData(image.data), Content.text(prompt)])
+        }
+        return Message(prompt)
+    }
+
+    /// 스트림 실행 (T-360 분리): 취소·실패를 종료로 변환.
+    private func pump(
+        _ input: StreamInput,
+        to continuation: AsyncThrowingStream<StreamEvent, Error>.Continuation
+    ) async {
+        do {
+            try await pumpWithRetry(input, to: continuation)
+        } catch is CancellationError {
+            continuation.finish(throwing: CancellationError())
+        } catch {
+            continuation.finish(throwing: EngineError.inferenceFailed("\(error)"))
+        }
+    }
+
+    /// 재시도 루프 (T-360 분리): 시작 실패면 새 대화로 1회 재시도.
+    /// T-311 근본원인: 정상 완료 시 finish를 빼먹으면 AsyncThrowingStream이
+    /// 끝나지 않아 소비 루프가 영원히 대기한다 (무한 "응답중").
+    private func pumpWithRetry(
+        _ input: StreamInput,
+        to continuation: AsyncThrowingStream<StreamEvent, Error>.Continuation
+    ) async throws {
+        var allowReuse = true
+        while true {
+            let setup = try await preparedStream(
+                engine: input.engine, modelID: input.modelID, past: input.past,
+                sessionID: input.sessionID, opts: input.options, allowReuse: allowReuse)
+            do {
+                let gen = setup.conversation.sendMessageStream(
+                    input.message, maxOutputTokens: input.options.maxTokens,
+                    thinkingConfig: setup.thinking)
+                var loggedChannels = Set<String>()
+                for try await chunk in gen {
+                    for key in chunk.channels.keys where !loggedChannels.contains(key) {
+                        loggedChannels.insert(key)
+                        DebugLogger.shared.info(feature: "도구", "앱 내 엔진 채널 발견: \(key)")
                     }
-                } catch is CancellationError {
-                    continuation.finish(throwing: CancellationError())
-                } catch {
-                    continuation.finish(throwing: EngineError.inferenceFailed("\(error)"))
+                    for event in Self.events(from: chunk, toolChannel: input.toolChannel) {
+                        continuation.yield(event)
+                    }
                 }
+                Self.logStreamDone()
+                continuation.finish()
+                return
+            } catch {
+                // T-289: 취소는 재시도 없이 즉시 전파
+                if error is CancellationError { throw error }
+                Self.logStreamError(error)
+                // 실패한 대화는 풀에서 제거 (오염 루프 방지).
+                // 시작 실패가 아니면 재시도 없이 전파 — 다음 전송(재시도 버튼)이 새로 만든다.
+                invalidateReuse()
+                guard allowReuse, setup.reused, Self.isStartStreamFailure(error) else { throw error }
+                DebugLogger.shared.info(feature: "앱내엔진", "재사용 시작 실패 → 새 대화 재시도")
+                allowReuse = false
             }
         }
     }

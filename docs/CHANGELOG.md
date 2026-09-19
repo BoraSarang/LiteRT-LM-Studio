@@ -2,6 +2,13 @@
 
 ## [Unreleased] (macos)
 
+* 경고 정리 (T-360): 동작 변경 없이 린트·컴파일러 경고를 정리했다. swiftlint 11건은 파일/함수를
+  새 파일이나 헬퍼로 분리해 0으로 만들었고(`ToolCallFormat` 분리, 후속질문 뷰 3종 분리, 벤치마크
+  확장 분리, `streamEvents`·`request`·`runServerTurns` 분해, `JSONObjectScanner`·`CachedBackends`
+  도입), 헤더맵 경고는 `ALWAYS_SEARCH_USER_PATHS=NO`로 없앴다. 앱 코드 경고 2건도 정리했다
+  (`FollowGate.find`의 `superview` 접근은 `MainActor.assumeIsolated`, `DaemonManager.port`는
+  `nonisolated`). 벤더 소스(`Core/LiteRTLM`)의 Sendable 경고 2건은 정책상 그대로 둔다. [macos]
+
 * 설정 탭 재구성 (T-359): 탭별 분류를 감사해 잘못 놓인 항목을 옮겼다. `웹 도구 사용`은 채팅 탭에서
   도구 탭의 웹 섹션(Exa 키·테스트)으로, `대화 기록 전송`은 일반 탭에서 채팅 탭으로, `첫터치 프리필`은
   일반 탭 시스템 섹션으로, `벤치마크 기록 보관`은 일반 탭 고급 섹션으로 이동했다. 채팅 탭에는 표시·동작

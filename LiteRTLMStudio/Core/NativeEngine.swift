@@ -108,16 +108,17 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         ExperimentalFlags.filterChannelContentFromKvCache = true
 
         // 백엔드/플래그 캐시 사용 (P0-3)
-        let (config, residency, visualBudget) = Self.getCachedBackends()
-        ExperimentalFlags.gpuEnableMetalResidencySet = residency
-        ExperimentalFlags.visualTokenBudget = visualBudget
+        let backends = Self.getCachedBackends()
+        let config = backends.config
+        ExperimentalFlags.gpuEnableMetalResidencySet = backends.residency
+        ExperimentalFlags.visualTokenBudget = backends.visualBudget
         // 디버그: 실제 적용 설정 (하드코딩 금지 — 해석된 값 그대로)
         let appliedMaxTokens = ConfigStore.maxNumTokensValue(from: ConfigStore.defaultURL)
         let appliedVision = String(describing: config.vision)
         logger.info(feature: "앱내엔진",
             "설정: model=\(modelID) MTP=\(mtp) maxTokens=\(String(describing: appliedMaxTokens))")
         logger.info(feature: "앱내엔진",
-            "백엔드: llm=\(config.backend) vision=\(appliedVision) residency=\(residency)")
+            "백엔드: llm=\(config.backend) vision=\(appliedVision) residency=\(backends.residency)")
 
         do {
             try await boot(modelID: modelID, backends: config)
@@ -146,20 +147,27 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         logger.error(code: "E-MAC-ENG-0001", feature: "앱내엔진", "초기화 실패: \(message)")
     }
 
+    /// 백엔드/플래그 캐시 값 (P0-3/T-360): 튜플 대신 명명 구조체.
+    struct CachedBackends {
+        let config: EngineBackends
+        let residency: Bool
+        let visualBudget: Int32
+    }
+
     /// 백엔드/플래그 캐시 조회 (P0-3): 최초 1회만 디스크 I/O.
-    private static func getCachedBackends() -> (config: EngineBackends, residency: Bool, visualBudget: Int32) {
+    private static func getCachedBackends() -> CachedBackends {
         if let cached = cachedBackends,
            let residency = cachedResidency,
            let visualBudget = cachedVisualBudget {
-            return (cached, residency, visualBudget)
+            return CachedBackends(config: cached, residency: residency, visualBudget: visualBudget)
         }
-        let config = resolveBackends(configURL: ConfigStore.defaultURL)
-        let residency = residencyEnabled()
-        let visualBudget = visualBudget()
-        cachedBackends = config
-        cachedResidency = residency
-        cachedVisualBudget = visualBudget
-        return (config, residency, visualBudget)
+        let picked = CachedBackends(config: resolveBackends(configURL: ConfigStore.defaultURL),
+                                    residency: residencyEnabled(),
+                                    visualBudget: visualBudget())
+        cachedBackends = picked.config
+        cachedResidency = picked.residency
+        cachedVisualBudget = picked.visualBudget
+        return picked
     }
 
     /// 엔진 기동: 캐시에서 가져오거나 새로 생성 (P0-1).
@@ -204,58 +212,6 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         engines[modelID] = engine
         preparedModelIDs.insert(modelID)
         state = .ready
-    }
-
-    /// Engine LRU 등록 (P0-1).
-    private func registerEngine(_ modelID: String, _ engine: Engine) {
-        engineAccessOrder.removeAll { $0 == modelID }
-        engineAccessOrder.append(modelID)
-        if engineAccessOrder.count > maxCachedEngines {
-            let evicted = engineAccessOrder.removeFirst()
-            dropModel(evicted)
-            logger.info(feature: "앱내엔진", "Engine LRU 제거: \(evicted)")
-        }
-    }
-
-    /// 모델 1건 완전 정리 (엔진+대화+지원여부+활성 포인터).
-    private func dropModel(_ modelID: String) {
-        engines[modelID] = nil
-        engineAccessOrder.removeAll { $0 == modelID }
-        preparedModelIDs.remove(modelID)
-        preparedSupportsFC.removeValue(forKey: modelID)
-        conversations = conversations.filter { $0.key.modelID != modelID }
-        conversationAccessOrder.removeAll { $0.modelID == modelID }
-        if activeKey?.modelID == modelID {
-            activeConversation = nil
-            activeKey = nil
-        }
-        // R2-17: 마지막 엔진 방출 시 .ready 잔존 → .idle 갱신 (UI 표시 불일치 방지).
-        if preparedModelIDs.isEmpty { state = .idle }
-    }
-
-    /// 전체 해제 (중지 버튼): 모든 구조물 반납+idle. 모델별은 releaseModel() 사용.
-    func release() {
-        activeConversation = nil
-        activeKey = nil
-        conversations.removeAll()
-        conversationAccessOrder.removeAll()
-        engines.removeAll()
-        engineAccessOrder.removeAll()
-        preparedModelIDs.removeAll()
-        preparedSupportsFC.removeAll()
-        state = .idle
-    }
-
-    /// 특정 모델만 해제 (모델 전환 시).
-    func releaseModel(_ modelID: String) {
-        dropModel(modelID)
-        state = preparedModelIDs.isEmpty ? .idle : .ready
-    }
-
-    /// 다시 실행 (T-185): 해당 모델만 반납 후 처음부터 준비.
-    func restart(modelID: String) async throws {
-        releaseModel(modelID)
-        try await prepare(modelID: modelID)
     }
 
     /// 평문 스트림: 이벤트 스트림 단일 경로 위임 (본문만 추출).
@@ -355,44 +311,57 @@ final class NativeEngine: InferenceEngine, ObservableObject {
     }
 }
 
-/// 앱 내 엔진 벤치마크 확장 (준비·측정·정리 단계, T-216).
+/// 앱 내 엔진 캐시 수명주기 확장 (T-360 분리: 타입 본문 길이 관리).
 extension NativeEngine {
-    /// 벤치마크 측정 (T-132): 고정 프롬프트 1턴 실측 후 BenchmarkInfo 매핑.
-    /// CLI `benchmark`(256/256 고정)와 조건이 달라 근사 비교용.
-    func benchmark(modelID: String) async throws -> EngineBenchmark {
-        try await benchmarkWithProgress(modelID: modelID, onStage: { _ in })
+    /// Engine LRU 등록 (P0-1).
+    private func registerEngine(_ modelID: String, _ engine: Engine) {
+        engineAccessOrder.removeAll { $0 == modelID }
+        engineAccessOrder.append(modelID)
+        if engineAccessOrder.count > maxCachedEngines {
+            let evicted = engineAccessOrder.removeFirst()
+            dropModel(evicted)
+            logger.info(feature: "앱내엔진", "Engine LRU 제거: \(evicted)")
+        }
     }
 
-    /// 벤치마크 측정 + 진행 알림 (T-216): prepare→측정→정리 단계를 콜백으로 전달.
-    /// 오버로드 대신 별도 이름 (동명 오버로드가 타입 추론을 무겁게 함).
-    func benchmarkWithProgress(modelID: String,
-                               onStage: @escaping (BenchmarkPhase) -> Void) async throws -> EngineBenchmark {
-        onStage(.preparing)
-        try await prepare(modelID: modelID)
-        guard let engine = engines[modelID] else { throw EngineError.notReady }
-        do {
-            let conversation = try await engine.createConversation()
-            onStage(.measuring)
-            let prompt = Message("Describe Seoul in three sentences.")
-            for try await _ in conversation.sendMessageStream(prompt) {
-                try Task.checkCancellation()
-            }
-            onStage(.summarizing)
-            let info = try conversation.getBenchmarkInfo()
-            logger.perf(feature: "앱내벤치",
-                        "완료 prefill=\(info.lastPrefillTokensPerSecond) decode=\(info.lastDecodeTokensPerSecond)")
-            return EngineBenchmark(
-                initTime: info.initTimeInSecond,
-                ttft: info.timeToFirstTokenInSecond,
-                prefillTokens: info.lastPrefillTokenCount,
-                prefillSpeed: info.lastPrefillTokensPerSecond,
-                decodeTokens: info.lastDecodeTokenCount,
-                decodeSpeed: info.lastDecodeTokensPerSecond
-            )
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            throw EngineError.inferenceFailed("\(error)")
+    /// 모델 1건 완전 정리 (엔진+대화+지원여부+활성 포인터).
+    private func dropModel(_ modelID: String) {
+        engines[modelID] = nil
+        engineAccessOrder.removeAll { $0 == modelID }
+        preparedModelIDs.remove(modelID)
+        preparedSupportsFC.removeValue(forKey: modelID)
+        conversations = conversations.filter { $0.key.modelID != modelID }
+        conversationAccessOrder.removeAll { $0.modelID == modelID }
+        if activeKey?.modelID == modelID {
+            activeConversation = nil
+            activeKey = nil
         }
+        // R2-17: 마지막 엔진 방출 시 .ready 잔존 → .idle 갱신 (UI 표시 불일치 방지).
+        if preparedModelIDs.isEmpty { state = .idle }
+    }
+
+    /// 전체 해제 (중지 버튼): 모든 구조물 반납+idle. 모델별은 releaseModel() 사용.
+    func release() {
+        activeConversation = nil
+        activeKey = nil
+        conversations.removeAll()
+        conversationAccessOrder.removeAll()
+        engines.removeAll()
+        engineAccessOrder.removeAll()
+        preparedModelIDs.removeAll()
+        preparedSupportsFC.removeAll()
+        state = .idle
+    }
+
+    /// 특정 모델만 해제 (모델 전환 시).
+    func releaseModel(_ modelID: String) {
+        dropModel(modelID)
+        state = preparedModelIDs.isEmpty ? .idle : .ready
+    }
+
+    /// 다시 실행 (T-185): 해당 모델만 반납 후 처음부터 준비.
+    func restart(modelID: String) async throws {
+        releaseModel(modelID)
+        try await prepare(modelID: modelID)
     }
 }
