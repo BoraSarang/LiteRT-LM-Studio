@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// 도구 실행 원장 (T-266 S-2): 실행 결과를 순서대로 보관, 턴 종료 시 배출.
@@ -56,6 +57,7 @@ final class ToolApproval: ObservableObject {
     @Published private(set) var pending: Request?
     private var continuation: CheckedContinuation<Bool, Never>?
     private var timeoutWork: DispatchWorkItem?
+    private var requestedAt: Date? // T-347: 승인 대기 실측 분리
     private let logger = DebugLogger.shared
 
     /// 승인 요청. 허용 true, 거부·타임아웃·중복 false.
@@ -66,7 +68,17 @@ final class ToolApproval: ObservableObject {
             return false
         }
         pending = Request(toolName: toolName, detail: detail)
+        requestedAt = Date()
         logger.info(feature: "도구", "승인 요청: \(toolName) \(detail.prefix(40))")
+        // T-346: 별창 포커스 시 메인 창 뒤에 팝업이 가려져 "안 물어봐"로 보이는 경우 대응.
+        // 2초 뒤에도 대기 중이면 앱을 앞으로 가져온다 (승인·거부·취소 흐름 불변).
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard let self, self.pending != nil else { return }
+            self.logger.info(feature: "도구", "승인 대기 중 — 메인 창을 앞으로 가져옴")
+            NSApp.activate(ignoringOtherApps: true)
+            NSApp.windows.first(where: { $0.title == mainWindowTitle })?.makeKeyAndOrderFront(nil)
+        }
         return await withTaskCancellationHandler {
             await self.suspendApproval(toolName: toolName)
         } onCancel: {
@@ -110,6 +122,12 @@ final class ToolApproval: ObservableObject {
         timeoutWork?.cancel()
         timeoutWork = nil
         pending = nil
+        if let at = requestedAt {
+            // T-347: 승인 대기 실측 (실행 로그와 분리) — 허용/거부/타임아웃 모두 기록.
+            let wait = Date().timeIntervalSince(at)
+            logger.perf(feature: "도구", "승인 대기 \(String(format: "%.2f", wait))s (\(allow ? "허용" : "거부"))")
+        }
+        requestedAt = nil
         continuation?.resume(returning: allow)
         continuation = nil
     }

@@ -134,6 +134,75 @@ final class LiteRTLMStudioRefactorTests: XCTestCase {
         try? FileManager.default.removeItem(at: url)
     }
 
+    /// 도구 재전송 턴 히스토리 트림 (T-347): 전체 윈도우 대신 직전 2개 Q/A만 전송.
+    @MainActor
+    func testChatRequestToolTurnTrimsHistory() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-toolturn-\(UUID().uuidString).json")
+        let store = ChatStore(storageURL: url)
+        store.model = "test-model"
+        // 3개 Q/A + 낙관적 쌍 (8메시지) — 1턴은 전량, 재전송 턴은 직전 2개 Q/A만.
+        store.messages = [
+            ChatStore.Message(role: "user", text: "q1"),
+            ChatStore.Message(role: "assistant", text: "a1"),
+            ChatStore.Message(role: "user", text: "q2"),
+            ChatStore.Message(role: "assistant", text: "a2"),
+            ChatStore.Message(role: "user", text: "q3"),
+            ChatStore.Message(role: "assistant", text: "a3"),
+            ChatStore.Message(role: "user", text: "q4"),
+            ChatStore.Message(role: "assistant", text: "")
+        ]
+        func parse(_ req: URLRequest) throws -> [[String: Any]] {
+            let body = try XCTUnwrap(req.httpBody)
+            let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+            return try XCTUnwrap(json["messages"] as? [[String: Any]])
+        }
+        let first = try parse(store.chatRequest(prompt: "q4"))
+        // system + [q1,a1,q2,a2,q3,a3] + q4 = 8 — 1턴은 전체 히스토리 유지.
+        XCTAssertEqual(first.count, 8)
+        XCTAssertTrue(first.contains { $0["content"] as? String == "q1" })
+        XCTAssertTrue(first.contains { $0["content"] as? String == "a3" })
+        let extra: [[String: Any]] = [
+            ["role": "assistant", "content": "", "tool_calls": [["id": "call_1"]]],
+            ["role": "tool", "content": "결과", "tool_call_id": "call_1"]
+        ]
+        let toolTurn = try parse(store.chatRequest(prompt: "q4", extraHistory: extra, toolTurn: true))
+        // system + [q2,a2,q3,a3] + q4 + 도구결과(2) = 8 — 오래된 q1,a1 제외.
+        XCTAssertEqual(toolTurn.count, 8)
+        XCTAssertTrue(toolTurn.contains { $0["content"] as? String == "q2" })
+        XCTAssertTrue(toolTurn.contains { $0["content"] as? String == "q3" })
+        XCTAssertTrue(toolTurn.contains { $0["content"] as? String == "a3" })
+        XCTAssertFalse(toolTurn.contains { $0["content"] as? String == "q1" })
+        XCTAssertFalse(toolTurn.contains { $0["content"] as? String == "a1" })
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    /// 도구 재전송 턴 시스템 경량화 (T-347): 정직 가드·스킬 안내 생략, 날짜만 유지.
+    @MainActor
+    func testChatRequestToolTurnLightSystem() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chat-lightsys-\(UUID().uuidString).json")
+        let store = ChatStore(storageURL: url)
+        store.messages = [
+            ChatStore.Message(role: "user", text: "hi"),
+            ChatStore.Message(role: "assistant", text: "")
+        ]
+        func parse(_ req: URLRequest) throws -> [[String: Any]] {
+            let body = try XCTUnwrap(req.httpBody)
+            let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+            return try XCTUnwrap(json["messages"] as? [[String: Any]])
+        }
+        let first = try parse(store.chatRequest(prompt: "hi"))
+        let firstSys = try XCTUnwrap(first.first as? [String: Any])
+        XCTAssertTrue((firstSys["content"] as? String ?? "").contains("도구 정직 규칙"))
+        let toolTurn = try parse(store.chatRequest(prompt: "hi", toolTurn: true))
+        let toolSys = try XCTUnwrap(toolTurn.first as? [String: Any])
+        let content = toolSys["content"] as? String ?? ""
+        XCTAssertFalse(content.contains("도구 정직 규칙"))
+        XCTAssertTrue(content.contains("[오늘 날짜]"))
+        try? FileManager.default.removeItem(at: url)
+    }
+
     /// PERF 뱃지 문구 (T-126, T-325 토큰/초 통일).
     func testPerfLine() {
         XCTAssertEqual(ChatStore.perfLine(chars: 0, elapsed: 0), "0.0s · 약 0 토큰/초")
@@ -412,7 +481,7 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         store.model = "fake-model"
         let followUps = FollowUpStore()
         let id = UUID()
-        followUps.request(messageID: id, question: "질문", answer: "답변", chat: store)
+        followUps.request(messageID: id, question: "질문", answer: "답변", chat: store, idleDelay: 0)
         XCTAssertTrue(followUps.loading)
         let end = Date().addingTimeInterval(10)
         while followUps.loading, Date() < end {
@@ -423,7 +492,7 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         XCTAssertEqual(followUps.chips.count, 3)
         XCTAssertEqual(fake.prepareCalls, ["fake-model"])
         // 중복 가드: 같은 ID 재요청은 추가 호출 없이 무시.
-        followUps.request(messageID: id, question: "질문", answer: "답변", chat: store)
+        followUps.request(messageID: id, question: "질문", answer: "답변", chat: store, idleDelay: 0)
         try? await Task.sleep(for: .milliseconds(200))
         XCTAssertEqual(fake.prepareCalls, ["fake-model"])
         XCTAssertEqual(followUps.chips.count, 3)
@@ -439,7 +508,7 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         store.model = "fake-model"
         let followUps = FollowUpStore()
         let id = UUID()
-        followUps.request(messageID: id, question: "질문", answer: "짧은 답변", chat: store)
+        followUps.request(messageID: id, question: "질문", answer: "짧은 답변", chat: store, idleDelay: 0)
         let end = Date().addingTimeInterval(10)
         while followUps.loading, Date() < end {
             try? await Task.sleep(for: .milliseconds(50))
@@ -461,7 +530,7 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         store.model = "fake-model"
         let followUps = FollowUpStore()
         let id = UUID()
-        followUps.request(messageID: id, question: "질문", answer: "짧은 답변", chat: store)
+        followUps.request(messageID: id, question: "질문", answer: "짧은 답변", chat: store, idleDelay: 0)
         var end = Date().addingTimeInterval(10)
         while followUps.loading, Date() < end {
             try? await Task.sleep(for: .milliseconds(50))

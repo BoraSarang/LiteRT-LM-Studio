@@ -540,18 +540,26 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertTrue(FollowUpSuggest.needsRefire(snapshot: 1500, final: 2500))
     }
 
-    /// 후속질문 선행 조건 (T-292): 서버 스트리밍 중 300자 이상만.
-    func testFollowUpShouldPrefetch() {
-        XCTAssertTrue(FollowUpSuggest.shouldPrefetch(route: .cli, streaming: true,
-                                                     role: "assistant", isError: false, count: 300))
+    /// 후속질문 선행 조건 (T-292) — T-347에서 폐지: 스트리밍 중 GPU 경합 방지용 항상 false.
+    func testFollowUpShouldPrefetchDisabled() {
+        XCTAssertFalse(FollowUpSuggest.shouldPrefetch(route: .cli, streaming: true,
+                                                      role: "assistant", isError: false, count: 5000))
         XCTAssertFalse(FollowUpSuggest.shouldPrefetch(route: .native, streaming: true,
                                                       role: "assistant", isError: false, count: 500))
         XCTAssertFalse(FollowUpSuggest.shouldPrefetch(route: .cli, streaming: false,
                                                       role: "assistant", isError: false, count: 500))
         XCTAssertFalse(FollowUpSuggest.shouldPrefetch(route: .cli, streaming: true,
-                                                      role: "assistant", isError: false, count: 299))
-        XCTAssertFalse(FollowUpSuggest.shouldPrefetch(route: .cli, streaming: true,
                                                       role: "user", isError: false, count: 500))
+    }
+
+    /// 후속질문 idle 지연 (T-347): 기본 3초, 새 전송 감지 순수 판정.
+    func testFollowUpIdleDelay() {
+        XCTAssertEqual(FollowUpSuggest.followUpIdleDelay, 3.0, accuracy: 0.0001)
+        let a = UUID(), b = UUID()
+        XCTAssertFalse(FollowUpSuggest.hasNewUserMessage(before: nil, now: a))
+        XCTAssertFalse(FollowUpSuggest.hasNewUserMessage(before: a, now: nil))
+        XCTAssertFalse(FollowUpSuggest.hasNewUserMessage(before: a, now: a))
+        XCTAssertTrue(FollowUpSuggest.hasNewUserMessage(before: a, now: b))
     }
 
     /// 스켈레톤 최소 노출 (T-313): 초고속 응답 시 깜빡임 방지 대기 계산.
@@ -945,10 +953,10 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         }
         UserDefaults.standard.set("/tmp/fake-wigolo-bin", forKey: WigoloManager.binOverrideKey)
         XCTAssertTrue(LocalTools.registered(permission: .off).isEmpty)
-        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 18)
-        XCTAssertEqual(LocalTools.registered(permission: .ask).count, 18)
+        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 20)
+        XCTAssertEqual(LocalTools.registered(permission: .ask).count, 20)
         ToolCatalog.setEnabled("calculate", false)
-        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 17)
+        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 19)
     }
 
     /// wigolo 응답 파싱 (T-269): url 없는 항목 제외.
@@ -1369,6 +1377,7 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
                                "get_system_info", "read_clipboard", "write_clipboard",
                                "open_url", "run_shortcut", "list_calendar_events",
                                "list_reminders", "add_reminder", "add_calendar_event",
+                               "delete_reminder", "delete_calendar_event",
                                "mcp_list_tools", "mcp_call"])
         XCTAssertEqual(ToolInfo.Category.allCases.count, 4)
     }
@@ -1425,12 +1434,46 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertTrue(ToolCatalog.isEnabled("get_time", defaults: defaults))
     }
 
+    /// 한글 표시명 (T-348): 영어 도구명은 UI에 노출하지 않는다.
+    func testToolCatalogTitleMapping() {
+        XCTAssertEqual(ToolCatalog.title(for: "get_system_info"), "시스템 정보")
+        XCTAssertEqual(ToolCatalog.title(for: "write_clipboard"), "클립보드 쓰기")
+        XCTAssertEqual(ToolCatalog.title(for: "web_fetch"), "페이지 가져오기")
+        XCTAssertEqual(ToolCatalog.title(for: "delete_calendar_event"), "일정 삭제")
+        XCTAssertEqual(ToolCatalog.title(for: "delete_reminder"), "미리 알림 삭제")
+        XCTAssertEqual(ToolCatalog.title(for: "list_calendar_events"), "일정 조회")
+        XCTAssertEqual(ToolCatalog.title(for: "mcp_list_tools"), "MCP 목록")
+        // 미등록(MCP 동적)은 원문 폴백.
+        XCTAssertEqual(ToolCatalog.title(for: "mcp__server__custom"), "mcp__server__custom")
+        // 칩 displayTitle이 한글 제목을 잇는다.
+        let record = ToolCallRecord(callID: "c", name: "read_clipboard")
+        XCTAssertEqual(record.displayTitle, "클립보드 읽기")
+    }
+
     /// 실행 결정 (T-266 S-2): Off 거부·Allow 진행.
     func testToolDecide() async {
         let off = await LocalTools.decide(toolName: "get_time", detail: "", permission: .off)
         XCTAssertEqual(off, .denied("도구 사용이 꺼져 있습니다. 설정에서 권한을 바꿔 주세요."))
         let allow = await LocalTools.decide(toolName: "get_time", detail: "", permission: .allowAll)
         XCTAssertEqual(allow, .proceed)
+    }
+
+    /// 읽기 전용 자동 실행 (T-347): ask에서도 팝업 없이 진행, 쓰기계만 매번 묻는다.
+    func testReadOnlyAutoProceedsUnderAsk() {
+        XCTAssertTrue(LocalTools.readOnlyNames.contains("get_system_info"))
+        XCTAssertTrue(LocalTools.readOnlyNames.contains("read_clipboard"))
+        XCTAssertTrue(LocalTools.readOnlyNames.contains("list_calendar_events"))
+        XCTAssertTrue(LocalTools.readOnlyNames.contains("web_search"))
+        // 읽기 전용: ask 포기 → 팝업 불필요.
+        XCTAssertFalse(LocalTools.needsApproval(toolName: "get_time", permission: .ask))
+        XCTAssertFalse(LocalTools.needsApproval(toolName: "get_system_info", permission: .ask))
+        // 쓰기계: ask에서만 팝업 필요.
+        XCTAssertTrue(LocalTools.needsApproval(toolName: "write_clipboard", permission: .ask))
+        XCTAssertTrue(LocalTools.needsApproval(toolName: "add_calendar_event", permission: .ask))
+        XCTAssertTrue(LocalTools.needsApproval(toolName: "run_shell", permission: .ask))
+        // allowAll·off는 팝업과 무관.
+        XCTAssertFalse(LocalTools.needsApproval(toolName: "write_clipboard", permission: .allowAll))
+        XCTAssertFalse(LocalTools.needsApproval(toolName: "write_clipboard", permission: .off))
     }
 
     /// 승인 거부 경로 (T-266 S-2).
@@ -1615,5 +1658,76 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertNotNil(props?["title"])
         XCTAssertNotNil(props?["when"])
         XCTAssertNotNil(props?["notes"])
+    }
+
+    /// T-346 실패는 throw로: 칩이 완료가 아니라 실패로 찍히는지.
+    func testToolExecutionErrorBecomesFailed() async {
+        let result = await LocalTools.runTolled(toolName: "write_clipboard",
+                                                detail: "t",
+                                                permission: .allowAll) {
+            throw ToolExecutionError.clipboardWriteFailed
+        }
+        XCTAssertTrue(String(describing: result).contains("클립보드 쓰기에 실패"))
+        let ledger = ToolLedger()
+        await ledger.record(toolName: "x", detail: "", result: "도구 실행 실패: y",
+                            denied: false, failed: true)
+        let out = await ledger.drain(since: Date.distantPast)
+        XCTAssertEqual(ToolLedger.statuses(count: 1, outcomes: out), [.failed])
+    }
+
+    /// T-346 사전 검증 실패도 원장에 남는지 (칩 수신됨 고착 방지).
+    func testAddCalendarValidationRecordsLedger() async {
+        var tool = AddCalendarEventTool()
+        tool.title = ""
+        tool.when = "내일 오후 3시"
+        let base = Date()
+        let message = String(describing: try? await tool.run())
+        XCTAssertTrue(message.contains("비어"))
+        let out = await ToolLedger.shared.drain(since: base)
+        XCTAssertTrue(out.contains { $0.toolName == "add_calendar_event" && $0.failed })
+    }
+
+    /// T-349 삭제 도구 사전 검증: 빈 제목·날짜 파싱 실패 시 원장 실패 기록.
+    func testDeleteCalendarValidationRecordsLedger() async {
+        var empty = DeleteCalendarEventTool()
+        empty.title = ""
+        let base = Date()
+        _ = try? await empty.run()
+        var out = await ToolLedger.shared.drain(since: base)
+        XCTAssertTrue(out.contains { $0.toolName == "delete_calendar_event" && $0.failed })
+
+        var badDate = DeleteCalendarEventTool()
+        badDate.title = "회의"
+        badDate.when = "25시"
+        let base2 = Date()
+        let message = String(describing: try? await badDate.run())
+        XCTAssertTrue(message.contains("이해하지 못했습니다"))
+        out = await ToolLedger.shared.drain(since: base2)
+        XCTAssertTrue(out.contains { $0.toolName == "delete_calendar_event" && $0.failed })
+    }
+
+    /// T-349 미리 알림 삭제: 빈 제목 사전 검증.
+    func testDeleteReminderValidationRecordsLedger() async {
+        var tool = DeleteReminderTool()
+        tool.title = ""
+        let base = Date()
+        _ = try? await tool.run()
+        let out = await ToolLedger.shared.drain(since: base)
+        XCTAssertTrue(out.contains { $0.toolName == "delete_reminder" && $0.failed })
+    }
+
+    /// T-349 삭제는 쓰기계: ask 모드에서 승인 팝업 필요 (readOnly 아님).
+    func testDeleteToolsRequireApprovalUnderAsk() {
+        XCTAssertTrue(LocalTools.needsApproval(toolName: "delete_calendar_event",
+                                               permission: .ask))
+        XCTAssertTrue(LocalTools.needsApproval(toolName: "delete_reminder",
+                                               permission: .ask))
+    }
+
+    /// T-346 정직 가드: 시스템 프롬프트에 호출-주장 분리 문구 포함.
+    func testToolHonestyBlock() {
+        let block = ChatStore.toolHonestyBlock()
+        XCTAssertTrue(block.contains("호출하지 않았으면"))
+        XCTAssertTrue(block.contains("설정에서 해당 도구를 켜"))
     }
 }

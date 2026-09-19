@@ -137,7 +137,7 @@ struct ContentView: View {
                 Button("허용") { toolApproval.resolve(true) }
                 Button("거부", role: .cancel) { toolApproval.resolve(false) }
             } message: {
-                Text(toolApproval.pending.map { "\($0.toolName) \($0.detail)" }
+                Text(toolApproval.pending.map { "\(ToolCatalog.title(for: $0.toolName)) \($0.detail)" }
                     ?? "도구 실행을 허용할까요? (120초 무응답 시 거부)")
             }
             .task {

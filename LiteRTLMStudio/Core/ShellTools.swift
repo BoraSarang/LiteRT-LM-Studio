@@ -98,9 +98,15 @@ struct SaveCodeTool: Tool {
             return "차단됨: 작업폴더 밖에는 저장할 수 없습니다."
         }
         guard body.utf8.count <= Self.sizeCap else {
+            await ToolLedger.shared.record(toolName: Self.name, detail: relPath,
+                                           result: "저장 실패: 512KB를 초과합니다.",
+                                           denied: false, failed: true)
             return "저장 실패: 512KB를 초과합니다."
         }
         guard !body.contains("\0") else {
+            await ToolLedger.shared.record(toolName: Self.name, detail: relPath,
+                                           result: "저장 실패: 바이너리는 저장할 수 없습니다.",
+                                           denied: false, failed: true)
             return "저장 실패: 바이너리는 저장할 수 없습니다."
         }
         let existed = FileManager.default.fileExists(atPath: url.path)

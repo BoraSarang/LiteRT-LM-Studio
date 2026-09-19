@@ -35,7 +35,7 @@ struct ToolCallRecord: Identifiable, Codable, Hashable, Sendable {
 
     /// 칩 표시명 (순수, T-317/T-342): 카탈로그의 한글 제목, 미등록은 원문.
     var displayTitle: String {
-        ToolCatalog.all.first { $0.name == name }?.title ?? name
+        ToolCatalog.title(for: name)
     }
 
     /// 대표 인자 (순수, T-342): 도구별 맞춤 요약, JSON 문법 제거.
@@ -83,7 +83,8 @@ enum ToolCallFormat {
     ]
     private nonisolated static let fileTools: Set<String> = ["run_shell", "read_file", "save_code"]
     private nonisolated static let eventTools: Set<String> = [
-        "list_calendar_events", "list_reminders", "add_reminder", "add_calendar_event"
+        "list_calendar_events", "list_reminders", "add_reminder", "add_calendar_event",
+        "delete_reminder", "delete_calendar_event"
     ]
     private nonisolated static let webTools: Set<String> = [
         "web_search", "web_fetch", "mcp_list_tools", "mcp_call"
@@ -119,7 +120,7 @@ enum ToolCallFormat {
         case "list_calendar_events": return "\(dict["days"] as? Int ?? 7)일"
         case "list_reminders":
             return (dict["includeCompleted"] as? Bool ?? false) ? "완료 포함" : "미완료만"
-        case "add_reminder", "add_calendar_event":
+        case "add_reminder", "delete_reminder", "add_calendar_event", "delete_calendar_event":
             return join([text(dict["title"]), text(dict["when"])])
         default: return ""
         }

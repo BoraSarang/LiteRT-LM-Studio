@@ -8,15 +8,23 @@ extension ChatStore {
                              turns: HistoryWindow.currentTurns())
     }
 
+    /// 턴별 히스토리 (T-347): 도구 재전송 턴은 직전 2개 Q/A(4메시지)로 축소.
+    /// 도구 결과는 extraHistory에 포함되므로 정확성 유지, prefill 요량만 줄인다.
+    func turnHistory(toolTurn: Bool) -> [Message] {
+        toolTurn ? Array(messages.dropLast(2).suffix(4)) : pastTurns()
+    }
+
     /// 채팅 요청 생성 (T-126 분리, 테스트 가능): 히스토리+이미지 페이로드 조립.
     /// T-268: extraHistory(tool 턴)+tools(tool_choice auto) 추가.
+    /// T-347: toolTurn=true면 히스토리 축소+시스템 프롬프트 경량화 (재전송 prefill 단축).
     func chatRequest(prompt: String, image: ChatImage? = nil,
-                     extraHistory: [[String: Any]] = []) throws -> URLRequest {
+                     extraHistory: [[String: Any]] = [],
+                     toolTurn: Bool = false) throws -> URLRequest {
         var req = URLRequest(url: baseURL.appendingPathComponent("v1/chat/completions"))
         req.httpMethod = "POST"
         req.timeoutInterval = 300 // Vision 추론은 수 분 가능
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let history = pastTurns().map { ["role": $0.role, "content": $0.text] }
+        let history = turnHistory(toolTurn: toolTurn).map { ["role": $0.role, "content": $0.text] }
         let userContent: Any
         if let image {
             let b64 = image.data.base64EncodedString()
@@ -28,11 +36,18 @@ extension ChatStore {
             userContent = prompt
         }
         let historyPlus = history + [["role": "user", "content": userContent]] + extraHistory
-        // T-285: 스킬+MCP 안내 + T-312: 오늘 날짜 시스템 메시지 (빈 문자열이면 생략).
-        let extras = SkillsStore.extrasBlock(
-            serverNames: MCPStore.shared.enabledServers.map(\.name))
-        let sysBlock = [Self.currentDateBlock(), extras]
-            .filter { !$0.isEmpty }.joined(separator: "\n\n")
+        // 이전 턴에서 도구 스키마·히스토리를 이미 봤으므로 재전송 턴은 prefill만 줄인다.
+        // 정직 가드·스킬/MCP 안내는 1턴에 충분 — 도구 결과를 답으로 정리하는 2턴엔 불필요.
+        let sysBlock: String
+        if toolTurn {
+            sysBlock = Self.currentDateBlock()
+        } else {
+            // T-285: 스킬+MCP 안내 + T-312: 오늘 날짜 시스템 메시지 (빈 문자열이면 생략).
+            let extras = SkillsStore.extrasBlock(
+                serverNames: MCPStore.shared.enabledServers.map(\.name))
+            sysBlock = [Self.currentDateBlock(), Self.toolHonestyBlock(), extras]
+                .filter { !$0.isEmpty }.joined(separator: "\n\n")
+        }
         let messagesPlus: [[String: Any]] = sysBlock.isEmpty
             ? historyPlus
             : [["role": "system", "content": sysBlock]] + historyPlus
@@ -60,7 +75,7 @@ extension ChatStore {
     func generationOptions() -> GenerationOptions {
         let extras = SkillsStore.extrasBlock(
             serverNames: MCPStore.shared.enabledServers.map(\.name))
-        let combined = [Self.currentDateBlock(), systemPrompt, extras]
+        let combined = [Self.currentDateBlock(), Self.toolHonestyBlock(), systemPrompt, extras]
             .filter { !$0.isEmpty }.joined(separator: "\n\n")
         return GenerationOptions(temperature: temperature, topK: topK, topP: topP, seed: seed,
                                  maxTokens: maxTokens, thinkingEnabled: thinkingEnabled,
@@ -81,5 +96,13 @@ extension ChatStore {
         formatter.dateFormat = "yyyy년 M월 d일 EEEE"
         return "[오늘 날짜] \(formatter.string(from: now)). "
             + "날짜·요일을 물으면 이 값을 그대로 답하세요."
+    }
+
+    /// 도구 정직 가드 (T-346): 호출 없이 성공 주장 금지. 고정 문자열이라 KV 캐시 안전.
+    /// 서버·네이티브 공통으로 주입한다. 순수 함수(테스트 가능).
+    nonisolated static func toolHonestyBlock() -> String {
+        "[도구 정직 규칙] 클립보드 복사·일정 추가 등은 반드시 도구 호출로만 수행하세요. "
+            + "도구를 호출하지 않았으면 '복사했습니다/추가했습니다/열었습니다/실행했습니다'라고 말하지 마세요. "
+            + "도구가 목록에 없으면 호출을 시도하지 말고, 설정에서 해당 도구를 켜 달라고 안내하세요."
     }
 }

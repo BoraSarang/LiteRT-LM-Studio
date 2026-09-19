@@ -112,10 +112,12 @@ extension ChatStore {
     /// 서버 멀티턴 전송 (T-268 S-3): tool_calls 종료 시 로컬 실행 후 재전송, 최대 3턴.
     /// messages[]는 user/assistant만 유지, tool 턴은 요청 히스토리에만 포함.
     /// T-343: 턴별 구간 타이밍+요청 크기 로그 (전체 TTFT와 분리 진단).
+    /// T-347: 재전송 턴(turn>0)은 히스토리 축소·시스템 경량화로 prefill 단축.
     func runServerTurns(prompt: String, image: ChatImage?, idx: Int, started: Date) async throws {
         var state = SSEStreamState(lastFlush: started)
         var extraHistory: [[String: Any]] = []
         var turn = 0
+        var toolRoundStart: Date?
         // T-344: 서버 무수신 워치독 (네이티브 stallWatch 대응). 60초 무수신이면
         // 전송 태스크를 취소해 명확한 타임아웃 실패로 전환한다 (300초 방치 방지).
         let gate = StreamProgressGate(idleLimit: Self.stallIdleLimit)
@@ -126,8 +128,9 @@ extension ChatStore {
                 try Task.checkCancellation()
                 let legStart = Date()
                 let hadFirstToken = state.firstTokenAt != nil
-                logTurnRequest(turn: turn, extraHistory: extraHistory)
-                let req = try chatRequest(prompt: prompt, image: image, extraHistory: extraHistory)
+                logTurnRequest(turn: turn, extraHistory: extraHistory, toolTurn: turn > 0)
+                let req = try chatRequest(prompt: prompt, image: image,
+                                          extraHistory: extraHistory, toolTurn: turn > 0)
                 let (bytes, resp) = try await URLSession.shared.bytes(for: req)
                 guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
                     throw URLError(.badServerResponse)
@@ -144,11 +147,19 @@ extension ChatStore {
                 }
                 let calls = state.toolAcc.finalized()
                 guard state.toolAcc.finishReason == "tool_calls",
-                      !calls.isEmpty, turn < ServerToolHistory.maxTurns else { break }
+                      !calls.isEmpty, turn < ServerToolHistory.maxTurns else {
+                    if let roundStart = toolRoundStart {
+                        // T-347: 판단→승인→실행→재전송 왕복 전체 요약 (턴별 로그의 통합).
+                        logger.perf(feature: "도구",
+                                    "왕복 총 \(Self.elapsed(from: roundStart))s")
+                    }
+                    break
+                }
                 let names = calls.map(\.name).joined(separator: ", ")
                 logger.perf(feature: "도구",
                             "\(turn + 1)턴 판단 \(Self.elapsed(from: legStart))s (\(names))")
                 turn += 1
+                toolRoundStart = toolRoundStart ?? legStart
                 _ = await runTurnCalls(calls, extraHistory: &extraHistory, idx: idx, turn: turn)
                 state.toolAcc = ToolCallAccumulator()
                 logger.info(feature: "도구", "서버 \(turn)턴 재전송 (\(names), \(calls.count)건 실행)")
@@ -204,8 +215,9 @@ extension ChatStore {
     }
 
     /// 턴 요청 크기 로그 (순수 조회+기록, T-343): 히스토리·도구결과·도구 수.
-    func logTurnRequest(turn: Int, extraHistory: [[String: Any]]) {
-        let historyChars = pastTurns().reduce(0) { $0 + $1.text.count }
+    /// T-347: 재전송 턴은 축소 히스토리 크기를 표기 (A/B 검증 기준).
+    func logTurnRequest(turn: Int, extraHistory: [[String: Any]], toolTurn: Bool) {
+        let historyChars = turnHistory(toolTurn: toolTurn).reduce(0) { $0 + $1.text.count }
         let extraBytes = Self.jsonBytes(extraHistory)
         let toolCount = LocalTools.registered().count
         logger.info(feature: "채팅전송",

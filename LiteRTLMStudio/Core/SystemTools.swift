@@ -150,8 +150,10 @@ struct WriteClipboardTool: Tool {
         let body = text
         return await LocalTools.runTolled(toolName: Self.name,
                                           detail: "클립보드에 복사 (\(body.count)자)") {
-            let ok = await ClipboardAccess.write(body)
-            return ok ? "클립보드에 복사했습니다." : "클립보드 쓰기에 실패했습니다."
+            guard await ClipboardAccess.write(body) else {
+                throw ToolExecutionError.clipboardWriteFailed
+            }
+            return "클립보드에 복사했습니다."
         }
     }
 }

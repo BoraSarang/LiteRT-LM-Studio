@@ -356,7 +356,7 @@ struct ToolCallChipView: View {
         .padding(.horizontal, 10).padding(.vertical, 6)
         .background(Color.accentColor.opacity(0.08))
         .clipShape(.rect(cornerRadius: 8))
-        .help("도구 호출: \(record.name)")
+        .help("도구 호출: \(record.displayTitle)")
     }
 
     var statusIcon: String {

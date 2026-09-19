@@ -9,6 +9,20 @@ enum ToolDecision: Sendable, Equatable {
 /// 로컬 안전 도구 묶음 (T-266 S-2): 현재시각·사칙계산. 부작용 없음.
 /// T-269: 웹 검색·가져오기 추가 (토글 꺼지면 제외).
 enum LocalTools {
+    /// 읽기 전용 도구 (T-347): ask 모드에서도 승인 팝업 없이 자동 실행.
+    /// 부작용 판정 기준 — 로컬 상태·파일·기기를 변경하지 않고 조회/계산만 한다.
+    /// 쓰기계(클립보드 쓰기·일정/알림 추가·셸·URL·단축어·MCP 호출)는 계속 매번 묻는다.
+    nonisolated static let readOnlyNames: Set<String> = [
+        GetTimeTool.name, CalculatorTool.name, WebSearchTool.name, WebFetchTool.name,
+        ReadFileTool.name, GetSystemInfoTool.name, ReadClipboardTool.name,
+        ListCalendarEventsTool.name, ListRemindersTool.name, MCPListToolsTool.name
+    ]
+
+    /// 승인 팝업 필요 여부 (순수, 테스트 가능, T-347): ask이고 쓰기계면 true.
+    nonisolated static func needsApproval(toolName: String,
+                                          permission: GlobalPermission = GlobalPermission.current()) -> Bool {
+        permission == .ask && !readOnlyNames.contains(toolName)
+    }
     /// 권한별 등록 목록 (순수, 테스트 가능): Off면 빈 배열 (모델이 호출 불가).
     /// T-271: 설정 도구 탭 개별 OFF도 제외. T-272: 셸·파일 3종 추가.
     nonisolated static func registered(
@@ -24,7 +38,8 @@ enum LocalTools {
         tools += [MCPListToolsTool(), MCPCallTool()] // T-285 게이트웨이 (개별 토글 적용)
         tools += [GetSystemInfoTool(), ReadClipboardTool(), ListCalendarEventsTool(),
                   ListRemindersTool(), WriteClipboardTool(), OpenURLTool(),
-                  RunShortcutTool(), AddReminderTool(), AddCalendarEventTool()] // T-270 시스템 도구
+                  RunShortcutTool(), AddReminderTool(), AddCalendarEventTool(),
+                  DeleteReminderTool(), DeleteCalendarEventTool()] // T-270 시스템 도구
         return tools.filter { ToolCatalog.isEnabled(type(of: $0).name) }
     }
 
@@ -34,6 +49,7 @@ enum LocalTools {
     }
 
     /// 실행 결정 (T-266 S-2): Off·거부·타임아웃은 거부, Allow는 진행, Ask는 승인 대기.
+    /// T-347: ask라도 읽기 전용 도구는 팝업 없이 자동 진행 (승인 왕복 1회 절감).
     static func decide(toolName: String, detail: String,
                        permission: GlobalPermission = GlobalPermission.current()) async -> ToolDecision {
         switch permission {
@@ -42,8 +58,12 @@ enum LocalTools {
         case .allowAll:
             return .proceed
         case .ask:
-            let allow = await ToolApproval.shared.request(toolName: toolName, detail: detail)
-            return allow ? .proceed : .denied("사용자가 도구 실행을 거부했습니다.")
+            if needsApproval(toolName: toolName, permission: .ask) {
+                let allow = await ToolApproval.shared.request(toolName: toolName, detail: detail)
+                return allow ? .proceed : .denied("사용자가 도구 실행을 거부했습니다.")
+            }
+            DebugLogger.shared.info(feature: "도구", "\(toolName) 읽기 전용 — 자동 실행")
+            return .proceed
         }
     }
 
@@ -115,6 +135,40 @@ struct CalculatorTool: Tool {
                 return String(Int(value))
             }
             return String(value)
+        }
+    }
+}
+
+/// 도구 실행 실패 (T-346 검증 처방): runTolled가 failed 칩으로 기록하도록 throw용.
+/// errorDescription이 그대로 모델·칩에 전달된다 (앞에 "도구 실행 실패: " 접두).
+enum ToolExecutionError: Error, LocalizedError {
+    case clipboardWriteFailed
+    case calendarPermissionDenied
+    case remindersPermissionDenied
+    case noDefaultCalendar
+    case emptyTitle(String)
+    case dateParseFailed(String)
+    case saveFailed(String)
+    case removeFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .clipboardWriteFailed:
+            return "클립보드 쓰기에 실패했습니다."
+        case .calendarPermissionDenied:
+            return EventKitBridge.permissionMessage
+        case .remindersPermissionDenied:
+            return EventKitBridge.permissionMessage
+        case .noDefaultCalendar:
+            return "일정 추가 실패: 기본 캘린더가 없습니다."
+        case .emptyTitle(let what):
+            return "\(what)이(가) 비어 있습니다."
+        case .dateParseFailed(let raw):
+            return SystemToolDates.failureMessage(raw)
+        case .saveFailed(let message):
+            return message
+        case .removeFailed(let message):
+            return message
         }
     }
 }

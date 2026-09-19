@@ -102,11 +102,21 @@ enum FollowUpSuggest {
         final - snapshot > max(300, snapshot / 2)
     }
 
-    /// T-292 후속 선행 조건 (순수, 테스트 가능): 서버 route만 스트리밍 중 300자 도달.
-    /// 네이티브는 Engine 동시 추론 미검증이라 완료 후 호출 유지.
+    /// T-292 후속 선행 조건 — T-347에서 폐지 (항상 false).
+    /// 스트리밍 중 후속질문 LLM이 같은 데몬·GPU에 겹치면 메인 답변이 밀려 느려진다.
+    /// 완료 후 idle 지연(3초)으로만 호출 (runServerTurns 요청과 경합 제거).
     nonisolated static func shouldPrefetch(route: EngineMode, streaming: Bool, role: String,
                                            isError: Bool, count: Int) -> Bool {
-        route == .cli && streaming && role == "assistant" && !isError && count >= 300
+        false
+    }
+
+    /// 후속질문 idle 지연 (T-347): 응답 완료 후 이 시간 동안 새 전송이 없어야 실행.
+    nonisolated static var followUpIdleDelay: TimeInterval { 3.0 }
+
+    /// 새 전송 감지 (순수, 테스트 가능, T-347): 마지막 사용자 발화 ID가 바뀌었으면 true.
+    nonisolated static func hasNewUserMessage(before snapshot: UUID?, now: UUID?) -> Bool {
+        guard let snapshot, let now else { return false }
+        return snapshot != now
     }
 
     /// 후속질문 질문문 (순수, 테스트 가능, T-291): 대상 응답 직전 마지막 사용자 발화.
@@ -171,7 +181,9 @@ final class FollowUpStore: ObservableObject {
     private let logger = DebugLogger.shared
 
     /// 요청 1회 (중복 가드): 같은 방 ID면 재요청 안 함. 선행·완료 공용.
-    func request(messageID: UUID, question: String, answer: String, chat: ChatStore) {
+    /// T-347: 완료 후 idleDelay동안 새 전송이 없으면 실행, 있으면 기각(휴리스틱 폴백).
+    func request(messageID: UUID, question: String, answer: String, chat: ChatStore,
+                 idleDelay: TimeInterval = FollowUpSuggest.followUpIdleDelay) {
         if self.messageID == messageID && (loading || !chips.isEmpty) { return }
         cancel()
         self.messageID = messageID
@@ -180,9 +192,24 @@ final class FollowUpStore: ObservableObject {
         loading = true
         let prompt = FollowUpSuggest.prompt(question: question, answer: answer)
         let started = Date()
-        let kind = chat.streaming ? "선행 요청" : "LLM 요청"
-        logger.info(feature: "후속질문", "\(kind) (\(chat.route.title))")
+        let kind = "LLM 요청"
+        logger.info(feature: "후속질문", "\(kind) (\(chat.route.title)) idle=\(Int(idleDelay))s")
+        let snapshotUserID = chat.messages.last(where: { $0.role == "user" })?.id
         task = Task { [weak self] in
+            guard let self else { return }
+            // T-347: idle 지연 — 응답 완료 후 새 전송이 없이 idleDelay 지나면 실행.
+            let waitStart = Date()
+            while Date().timeIntervalSince(waitStart) < idleDelay {
+                try? await Task.sleep(for: .milliseconds(200))
+                guard !Task.isCancelled, self.messageID == messageID else { return }
+                let currentUserID = chat.messages.last(where: { $0.role == "user" })?.id
+                guard !FollowUpSuggest.hasNewUserMessage(before: snapshotUserID, now: currentUserID)
+                else {
+                    self.loading = false // 새 전송 → 후속 LLM 기각 (안내 칩은 그대로)
+                    self.logger.info(feature: "후속질문", "새 전송 감지 — 후속 LLM 기각")
+                    return
+                }
+            }
             let result: String?
             if chat.route == .native, let engine = chat.inferenceEngine {
                 result = await Self.fetchNative(engine: engine, modelID: chat.model,
@@ -191,7 +218,7 @@ final class FollowUpStore: ObservableObject {
                 result = await Self.fetchServer(baseURL: chat.baseURL, model: chat.model,
                                                 prompt: prompt)
             }
-            guard let self, !Task.isCancelled, self.messageID == messageID else { return }
+            guard !Task.isCancelled, self.messageID == messageID else { return }
             let elapsed = Date().timeIntervalSince(started)
             // T-313: 스켈레톤 최소 노출 — 초고속 응답 시 깜빡임 방지.
             let remainder = FollowUpSuggest.minDisplayRemainder(elapsed: elapsed)

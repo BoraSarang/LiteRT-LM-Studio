@@ -56,6 +56,10 @@ enum ToolCatalog {
                      detail: "한국어 시간 표현으로 미리 알림 추가", category: .system),
             ToolInfo(name: AddCalendarEventTool.name, title: "일정 추가",
                      detail: "한국어 시간 표현으로 일정 추가", category: .system),
+            ToolInfo(name: DeleteReminderTool.name, title: "미리 알림 삭제",
+                     detail: "제목으로 미리 알림 삭제", category: .system),
+            ToolInfo(name: DeleteCalendarEventTool.name, title: "일정 삭제",
+                     detail: "제목(·날짜)으로 일정 삭제", category: .system),
             ToolInfo(name: MCPListToolsTool.name, title: "MCP 목록",
                      detail: "MCP 서버 도구 목록 조회", category: .mcp),
             ToolInfo(name: MCPCallTool.name, title: "MCP 호출",
@@ -74,5 +78,10 @@ enum ToolCatalog {
     nonisolated static func setEnabled(_ name: String, _ on: Bool,
                                        defaults: UserDefaults = .standard) {
         defaults.set(on, forKey: keyPrefix + name)
+    }
+
+    /// 한글 표시명 (T-348): UI에선 영어 도구명을 보여주지 않는다. 미등록은 원문 폴백.
+    nonisolated static func title(for name: String) -> String {
+        all.first { $0.name == name }?.title ?? name
     }
 }
