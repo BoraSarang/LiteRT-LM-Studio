@@ -220,7 +220,23 @@ private let l10nKeyIndex: [L10nKey] = [
     "import.repoPage", "import.checkFileHelp", "import.pickFile",
     "import.filePlaceholder", "import.localIDPlaceholder", "import.tokenPlaceholder",
     "import.duplicate", "import.pending", "import.badRepo",
-    "import.noLiteFile", "import.fetchFailed"
+    "import.noLiteFile", "import.fetchFailed", "monitor.live",
+    "monitor.stopped", "monitor.help.gpu", "monitor.help.cpu",
+    "monitor.help.ram", "monitor.help.gpuMeter", "monitor.cpuUser",
+    "monitor.cpuSystem", "monitor.idle", "monitor.usage",
+    "monitor.compressed", "monitor.cache", "debug.filter.level",
+    "debug.filter.query", "debug.filter.hint", "debug.filter.empty",
+    "debug.search", "debug.count.none", "debug.count.position",
+    "debug.prev", "debug.next", "debug.autoScroll",
+    "debug.level", "debug.all", "debug.copied",
+    "debug.copySelection", "debug.copySelectionHelp", "debug.copyAll",
+    "debug.copyAllHelp", "debug.clear", "debug.close",
+    "debug.jumpBottom", "debug.jumpBottomHelp", "debug.empty.title",
+    "debug.empty.detail", "debug.empty.noMatch", "menubar.running",
+    "menubar.newChat", "menubar.openMain", "menubar.modelManager",
+    "menubar.settings", "menubar.quit", "menubar.recentChats",
+    "shortcuts.section", "shortcuts.remove", "shortcuts.namePlaceholder",
+    "shortcuts.add", "shortcuts.note"
 ]
 
 extension L10n {

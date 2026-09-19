@@ -140,4 +140,64 @@ extension L10n {
         static let noLiteFile = L10nKey("import.noLiteFile")
         static let fetchFailed = L10nKey("import.fetchFailed")
     }
+
+    enum SystemMonitor {
+        static let live = L10nKey("monitor.live")
+        static let stopped = L10nKey("monitor.stopped")
+        static let gpuHelp = L10nKey("monitor.help.gpu")
+        static let cpuHelp = L10nKey("monitor.help.cpu")
+        static let ramHelp = L10nKey("monitor.help.ram")
+        static let gpuMeterHelp = L10nKey("monitor.help.gpuMeter")
+        static let cpuUser = L10nKey("monitor.cpuUser")
+        static let cpuSystem = L10nKey("monitor.cpuSystem")
+        static let idle = L10nKey("monitor.idle")
+        static let usage = L10nKey("monitor.usage")
+        static let compressed = L10nKey("monitor.compressed")
+        static let cache = L10nKey("monitor.cache")
+    }
+
+    enum Debug {
+        static let filterLevel = L10nKey("debug.filter.level")
+        static let filterQuery = L10nKey("debug.filter.query")
+        static let filterHint = L10nKey("debug.filter.hint")
+        static let filterEmpty = L10nKey("debug.filter.empty")
+        static let search = L10nKey("debug.search")
+        static let none = L10nKey("debug.count.none")
+        static let position = L10nKey("debug.count.position")
+        static let prev = L10nKey("debug.prev")
+        static let next = L10nKey("debug.next")
+        static let autoScroll = L10nKey("debug.autoScroll")
+        static let level = L10nKey("debug.level")
+        static let all = L10nKey("debug.all")
+        static let copied = L10nKey("debug.copied")
+        static let copySelection = L10nKey("debug.copySelection")
+        static let copySelectionHelp = L10nKey("debug.copySelectionHelp")
+        static let copyAll = L10nKey("debug.copyAll")
+        static let copyAllHelp = L10nKey("debug.copyAllHelp")
+        static let clear = L10nKey("debug.clear")
+        static let close = L10nKey("debug.close")
+        static let jumpBottom = L10nKey("debug.jumpBottom")
+        static let jumpBottomHelp = L10nKey("debug.jumpBottomHelp")
+        static let emptyTitle = L10nKey("debug.empty.title")
+        static let emptyDetail = L10nKey("debug.empty.detail")
+        static let noMatchTitle = L10nKey("debug.empty.noMatch")
+    }
+
+    enum StatusMenu {
+        static let running = L10nKey("menubar.running")
+        static let newChat = L10nKey("menubar.newChat")
+        static let openMain = L10nKey("menubar.openMain")
+        static let modelManager = L10nKey("menubar.modelManager")
+        static let settings = L10nKey("menubar.settings")
+        static let quit = L10nKey("menubar.quit")
+        static let recentChats = L10nKey("menubar.recentChats")
+    }
+
+    enum Shortcuts {
+        static let section = L10nKey("shortcuts.section")
+        static let remove = L10nKey("shortcuts.remove")
+        static let namePlaceholder = L10nKey("shortcuts.namePlaceholder")
+        static let add = L10nKey("shortcuts.add")
+        static let note = L10nKey("shortcuts.note")
+    }
 }
