@@ -71,6 +71,7 @@ Engine-level options (backend, MTP, and similar) live in the main window's **ins
 - [docs/사용설명서.md](docs/사용설명서.md) — full user manual (Korean)
 - [docs/DESIGN.md](docs/DESIGN.md) — design notes
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — release notes
+- [docs/CHANGELOG-DETAIL.md](docs/CHANGELOG-DETAIL.md) — per-task detailed work log
 
 ## License
 

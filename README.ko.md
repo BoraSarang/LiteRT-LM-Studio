@@ -70,7 +70,8 @@
 
 - [docs/사용설명서.md](docs/사용설명서.md) — 전체 사용 설명서
 - [docs/DESIGN.md](docs/DESIGN.md) — 설계 메모
-- [docs/CHANGELOG.md](docs/CHANGELOG.md) — 변경 이력
+- [docs/CHANGELOG.md](docs/CHANGELOG.md) — 변경 이력(릴리스 노트)
+- [docs/CHANGELOG-DETAIL.md](docs/CHANGELOG-DETAIL.md) — 작업 단위 상세 로그
 
 ## 라이선스
 
