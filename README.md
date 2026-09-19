@@ -14,6 +14,15 @@ macOS native client for [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM)
 - **Benchmarks** — dedicated window with history and AI analysis of results
 - **Menu bar** — status item with a popover showing engine state, uptime, and model, plus quick start/stop and recent chats
 - **System monitor** — CPU/RAM/GPU meters, daemon stats, and a debug panel
+- **Bilingual UI** — Korean and English, switchable at runtime from Settings; app-drawn text changes instantly, macOS-owned text (permission dialogs) follows on the next launch
+
+## Screenshots
+
+| Chat | Settings > General > Appearance |
+| --- | --- |
+| <img src="docs/images/chat_en.png" alt="Chat with streaming responses and follow-up suggestions" width="460"> | <img src="docs/images/settings-language_en.png" alt="Language setting under Settings > General > Appearance" width="300"> |
+| **Model catalog** | **Benchmarks** |
+| <img src="docs/images/model-catalog_en.png" alt="Model catalog with Hugging Face models" width="460"> | <img src="docs/images/benchmark_en.png" alt="Benchmark window with history and charts" width="460"> |
 
 ## Requirements
 
@@ -52,7 +61,7 @@ Engine-level options (backend, MTP, and similar) live in the main window's **ins
 ## Project Layout
 
 - `LiteRTLMStudio/` — SwiftUI app (`ContentView`, `SidebarView`, `ChatPaneView`, `StatusItemController`, …)
-- `LiteRTLMStudio/Core/` — stores, engines, Markdown, and the download center
+- `LiteRTLMStudio/Core/` — stores, engines, localization, Markdown, and the download center
 - `LiteRTLMStudioTests/` — unit tests
 - `docs/` — plans, TODO, design notes, changelog, and the user manual (Korean)
 - `EngineVendor/`, `Vendor/` — vendored dependencies (engine headers, Highlightr)
