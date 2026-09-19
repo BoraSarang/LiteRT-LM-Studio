@@ -2,6 +2,15 @@
 
 ## [Unreleased] (macos)
 
+* README 인라인 SVG 실제 이미지 렌더 (T-341): `[<svg…></svg>](url)`·맨 태그를
+  `NativeMarkdown.inlineSegments`로 분리해 `NSImage`(SVG 디코드) 배지로 표시.
+  `currentColor` 도형은 템플릿 렌더로 다크모드 대응, 코드 스팬은 평문 유지. [macos]
+
+* 실행 시 옛 모델 기본값 제거 (T-340): `ChatStore.model` 하드코딩 `gemma4-12b`를
+  저장된 `selectedModelID` 시드로 대체, 폴백은 빈 값. 실행 시 존재하지 않는 모델로
+  초기화되던 "모델 파일 없음" 해소(저장된 모델로 정상 초기화). 빈 선택은 엔진 진입 전
+  "모델 미선택"으로 원인 확정. [macos]
+
 * 윈도우 시작 위치 점프 근본 수정 (T-339): T-337/T-338(뷰 트리 `WindowAccessor`)은
   복원이 표시 이후에 실행되는 타이밍을 이기지 못해 실패(중앙 → 저장 위치 이동 지속).
   AppKit 런치 단계(`applicationDidFinishLaunching`)에서 표시 전 창을 잡아

@@ -331,3 +331,5 @@
 * [x] T-337 윈도우 위치 점프 제거: autosave 동기 적용 (실패 — T-339로 대체)
 * [x] T-338 윈도우 루트에 Accessor 이동: ContentView 해석 전 복원 (실패 — T-339로 대체)
 * [x] T-339 윈도우 위치 점프 근본 수정: AppDelegate 표시 전 복원+WindowAccessor 제거 (눈확인 통과)
+* [x] T-340 실행 시 옛 모델 기본값 제거: 저장된 선택값 시드+폴백 빈 값 (눈확인 통과)
+* [x] T-341 README 인라인 SVG 실제 이미지 렌더: NSImage SVG 디코드+라인 높이 배지 (눈확인 통과)
