@@ -49,3 +49,10 @@
 * 각 단계 build OK · 315/315 · swiftlint 0.
 * 실측: 5탭·사이드바·메뉴바·창 제목을 한국어↔English로 전환해 즉시 반영 확인.
 * 재실행 후 시스템 문구(권한 대화상자) 언어 일치 확인.
+
+## 릴리스 (0.7.150)
+
+* T-361~T-366 완료 후 `feat/i18n` PR #3 머지(`fb574be`) → 태그 `v0.7.150` → GitHub Release.
+* MARKETING_VERSION 0.7.150 / CURRENT_PROJECT_VERSION 136, 단위 테스트 319/319.
+* 문서: README(한/영) 스크린샷 4종, CHANGELOG는 릴리스 요약(상세는 `docs/CHANGELOG-DETAIL.md`) — 머리말에 기록 규칙 명시.
+* 남은 확인: T-368(창 제목·앱 메뉴 다음 실행 반영, 권한 대화상자 문구).

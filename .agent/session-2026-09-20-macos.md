@@ -17,3 +17,12 @@
 15. T-366 시스템 표면·문서: `InfoPlist.xcstrings`(권한 4건 ko/en) + pbxproj 등록, `InfoPlist.strings` 컴파일 검증 테스트(+1=319). `error_message_ko.json`(29개)을 `error.<코드>` 키로 이관(사용자 선택: 코드별 키 추가 후 JSON 삭제) — `Core/ErrorCatalog.swift`(codes·message) 추가, JSON·pbxproj·테스트 번들 리소스 제거, JSON 로드 테스트를 코드 전수 ko/en 해석 테스트로 교체. pbxproj 함정: 소스 페이즈 3000…001=앱, 3000…004=테스트 — 처음에 테스트 타깃에 잘못 넣어 빌드 실패(L 심볼 미탐색). README(한/영)·사용설명서·CHANGELOG·TODO·PLAN 갱신. 다음: 창/메뉴 제목 즉시 갱신 눈확인(다음 실행 반영), 그 뒤 `feat/i18n` push·PR.
 16. 마무리: `feat/i18n`(22커밋, main 대비 84파일 +16,208/−933) push 후 PR #3 생성 https://github.com/BoraSarang/LiteRT-LM-Studio/pull/3 (base main). 검증 319/319·lint 0. 남은 눈확인: 언어 전환 후 창 제목·앱 메뉴가 다음 실행에 반영되는지, 시스템 권한 대화상자 문구.
 17. 릴리스: PR #3 main 머지(`fb574be`) → 태그 `v0.7.150` → GitHub Release 생성(https://github.com/BoraSarang/LiteRT-LM-Studio/releases/tag/v0.7.150). README 한/영에 스크린샷 4종(docs/images, chat/settings-language/model-catalog/benchmark) 추가, MARKETING_VERSION 0.7.150·CURRENT_PROJECT_VERSION 136. CHANGELOG 정리: Unreleased에 쌓여 있던 136개 상세 항목(T-0006~T-366, 409줄)을 `docs/CHANGELOG-DETAIL.md`로 분리하고 CHANGELOG.md는 릴리스 요약(3~5줄)만 두는 규칙을 머리말에 명시. 머지 후 main 재빌드·설치·실행 완료(0.7.150).
+18. 정리 마무리: PR #4("CHANGELOG 요약/상세 분리") 머지(`f581adb`), 0.7.150 릴리스 이후 상태 정리 — 로컬 브랜치 8개(전부 main에 머지: chore/macos-commit-* 4, docs/readme-license, feat/macos-* 3)와 원격 브랜치(feat/i18n·docs/changelog-cleanup·docs/readme-license) 삭제 → **원격에는 `main`만** 남김. TODO에 T-367(릴리스 기록)·T-368(남은 눈확인) 추가, PLAN에 릴리스 절 추가.
+
+## 마무리 요약
+
+* 완료: T-361~T-366(한/영 다국어 전환·문구 다듬기·시스템 표면) + 릴리스 0.7.150 + 문서 정리.
+* 검증: 단위 테스트 319/319, swiftlint 0(벤더 Sendable 경고 2건은 T-010 정책상 유지), 앱 0.7.150 설치·실행 확인.
+* 산출물: PR #1~#4 머지, 태그 `v0.7.150`, GitHub Release, README(한/영)+스크린샷, docs/CHANGELOG-DETAIL.md.
+* 남은 일: T-368 눈확인(창 제목·앱 메뉴 다음 실행 반영, 권한 대화상자 문구) — 사용자 확인 필요.
+* 규칙 준수: main 직접 push 없이 전부 PR 경유, 커밋/문서 한국어, 시크릿 하드코딩 없음.
