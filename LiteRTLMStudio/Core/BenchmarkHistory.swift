@@ -7,10 +7,10 @@ enum BenchmarkStage: Int, CaseIterable {
     case initEngine = 0, measure, summarize, done
     var title: String {
         switch self {
-        case .initEngine: "1. 엔진 초기화"
-        case .measure: "2. 측정 실행"
-        case .summarize: "3. 결과 정리"
-        case .done: "4. 완료"
+        case .initEngine: L(L10n.Benchmark.stageInit)
+        case .measure: L(L10n.Benchmark.stageMeasure)
+        case .summarize: L(L10n.Benchmark.stageSummarize)
+        case .done: L(L10n.Benchmark.stageDone)
         }
     }
 }
@@ -22,19 +22,19 @@ extension BenchmarkStore {
     nonisolated static func estimateText(route: EngineMode, avgDuration: TimeInterval?) -> String {
         if let avg = avgDuration, avg > 0 {
             let lo = max(10, avg * 0.7), hi = avg * 1.3
-            return "예상 약 \(elapsedText(lo))~\(elapsedText(hi)) (이전 기록 평균)"
+            return L(L10n.Benchmark.estimateAverage, elapsedText(lo), elapsedText(hi))
         }
         switch route {
-        case .native: return "예상 약 1~3분 (첫 준비 포함)"
-        case .cli: return "예상 약 3~10분 (12B는 워밍업 타임아웃 가능)"
+        case .native: return L(L10n.Benchmark.estimateNative)
+        case .cli: return L(L10n.Benchmark.estimateCli)
         }
     }
 
     /// T-216: 경과 표기 (순수, 테스트 가능).
     nonisolated static func elapsedText(_ sec: TimeInterval) -> String {
         let total = max(0, Int(sec))
-        if total < 60 { return "\(total)초" }
-        return "\(total / 60)분 \(total % 60)초"
+        if total < 60 { return L(L10n.Benchmark.elapsedSeconds, total) }
+        return L(L10n.Benchmark.elapsedMinutes, total / 60, total % 60)
     }
 }
 
@@ -48,9 +48,9 @@ enum BenchmarkStatus: String, Codable, Equatable {
 
     var title: String {
         switch self {
-        case .done: "완료"
-        case .cancelled: "중단"
-        case .failed: "실패"
+        case .done: L(L10n.Benchmark.statusDone)
+        case .cancelled: L(L10n.Benchmark.statusCancelled)
+        case .failed: L(L10n.Benchmark.statusFailed)
         }
     }
 }
@@ -73,7 +73,7 @@ struct BenchmarkRecord: Codable, Identifiable, Equatable {
 
     /// 목록 표시 1줄 (순수, 테스트 가능).
     var summary: String {
-        let speed = metrics.map { String(format: "%.1f 토큰/초", $0.decodeSpeed) } ?? "-"
+        let speed = metrics.map { L(L10n.Benchmark.tokensPerSecond, $0.decodeSpeed) } ?? "-"
         return "\(modelID) · \(route.title) · \(status.title) · \(speed)"
     }
 }
@@ -104,10 +104,10 @@ enum BenchmarkRetention: Int, CaseIterable, Codable {
 
     var title: String {
         switch self {
-        case .ten: "10개"
-        case .fifty: "50개"
-        case .hundred: "100개"
-        case .unlimited: "제한 없음"
+        case .ten: L(L10n.Benchmark.retentionTen)
+        case .fifty: L(L10n.Benchmark.retentionFifty)
+        case .hundred: L(L10n.Benchmark.retentionHundred)
+        case .unlimited: L(L10n.Benchmark.retentionUnlimited)
         }
     }
 
@@ -176,12 +176,15 @@ final class BenchmarkHistoryStore: ObservableObject {
         save()
     }
 
-    /// 모델 필터 (순수, 테스트 가능).
+    /// 모델 필터 (순수, 테스트 가능). `allModelsToken`은 "전체 기록" 표시 항목의 값.
     nonisolated static func filtered(_ records: [BenchmarkRecord],
                                      modelID: String?) -> [BenchmarkRecord] {
-        guard let modelID, !modelID.isEmpty, modelID != "전체 기록" else { return records }
+        guard let modelID, !modelID.isEmpty, modelID != allModelsToken else { return records }
         return records.filter { $0.modelID == modelID }
     }
+
+    /// 필터 "전체 기록" 항목의 저장 값 (표시 문구와 분리, T-362).
+    nonisolated static let allModelsToken = "__all_models__"
 
     /// 보관 수 적용 (순수, 테스트 가능).
     nonisolated static func capped(_ records: [BenchmarkRecord],
@@ -255,7 +258,7 @@ extension BenchmarkStore {
         if record.route == .native, chat.inferenceEngine?.preparedModelID != record.modelID {
             analyzing = false
             analyzingSlotID = nil
-            analysisError = "앱 내 엔진이 준비되지 않았습니다. 사이드바 엔진 행에서 실행 후 다시 시도해 주세요."
+            analysisError = L(L10n.Benchmark.analysisNotPrepared)
             logger.info(feature: "벤치마크", "분석 차단 (앱 내 엔진 미준비)")
             return
         }
@@ -266,9 +269,9 @@ extension BenchmarkStore {
             do {
                 try await Self.analyzeResult(store: self, request: request, slotID: slotID)
             } catch is CancellationError {
-                self?.analysisError = "분석이 중단되었습니다."
+                self?.analysisError = L(L10n.Benchmark.analysisCancelled)
             } catch {
-                self?.analysisError = "분석 실패: 서버 상태를 확인해 주세요. (E-MAC-ENG-0002)"
+                self?.analysisError = L(L10n.Benchmark.analysisFailed)
                 self?.logger.error(code: "E-MAC-ENG-0002", feature: "벤치마크", "분석 실패: \(error)")
             }
             self?.analyzing = false

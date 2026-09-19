@@ -205,9 +205,9 @@ nonisolated func functionCallHelp(_ supported: Bool) -> String {
 /// 인스펙터 3섹션 on/off 분할 컨트롤 (툴바 상시 표시).
 /// 인스펙터 섹션 타이틀 (T-072): 테스트 잠금용 상수.
 enum InspectorTitle {
-    static let system = "시스템 현황"
-    static let backend = "실행 설정"
-    static let generate = "생성 설정"
+    static var system: String { L(L10n.Inspector.system) }
+    static var backend: String { L(L10n.Inspector.backend) }
+    static var generate: String { L(L10n.Inspector.generate) }
     static var all: [String] { [system, backend, generate] }
 }
 
@@ -218,15 +218,15 @@ enum InspectorDefaults {
     static let topP = 0.95
 
     nonisolated static func systemSummary(live: Bool) -> String {
-        live ? "LIVE" : "중지됨"
+        L(live ? L10n.Inspector.summaryLive : L10n.Inspector.summaryStopped)
     }
 
     nonisolated static func backendSummary(hasChanges: Bool) -> String {
-        hasChanges ? "변경됨" : "적용됨"
+        L(hasChanges ? L10n.Inspector.summaryChanged : L10n.Inspector.summaryApplied)
     }
 
     nonisolated static func generateSummary(temperature: Double, topK: Int) -> String {
-        String(format: "온도 %.2f · 상위K %d", temperature, topK)
+        L(L10n.Inspector.summaryGenerate, temperature, topK)
     }
 }
 
@@ -363,7 +363,7 @@ struct BackendSectionView: View {
         }
         if let mdl = model {
             LabeledContent("추측 디코딩", value: mdl.speculative ? "지원" : "미포함")
-            LabeledContent("지원 입력", value: ModelAlias.modalitiesKorean(mdl.modalities))
+            LabeledContent("지원 입력", value: ModelAlias.modalities(mdl.modalities))
         }
         DisclosureGroup("고급") {
             Toggle("Metal 상주", isOn: $residency)

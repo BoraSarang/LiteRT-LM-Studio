@@ -69,9 +69,9 @@ final class ChatStore: ObservableObject {
 
         var title: String {
             switch self {
-            case .recent: "최근 순"
-            case .name: "이름 순"
-            case .created: "생성 순"
+            case .recent: L(L10n.Session.sortRecent)
+            case .name: L(L10n.Session.sortName)
+            case .created: L(L10n.Session.sortCreated)
             }
         }
     }

@@ -2,7 +2,7 @@ import XCTest
 @testable import LiteRTLMStudio
 
 /// 모델 관리 테스트군 (T-232, PLAN_v47).
-final class LiteRTLMStudioModelTests: XCTestCase {
+final class LiteRTLMStudioModelTests: LiteRTLMStudioTestCase {
     /// 다운로드 URL·개명: resolve 규칙+`.part` 왕복.
     func testModelDownloadURLs() {
         XCTAssertEqual(ModelDownload.fileURL(repo: "org/repo", file: "m.litertlm")?.absoluteString,

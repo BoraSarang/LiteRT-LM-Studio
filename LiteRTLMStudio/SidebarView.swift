@@ -10,8 +10,8 @@ extension ContentView {
 
         var title: String {
             switch self {
-            case .chat: return "채팅"
-            case .models: return "모델"
+            case .chat: return L(L10n.Sidebar.chat)
+            case .models: return L(L10n.Sidebar.models)
             }
         }
     }

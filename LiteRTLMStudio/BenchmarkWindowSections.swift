@@ -31,7 +31,7 @@ extension BenchmarkWindowView {
             HStack(spacing: 6) {
                 Text("필터").font(DS.captionFont).foregroundStyle(.secondary)
                 Picker("", selection: $filterModel) {
-                    Text("전체 기록").tag("전체 기록")
+                    Text(L(L10n.Benchmark.allRecords)).tag(BenchmarkHistoryStore.allModelsToken)
                     ForEach(modelIDs, id: \.self) { id in
                         Text(ModelAlias.display(id: id)).tag(id)
                     }

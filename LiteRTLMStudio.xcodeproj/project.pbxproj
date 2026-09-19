@@ -108,6 +108,7 @@
 				500000000000000000000159,
 				500000000000000000000160,
 				500000000000000000000161,
+				500000000000000000000163,
 				500000000000000000000024,
 				500000000000000000000027,
 				500000000000000000000028,
@@ -328,6 +329,7 @@
 				400000000000000000000158,
 				400000000000000000000160,
 				400000000000000000000161,
+				400000000000000000000163,
 				400000000000000000000012,
 				400000000000000000000013,
 				400000000000000000000052,
@@ -526,6 +528,7 @@
 		400000000000000000000160 = { isa = PBXBuildFile; fileRef = 500000000000000000000160; };
 		400000000000000000000161 = { isa = PBXBuildFile; fileRef = 500000000000000000000161; };
 		400000000000000000000162 = { isa = PBXBuildFile; fileRef = 500000000000000000000162; };
+		400000000000000000000163 = { isa = PBXBuildFile; fileRef = 500000000000000000000163; };
 		400000000000000000000012 = { isa = PBXBuildFile; fileRef = 500000000000000000000022; };
 		400000000000000000000013 = { isa = PBXBuildFile; fileRef = 500000000000000000000023; };
 		400000000000000000000052 = { isa = PBXBuildFile; fileRef = 500000000000000000000064; };
@@ -684,6 +687,7 @@
 		500000000000000000000068 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioSessionTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000110 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioModelTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000119 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioModelIOTests.swift"; sourceTree = "<group>"; };
+		500000000000000000000163 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeyIndex.swift"; sourceTree = "<group>"; };
 		500000000000000000000162 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioLocalizationTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000087 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiteRTLMStudioBenchmarkTests.swift"; sourceTree = "<group>"; };
 		500000000000000000000070 = {

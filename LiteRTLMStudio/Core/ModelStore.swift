@@ -43,8 +43,8 @@ enum StageState: Equatable, Sendable {
 
     var title: String {
         switch self {
-        case .installed: return "설치됨"
-        case .downloadedUninstalled: return "다운로드 완료·미설치"
+        case .installed: return L(L10n.Model.stageInstalled)
+        case .downloadedUninstalled: return L(L10n.Model.stageDownloadedUninstalled)
         }
     }
 }

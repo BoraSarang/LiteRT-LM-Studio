@@ -14,7 +14,7 @@ struct BenchmarkWindowView: View {
     // T-222: 섹션 파일에서 접근하므로 internal.
     @State var selectedModelID = ""
     @State var selectedRoute: EngineMode = .cli
-    @State var filterModel = "전체 기록"
+    @State var filterModel = BenchmarkHistoryStore.allModelsToken
     @State var showPrompt = false
     @State var mtpOn: Bool?
     @State var battery: BatteryStatus?

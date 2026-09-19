@@ -3,7 +3,7 @@ import XCTest
 @testable import LiteRTLMStudio
 
 /// smoke: 에러 메시지 매핑 무결성 (한국어 분리 파일 로드).
-final class LiteRTLMStudioTests: XCTestCase {
+final class LiteRTLMStudioTests: LiteRTLMStudioTestCase {
     func testErrorMessagesKorean() throws {
         // 번들 리소스에서 로드: 문서 폴더 TCC 접근 회피 (프로젝트가 ~/Documents 하위).
         // error_message_ko.json은 테스트 타깃 Copy Bundle Resources에 포함.

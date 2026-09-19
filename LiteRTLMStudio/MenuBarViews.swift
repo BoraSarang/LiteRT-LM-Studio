@@ -88,19 +88,20 @@ enum MenuBarStatusText {
     static func line(status: DaemonManager.Status, external: Bool, unlinked: Bool) -> String {
         switch status {
         case .running:
-            return "● 실행 중\(external ? " (외부)" : "") · :\(DaemonManager.port)"
+            let base = L(external ? L10n.MenuBar.runningExternal : L10n.MenuBar.running)
+            return "\(base) · :\(DaemonManager.port)"
         case .starting:
-            return "◌ 시작 중…"
+            return L(L10n.MenuBar.starting)
         case .failed:
-            return "● 실패 — 로그 확인"
+            return L(L10n.MenuBar.failed)
         case .stopped:
-            return unlinked ? "● 외부 실행 중 (미연결)" : "○ 중지됨"
+            return L(unlinked ? L10n.MenuBar.unlinked : L10n.MenuBar.stopped)
         }
     }
 
     /// 메뉴바 버튼 툴팁 (앱 이름 + 상태).
     static func tooltip(status: DaemonManager.Status, external: Bool, unlinked: Bool) -> String {
-        "LiteRT-LM Studio — \(line(status: status, external: external, unlinked: unlinked))"
+        L(L10n.MenuBar.tooltip, line(status: status, external: external, unlinked: unlinked))
     }
 
     /// 가동 시간 (nil이면 미표시). 초→분→시간 단위로 축약.
@@ -108,9 +109,9 @@ enum MenuBarStatusText {
         guard let since else { return nil }
         let secs = max(0, Int(now.timeIntervalSince(since)))
         let (hours, minutes, seconds) = (secs / 3600, (secs % 3600) / 60, secs % 60)
-        if hours > 0 { return String(format: "가동 %d시간 %02d분", hours, minutes) }
-        if minutes > 0 { return String(format: "가동 %d분 %02d초", minutes, seconds) }
-        return "가동 \(seconds)초"
+        if hours > 0 { return L(L10n.MenuBar.uptimeHours, hours, minutes) }
+        if minutes > 0 { return L(L10n.MenuBar.uptimeMinutes, minutes, seconds) }
+        return L(L10n.MenuBar.uptimeSeconds, seconds)
     }
 }
 
@@ -124,18 +125,18 @@ enum MenuBarRouteStatus {
             return MenuBarStatusText.line(status: daemon, external: external, unlinked: unlinked)
         case .native:
             switch nativeState {
-            case .ready: return "● 앱 내 엔진 · 준비됨"
-            case .preparing: return "◌ 앱 내 엔진 · 준비 중…"
-            case .failed: return "● 앱 내 엔진 · 실패 — 로그 확인"
-            case .idle: return "○ 앱 내 엔진 · 준비 안 됨"
+            case .ready: return L(L10n.MenuBar.routeNativeReady)
+            case .preparing: return L(L10n.MenuBar.routeNativePreparing)
+            case .failed: return L(L10n.MenuBar.routeNativeFailed)
+            case .idle: return L(L10n.MenuBar.routeNativeIdle)
             }
         }
     }
 
     static func tooltip(route: EngineMode, daemon: DaemonManager.Status, external: Bool,
                         unlinked: Bool, nativeState: NativeEngine.State) -> String {
-        "LiteRT-LM Studio — " + line(route: route, daemon: daemon, external: external,
-                                     unlinked: unlinked, nativeState: nativeState)
+        L(L10n.MenuBar.tooltip, line(route: route, daemon: daemon, external: external,
+                                     unlinked: unlinked, nativeState: nativeState))
     }
 }
 
@@ -146,10 +147,12 @@ enum MenuBarActionText {
                       external: Bool, nativeReady: Bool) -> String {
         switch route {
         case .native:
-            return nativeReady ? "앱 내 엔진 중지" : "앱 내 엔진 준비"
+            return L(nativeReady ? L10n.MenuBar.actionStopNative : L10n.MenuBar.actionStartNative)
         case .cli:
-            if daemon == .running { return external ? "외부 연결 끊기" : "서버 중지" }
-            return "서버 시작"
+            if daemon == .running {
+                return L(external ? L10n.MenuBar.actionDisconnectExternal : L10n.MenuBar.actionStopServer)
+            }
+            return L(L10n.MenuBar.actionStartServer)
         }
     }
 

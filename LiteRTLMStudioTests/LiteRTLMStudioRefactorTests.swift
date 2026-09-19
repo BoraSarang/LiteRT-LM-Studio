@@ -3,7 +3,7 @@ import XCTest
 @testable import LiteRTLMStudio
 
 /// 리팩토링 회귀군 (T-124/T-126): PLAN_v6 이후 추출 순수 로직.
-final class LiteRTLMStudioRefactorTests: XCTestCase {
+final class LiteRTLMStudioRefactorTests: LiteRTLMStudioTestCase {
     /// SSE 파서 (T-119/T-124): 종료 마커·델타 추출·비SSE 무시.
     func testChatSSEParser() {
         XCTAssertTrue(ChatSSEParser.isDone("data: [DONE]"))
@@ -283,7 +283,7 @@ final class FakeEngine: InferenceEngine {
 
 /// 네이티브 전송 회귀군 (T-130): ChatStore 분기·매핑·중단.
 @MainActor
-final class LiteRTLMStudioNativeTests: XCTestCase {
+final class LiteRTLMStudioNativeTests: LiteRTLMStudioTestCase {
     private func makeStore() -> ChatStore {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("chat-native-\(UUID().uuidString).json")
@@ -681,7 +681,7 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
 
 /// 첫터치 프리필 (T-302): 판정·토글·발동. NativeTests 본문 길이 분리.
 @MainActor
-final class LiteRTLMStudioPrefillTests: XCTestCase {
+final class LiteRTLMStudioPrefillTests: LiteRTLMStudioTestCase {
     private func makeStore() -> ChatStore {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("chat-prefill-\(UUID().uuidString).json")
@@ -781,7 +781,7 @@ final class LiteRTLMStudioPrefillTests: XCTestCase {
 }
 
 /// T-314·T-315: 앱 데이터 홈·마이그레이션·외부 스킬 임포트.
-final class LiteRTLMStudioStudioHomeTests: XCTestCase {
+final class LiteRTLMStudioStudioHomeTests: LiteRTLMStudioTestCase {
     private func tempDir(_ name: String) -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("litert-\(name)-\(UUID().uuidString)", isDirectory: true)

@@ -16,13 +16,15 @@ enum AppearanceMode: String, CaseIterable {
     case light
     case dark
 
-    var title: String {
+    var titleKey: L10nKey {
         switch self {
-        case .system: "시스템"
-        case .light: "라이트"
-        case .dark: "다크"
+        case .system: L10n.Appearance.system
+        case .light: L10n.Appearance.light
+        case .dark: L10n.Appearance.dark
         }
     }
+
+    var title: String { L(titleKey) }
 
     /// 웹뷰용 scheme 매핑 (순수, 테스트 가능).
     /// 웹뷰 CSS 미디어쿼리는 시스템을 보므로 강제 모드만 명시 전달.

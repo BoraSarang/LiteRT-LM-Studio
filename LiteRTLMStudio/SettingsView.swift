@@ -153,7 +153,7 @@ struct SettingsView: View {
                 .tabItem { Label("채팅", systemImage: "bubble.left.and.bubble.right") }
             Form {
                 ForEach(ToolInfo.Category.allCases, id: \.rawValue) { category in
-                    Section(category.rawValue) {
+                    Section(category.title) {
                         ForEach(ToolCatalog.all.filter { $0.category == category }) { info in
                             Toggle(info.title, isOn: toolBinding(for: info.name))
                                 .help(info.detail)

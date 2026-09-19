@@ -9,10 +9,10 @@ enum CatalogFamily: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .all: return "전체"
+        case .all: return L(L10n.ModelCatalog.familyAll)
         case .gemma: return "Gemma"
         case .qwen: return "Qwen"
-        case .other: return "기타"
+        case .other: return L(L10n.ModelCatalog.familyOther)
         }
     }
 }
@@ -25,9 +25,9 @@ enum CatalogSort: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .downloads: return "다운로드순"
-        case .likes: return "좋아요순"
-        case .updated: return "최신순"
+        case .downloads: return L(L10n.ModelCatalog.sortDownloads)
+        case .likes: return L(L10n.ModelCatalog.sortLikes)
+        case .updated: return L(L10n.ModelCatalog.sortUpdated)
         }
     }
 

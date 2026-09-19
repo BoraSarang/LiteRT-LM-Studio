@@ -21,8 +21,12 @@
   (`LOCALIZATION_PREFERS_STRING_CATALOGS=YES`, `SWIFT_EMIT_LOC_STRINGS=NO`), pbxproj 등록,
   설정 > 일반 > 외관 언어 세그먼트(시스템/한국어/English), 루트 주입(`languageAware`),
   커버리지 테스트(`LiteRTLMStudioLocalizationTests`). 315/315·build OK·lint 0.
-* T-362 키 체계 + 순수 로직: `L10n` 네임스페이스, `ToolCatalog`·`ModelCatalog`·`MenuBarStatusText`·
-  `ModelAlias`·`ErrorText`·`TimeFormat` 등을 키 반환/언어 주입으로 전환, 테스트 수정.
+* T-362 키 체계 + 순수 로직(**완료**): `L10n` 네임스페이스 13종(Appearance·Permission·Engine·History·
+  Status·Benchmark·ModelCatalog·Model·Session·Sidebar·Inspector·Skill·Time·ToolStatus·MenuBar) 추가,
+  `ToolCatalog`(키 파생)·`ModelCatalog`·`ModelAlias.modalities`·`BenchmarkHistory`·`MenuBarStatusText`·
+  `ModelStore`·`ChatStore`·`SkillsStore`·`UnifiedStatus`·`MessageBubbles`(상대 시간)를 키 기반으로 전환.
+  카탈로그 147키(도구 40키 포함), `LocalizationKeyIndex`로 전 키 인덱스 분리. 테스트는
+  `LiteRTLMStudioTestCase`에서 한국어 고정 + 영어 전환·포맷·전 키 해석 검증. 318/318·build OK·lint 0.
 * T-363 화면 치환(영역별 커밋): 사이드바 → 메인/채팅 → 인스펙터 → 설정 5탭 → 모델관리/벤치 →
   팔레트/온보딩/웰컴/정보 → MCP·스킬.
 * T-364 카탈로그 채우기: ko 원문 + en 번역 100%.

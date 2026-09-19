@@ -82,6 +82,14 @@ func L(_ key: L10nKey, _ args: CVarArg...) -> String {
     LanguageStore.shared.string(key.raw, args)
 }
 
+/// 현재 선택 언어의 로케일 (순수 헬퍼의 `DateFormatter` 등).
+nonisolated var appLocale: Locale { LanguageStore.shared.locale }
+
+/// 테스트 전용: 언어를 고정한다. `UserDefaults`·`AppleLanguages`는 건드리지 않는다.
+func setAppLanguageForTesting(_ language: AppLanguage) {
+    LanguageStore.shared.set(language)
+}
+
 /// SwiftUI 본문용.
 func T(_ key: L10nKey, _ args: CVarArg...) -> Text {
     Text(LanguageStore.shared.string(key.raw, args))

@@ -5,20 +5,20 @@ import SwiftUI
 nonisolated func chatRelativeTime(from date: Date, now: Date = Date()) -> String {
     let s = max(0, Int(now.timeIntervalSince(date)))
     switch s {
-    case 0 ..< 10: return "방금 전"
-    case 0 ..< 60: return "\(s)초 전"
-    case 0 ..< 3600: return "\(s / 60)분 전"
-    case 0 ..< 86400: return "\(s / 3600)시간 전"
+    case 0 ..< 10: return L(L10n.Time.justNow)
+    case 0 ..< 60: return L(L10n.Time.secondsAgo, s)
+    case 0 ..< 3600: return L(L10n.Time.minutesAgo, s / 60)
+    case 0 ..< 86400: return L(L10n.Time.hoursAgo, s / 3600)
     default: break
     }
     let cal = Calendar.current
-    if cal.isDateInYesterday(date) { return "어제" }
+    if cal.isDateInYesterday(date) { return L(L10n.Time.yesterday) }
     let days = cal.dateComponents([.day], from: cal.startOfDay(for: date),
                                   to: cal.startOfDay(for: now)).day ?? 0
-    if days < 7 { return "\(days)일 전" }
+    if days < 7 { return L(L10n.Time.daysAgo, days) }
     let f = DateFormatter()
-    f.locale = Locale(identifier: "ko_KR")
-    f.dateFormat = "M월 d일"
+    f.locale = appLocale
+    f.setLocalizedDateFormatFromTemplate("MMM d")
     return f.string(from: date)
 }
 
@@ -379,11 +379,11 @@ struct ToolCallChipView: View {
 
     var statusText: String {
         switch record.status {
-        case .streaming: return "호출 중…"
-        case .received: return "수신됨"
-        case .done: return "완료"
-        case .failed: return "실패"
-        case .denied: return "거부됨"
+        case .streaming: return L(L10n.ToolStatus.streaming)
+        case .received: return L(L10n.ToolStatus.received)
+        case .done: return L(L10n.ToolStatus.done)
+        case .failed: return L(L10n.ToolStatus.failed)
+        case .denied: return L(L10n.ToolStatus.denied)
         }
     }
 }
