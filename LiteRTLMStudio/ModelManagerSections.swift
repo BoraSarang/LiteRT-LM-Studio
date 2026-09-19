@@ -7,8 +7,8 @@ extension ModelManagerView {
     /// 관리 창 탭 (T-240): 사이드바식 전폭 버튼 (segmented 고정폭 금지).
     var managerTabs: some View {
         HStack(spacing: 0) {
-            managerTab(title: "찾아보기", selected: browseSelected) { browseSelected = true }
-            managerTab(title: "내 모델", selected: !browseSelected) { browseSelected = false }
+            managerTab(title: L(L10n.ModelManager.browseTab), selected: browseSelected) { browseSelected = true }
+            managerTab(title: L(L10n.ModelManager.myModelsTab), selected: !browseSelected) { browseSelected = false }
         }
     }
 
@@ -31,64 +31,65 @@ extension ModelManagerView {
     func installDialog(entry: StagedEntry) {
         let perm = GlobalPermission.current()
         guard perm != .off else {
-            notice = "권한이 꺼져 있어 설치할 수 없습니다. 설정에서 권한을 바꿔 주세요."
+            notice = L(L10n.ModelManager.permissionInstallOff)
             DebugLogger.shared.error(code: "E-MAC-PERM-0011", feature: "권한", "설치 차단 (권한 꺼짐)")
             return
         }
         let alert = NSAlert()
-        alert.messageText = "이 파일을 설치할까요?"
+        alert.messageText = L(L10n.ModelManager.installTitle)
         alert.informativeText = "\(entry.fileName) (\(ModelDownload.formatBytes(entry.sizeBytes)))"
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
         field.stringValue = mapping[entry.fileName]?.localID
             ?? (entry.fileName as NSString).deletingPathExtension
-        field.placeholderString = "로컬 모델 ID (예: gemma4-e2b)"
+        field.placeholderString = L(L10n.ModelManager.installIDPlaceholder)
         alert.accessoryView = field
-        alert.addButton(withTitle: "설치")
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: L(L10n.ModelManager.installButton))
+        alert.addButton(withTitle: L(L10n.ModelManager.cancel))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        guard confirmIfAsk(title: "설치 확인", message: "\(entry.fileName) → \(field.stringValue)") else { return }
+        guard confirmIfAsk(title: L(L10n.ModelManager.installConfirmTitle),
+                           message: "\(entry.fileName) → \(field.stringValue)") else { return }
         Task {
             let ok = await models.importFile(fileName: entry.fileName, as: field.stringValue,
                                              repo: mapping[entry.fileName]?.repo)
-            if !ok { notice = "설치가 실패했습니다. 로그를 확인해 주세요." }
+            if !ok { notice = L(L10n.ModelManager.installFailed) }
         }
     }
 
     func renameDialog(id: String) {
         let alert = NSAlert()
-        alert.messageText = "실제 ID 변경"
-        alert.informativeText = "표시 이름이 아니라 레지스트리 ID가 바뀝니다. (별칭은 그대로)"
+        alert.messageText = L(L10n.ModelManager.renameTitle)
+        alert.informativeText = L(L10n.ModelManager.renameInfo)
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
         field.stringValue = id
         alert.accessoryView = field
-        alert.addButton(withTitle: "변경")
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: L(L10n.ModelManager.renameButton))
+        alert.addButton(withTitle: L(L10n.ModelManager.cancel))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         Task {
             let ok = await models.renameModel(old: id, new: field.stringValue)
-            if !ok { notice = "이름 변경이 실패했습니다. (중복 ID 가능)" }
+            if !ok { notice = L(L10n.ModelManager.renameFailed) }
         }
     }
 
     func deleteInstalled(id: String) async {
         let perm = GlobalPermission.current()
         guard perm != .off else {
-            notice = "권한이 꺼져 있어 삭제할 수 없습니다. 설정에서 권한을 바꿔 주세요."
+            notice = L(L10n.ModelManager.permissionDeleteOff)
             DebugLogger.shared.error(code: "E-MAC-PERM-0011", feature: "권한", "삭제 차단 (권한 꺼짐)")
             return
         }
         let stagedFile = ModelStore.stagedFileForModel(id: id, mapping: models.loadMapping(),
                                                        staged: models.staged)
         let alert = NSAlert()
-        alert.messageText = "모델 삭제"
-        alert.informativeText = "\(id)\n레지스트리에서 제거합니다."
-            + (stagedFile == nil ? "" : "\n받은 파일은 유지되어 다시 설치할 수 있습니다.")
-        let check = NSButton(checkboxWithTitle: "받은 파일도 함께 삭제", target: nil, action: nil)
+        alert.messageText = L(L10n.ModelManager.deleteModelTitle)
+        alert.informativeText = L(L10n.ModelManager.deleteModelInfo, id)
+            + (stagedFile == nil ? "" : L(L10n.ModelManager.deleteModelKeepFile))
+        let check = NSButton(checkboxWithTitle: L(L10n.ModelManager.deleteReceivedToo), target: nil, action: nil)
         check.state = .off
         check.isEnabled = stagedFile != nil
         alert.accessoryView = check
-        alert.addButton(withTitle: "삭제")
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: L(L10n.ModelManager.deleteButton))
+        alert.addButton(withTitle: L(L10n.ModelManager.cancel))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         // ask면 위 단발 확인이 확인을 겸한다.
         DebugLogger.shared.info(feature: "권한", "삭제 확인됨: \(id)")
@@ -105,15 +106,15 @@ extension ModelManagerView {
             ?? (models.models.map(\.id).contains((entry.fileName as NSString).deletingPathExtension)
                 ? (entry.fileName as NSString).deletingPathExtension : nil)
         let alert = NSAlert()
-        alert.messageText = "파일 삭제"
+        alert.messageText = L(L10n.ModelManager.deleteFileTitle)
         alert.informativeText = entry.fileName
-            + (installedID == nil ? "\n되돌릴 수 없습니다."
-                : "\n설치된 모델(\(installedID!))은 유지됩니다.")
-        alert.addButton(withTitle: "삭제")
-        alert.addButton(withTitle: "취소")
+            + (installedID == nil ? L(L10n.ModelManager.deleteFileIrreversible)
+                : L(L10n.ModelManager.deleteFileKeepsInstalled, installedID!))
+        alert.addButton(withTitle: L(L10n.ModelManager.deleteButton))
+        alert.addButton(withTitle: L(L10n.ModelManager.cancel))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         if !models.deleteStaged(fileName: entry.fileName) {
-            notice = "파일 삭제가 실패했습니다."
+            notice = L(L10n.ModelManager.deleteFileFailed)
         }
     }
 }
@@ -123,27 +124,27 @@ extension ModelManagerView {
 extension ModelManagerView {
     func installedRow(_ m: ModelStore.Model) -> some View {
         HStack(spacing: 8) {
-            DSBadge(text: "설치됨", kind: .success)
+            DSBadge(text: L(L10n.ModelManager.badgeInstalled), kind: .success)
             VStack(alignment: .leading, spacing: 2) {
                 Text(ModelAlias.display(id: m.id)).font(.system(size: 13, weight: .medium))
-                Text("\(m.id) · \(m.listedSize) · 실점유 \(m.realSize)")
+                Text(L(L10n.ModelManager.rowSummary, m.id, m.listedSize, m.realSize))
                     .font(DS.captionFont).foregroundStyle(.secondary)
             }
             .lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 4)
             Menu {
-                Button("채팅 모델로 선택") {
+                Button(L(L10n.ModelManager.selectForChat)) {
                     NotificationCenter.default.post(name: .selectChatModel, object: m.id)
                 }
-                Button("표시 이름 바꾸기") {
+                Button(L(L10n.ModelManager.renameDisplayName)) {
                     NotificationCenter.default.post(name: .requestAlias, object: m.id)
                 }
-                Button("실제 ID 변경") { renameDialog(id: m.id) }
-                Button("벤치마크 실행") {
+                Button(L(L10n.ModelManager.renameRealID)) { renameDialog(id: m.id) }
+                Button(L(L10n.ModelManager.runBenchmark)) {
                     NotificationCenter.default.post(name: .runBenchmarkModel, object: m.id)
                 }
                 Divider()
-                Button("모델 삭제", role: .destructive) {
+                Button(L(L10n.ModelManager.deleteModelMenu), role: .destructive) {
                     Task { await deleteInstalled(id: m.id) }
                 }
             } label: {
@@ -153,7 +154,7 @@ extension ModelManagerView {
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
-            .help("모델 메뉴")
+            .help(L(L10n.ModelManager.modelMenu))
         }
         .padding(.vertical, 2)
         .background {
@@ -167,7 +168,8 @@ extension ModelManagerView {
         let state = ModelStore.stageState(fileName: s.fileName,
                                           installedIDs: installedIDs, mapping: mapping)
         return HStack(spacing: 8) {
-            DSBadge(text: state == .downloadedUninstalled ? "미설치" : "설치됨",
+            DSBadge(text: state == .downloadedUninstalled
+                    ? L(L10n.ModelManager.badgeNotInstalled) : L(L10n.ModelManager.badgeInstalled),
                     kind: state == .downloadedUninstalled ? .warning : .success)
             VStack(alignment: .leading, spacing: 2) {
                 Text(friendlyFileName(s.fileName)).font(.system(size: 13, weight: .medium))
@@ -178,17 +180,17 @@ extension ModelManagerView {
             .help(s.fileName)
             Spacer(minLength: 4)
             if state == .downloadedUninstalled {
-                Button("설치") { installDialog(entry: s) }
+                Button(L(L10n.ModelManager.installButton)) { installDialog(entry: s) }
                     .buttonStyle(.borderedProminent)
                     .tint(DSColor.primary)
                     .controlSize(.small)
-                    .help("레지스트리에 설치 (litert-lm import)")
+                    .help(L(L10n.ModelManager.installRegistryHelp))
             }
             Menu {
                 if state == .downloadedUninstalled {
-                    Button("설치") { installDialog(entry: s) }
+                    Button(L(L10n.ModelManager.installButton)) { installDialog(entry: s) }
                 }
-                Button("파일 삭제", role: .destructive) { deleteStagedDialog(entry: s) }
+                Button(L(L10n.ModelManager.deleteFileAction), role: .destructive) { deleteStagedDialog(entry: s) }
             } label: {
                 Image(systemName: "ellipsis")
                     .foregroundStyle(.primary)
@@ -196,7 +198,7 @@ extension ModelManagerView {
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
-            .help("스테이징 메뉴")
+            .help(L(L10n.ModelManager.stagedMenu))
         }
         .padding(.vertical, 2)
     }
@@ -213,17 +215,17 @@ extension ModelManagerView {
                 Text(ModelDownload.fileStem(part.fileName)).font(.system(size: 12, weight: .medium))
                     .lineLimit(1).truncationMode(.middle)
                     .help(part.fileName)
-                Text("미완성 · \(ModelDownload.formatBytes(part.sizeBytes))")
+                Text(L(L10n.ModelManager.incomplete, ModelDownload.formatBytes(part.sizeBytes)))
                     .font(DS.captionFont).foregroundStyle(.secondary)
             }
             Spacer(minLength: 4)
             orphanActions(part, entry: entry)
-            Button("삭제") {
+            Button(L(L10n.ModelManager.deleteButton)) {
                 let alert = NSAlert()
-                alert.messageText = "미완성 파일을 지울까요?"
+                alert.messageText = L(L10n.ModelManager.incompleteDeleteTitle)
                 alert.informativeText = part.fileName
-                alert.addButton(withTitle: "삭제")
-                alert.addButton(withTitle: "취소")
+                alert.addButton(withTitle: L(L10n.ModelManager.deleteButton))
+                alert.addButton(withTitle: L(L10n.ModelManager.cancel))
                 guard alert.runModal() == .alertFirstButtonReturn else { return }
                 center.deleteOrphan(part.fileName)
             }
@@ -237,7 +239,7 @@ extension ModelManagerView {
     func orphanActions(_ part: OrphanPart, entry: FileMapping?) -> some View {
         if let repo = entry?.repo,
            let url = ModelDownload.fileURL(repo: repo, file: part.fileName) {
-            Button("이어받기") {
+            Button(L(L10n.ModelManager.resume)) {
                 let localID = entry?.localID
                     ?? (part.fileName as NSString).deletingPathExtension
                 let downloader = ModelDownloader()
@@ -256,16 +258,16 @@ extension ModelManagerView {
             .controlSize(.small)
             .buttonStyle(.borderedProminent)
             .tint(DSColor.primary)
-            .help("미완성 파일을 이어서 받기")
+            .help(L(L10n.ModelManager.resumeHelp))
         } else {
-            Button("다시 받기") {
+            Button(L(L10n.ModelManager.redownload)) {
                 catalog.query = ModelCatalog.searchStem(fileName: part.fileName)
                 browseSelected = true
-                notice = "같은 파일을 새로 받으면 기존 미완성이 덮어씌워집니다."
+                notice = L(L10n.ModelManager.redownloadNotice)
                 Task { await catalog.search() }
             }
             .controlSize(.small)
-            .help("찾아보기에서 다시 찾기")
+            .help(L(L10n.ModelManager.redownloadHelp))
         }
     }
 }

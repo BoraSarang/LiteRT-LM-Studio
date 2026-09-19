@@ -78,7 +78,7 @@ enum ModelDownload {
     /// 진행 행 1줄: `n% · 받은량/전체량 · 속도 · 경과 mm:ss · 남은 mm:ss` (T-244 속도).
     nonisolated static func statusLine(received: Int64, total: Int64?,
                                        elapsed: TimeInterval) -> String {
-        let pct = progress(received: received, total: total).map { "\(Int($0 * 100))%" } ?? "진행 중"
+        let pct = progress(received: received, total: total).map { "\(Int($0 * 100))%" } ?? L(L10n.Download.inProgress)
         let size: String
         if let total { size = "\(formatBytes(received))/\(formatBytes(total))" } else {
             size = formatBytes(received)
@@ -87,9 +87,9 @@ enum ModelDownload {
         if let speed = averageSpeed(received: received, elapsed: elapsed) {
             parts.append("\(formatBytes(speed))/s")
         }
-        parts.append("경과 \(formatDuration(elapsed))")
+        parts.append(L(L10n.Download.elapsed, formatDuration(elapsed)))
         if let eta = etaSeconds(elapsed: elapsed, progress: progress(received: received, total: total)) {
-            parts.append("남은 \(formatDuration(eta))")
+            parts.append(L(L10n.Download.remaining, formatDuration(eta)))
         }
         return parts.joined(separator: " · ")
     }
@@ -140,11 +140,11 @@ enum ModelDownload {
     nonisolated static func httpErrorMessage(status: Int) -> String {
         switch status {
         case 401, 403:
-            return "승인 필요 (HTTP \(status)): HF에서 저장소 접근 승인 후 토큰 입력"
+            return L(L10n.Download.authRequired, status)
         case 404:
-            return "파일 없음 (HTTP 404): 저장소·파일명을 확인해 주세요"
+            return L(L10n.Download.notFound)
         default:
-            return "HTTP \(status)"
+            return L(L10n.Download.httpStatus, status)
         }
     }
     /// 302 헤더에서 x-linked-size 추출 (순수, T-239).

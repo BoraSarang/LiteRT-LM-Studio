@@ -66,11 +66,11 @@ struct DownloadRow: View {
     }
 
     private var metaText: String {
-        if downloader.finished { return "다운로드 완료·미설치" }
+        if downloader.finished { return L(L10n.Download.finished) }
         if let err = downloader.errorMessage { return err }
-        if downloader.cancelled { return "취소됨" }
+        if downloader.cancelled { return L(L10n.Download.cancelled) }
         if downloader.paused {
-            return "일시정지됨 · \(ModelDownload.formatBytes(downloader.received))"
+            return L(L10n.Download.paused, ModelDownload.formatBytes(downloader.received))
         }
         return ModelDownload.statusLine(received: downloader.received,
                                         total: downloader.total,
@@ -103,30 +103,30 @@ struct DownloadRow: View {
     @ViewBuilder
     private var buttons: some View {
         if downloader.finished {
-            Button("삭제") { confirmDelete() }
+            Button(L(L10n.Download.delete)) { confirmDelete() }
                 .controlSize(.small)
         } else if downloader.errorMessage != nil || downloader.cancelled {
-            Button("다시 받기") { downloader.restart() }
+            Button(L(L10n.Download.restart)) { downloader.restart() }
                 .controlSize(.small)
-                .help("처음부터 다시 받기")
-            Button("삭제") { confirmDelete() }
+                .help(L(L10n.Download.restartHelp))
+            Button(L(L10n.Download.delete)) { confirmDelete() }
                 .controlSize(.small)
         } else if downloader.paused {
-            Button("이어받기") { downloader.resume() }
+            Button(L(L10n.Download.resume)) { downloader.resume() }
                 .controlSize(.small)
                 .buttonStyle(.borderedProminent)
                 .tint(DSColor.primary)
-            Button("취소") { downloader.cancel(silent: true) }
+            Button(L(L10n.Download.cancel)) { downloader.cancel(silent: true) }
                 .controlSize(.small)
-            Button("삭제") { confirmDelete() }
+            Button(L(L10n.Download.delete)) { confirmDelete() }
                 .controlSize(.small)
         } else {
-            Button("일시정지") { downloader.pause() }
+            Button(L(L10n.Download.pause)) { downloader.pause() }
                 .controlSize(.small)
-            Button("취소") { downloader.cancel(silent: true) }
+            Button(L(L10n.Download.cancel)) { downloader.cancel(silent: true) }
                 .controlSize(.small)
-                .help("완전 취소 (.part 삭제)")
-            Button("삭제") { confirmDelete() }
+                .help(L(L10n.Download.cancelHelp))
+            Button(L(L10n.Download.delete)) { confirmDelete() }
                 .controlSize(.small)
         }
     }
@@ -135,11 +135,11 @@ struct DownloadRow: View {
     private func confirmDelete() {
         let active = downloader.isDownloading || downloader.paused
         let alert = NSAlert()
-        alert.messageText = active ? "다운로드를 취소하고 목록에서 지울까요?"
-            : "목록에서 지울까요?"
-        alert.informativeText = item.fileName + (active ? "\n미완성 파일도 함께 삭제됩니다." : "")
-        alert.addButton(withTitle: "삭제")
-        alert.addButton(withTitle: "취소")
+        alert.messageText = L(active ? L10n.Download.deleteActiveConfirm
+                                   : L10n.Download.deleteIdleConfirm)
+        alert.informativeText = item.fileName + (active ? L(L10n.Download.deleteActiveNote) : "")
+        alert.addButton(withTitle: L(L10n.Download.delete))
+        alert.addButton(withTitle: L(L10n.Download.cancel))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         if active { downloader.cancel(silent: true) }
         downloader.discardPartFile()
