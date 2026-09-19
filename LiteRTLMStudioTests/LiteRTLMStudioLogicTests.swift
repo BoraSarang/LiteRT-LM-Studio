@@ -997,15 +997,51 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertNil(search.externalURL)
         let fetch = ToolCallRecord(callID: "c2", name: "web_fetch",
                                    argumentsJSON: #"{"url": "https://x.example/r"}"#, status: .done)
-        XCTAssertEqual(fetch.displayTitle, "웹 가져오기")
+        XCTAssertEqual(fetch.displayTitle, "페이지 가져오기")
         XCTAssertEqual(fetch.displayArg, "https://x.example/r")
         XCTAssertEqual(fetch.externalURL?.absoluteString, "https://x.example/r")
         let other = ToolCallRecord(callID: "c3", name: "get_time", status: .done)
-        XCTAssertEqual(other.displayTitle, "get_time")
-        XCTAssertEqual(other.displayArg, other.summary)
+        XCTAssertEqual(other.displayTitle, "현재 시각")
+        XCTAssertEqual(other.displayArg, "")
         let bad = ToolCallRecord(callID: "c4", name: "web_fetch",
                                  argumentsJSON: #"{"url": "notaurl"}"#, status: .done)
         XCTAssertNil(bad.externalURL)
+    }
+
+    /// 도구 인자 포맷 (T-342): 도구별 맞춤 요약·원문 폴백·결과 pretty.
+    func testToolCallFormat() {
+        XCTAssertEqual(ToolCallFormat.argument(#"{"command":"ls -la"}"#, tool: "run_shell"),
+                       "ls -la")
+        XCTAssertEqual(ToolCallFormat.argument(#"{"path":"a/b.swift","content":"xyz"}"#,
+                                               tool: "save_code"),
+                       "a/b.swift · 코드 3자")
+        XCTAssertEqual(ToolCallFormat.argument(#"{"text":"안녕"}"#, tool: "write_clipboard"),
+                       "내용 2자")
+        XCTAssertEqual(ToolCallFormat.argument(#"{"days":3}"#, tool: "list_calendar_events"),
+                       "3일")
+        XCTAssertEqual(ToolCallFormat.argument("{}", tool: "list_reminders"), "미완료만")
+        XCTAssertEqual(ToolCallFormat.argument(#"{"includeCompleted":true}"#,
+                                               tool: "list_reminders"),
+                       "완료 포함")
+        XCTAssertEqual(ToolCallFormat.argument(#"{"title":"회의","when":"내일 오후 3시"}"#,
+                                               tool: "add_calendar_event"),
+                       "회의 · 내일 오후 3시")
+        XCTAssertEqual(ToolCallFormat.argument(#"{"server":"fs","tool":"read"}"#,
+                                               tool: "mcp_call"),
+                       "fs · read")
+        XCTAssertEqual(ToolCallFormat.argument(#"{"b":2,"a":"x"}"#, tool: "unknown_tool"),
+                       "x · 2")
+        XCTAssertEqual(ToolCallFormat.argument("not json", tool: "run_shell"), "not json")
+
+        let rec = ToolCallRecord(callID: "c", name: "mcp_call",
+                                 argumentsJSON: "{}", status: .done,
+                                 result: #"{"ok":true,"items":[1,2]}"#)
+        XCTAssertTrue(rec.displayResult.contains("\n"))
+        XCTAssertTrue(rec.hasPrettiedResult)
+        let plain = ToolCallRecord(callID: "p", name: "get_time", status: .done,
+                                   result: "2026-09-19")
+        XCTAssertEqual(plain.displayResult, "2026-09-19")
+        XCTAssertFalse(plain.hasPrettiedResult)
     }
 
     /// 웹 검색 토글 (T-269): 기본 켜짐.

@@ -288,6 +288,7 @@ struct ThinkingBlockView: View {
 struct ToolCallChipView: View {
     let record: ToolCallRecord
     @State private var open = false // T-317: 결과 기본 접힘
+    @State private var showRaw = false // T-342: 원문 JSON 보기
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -319,18 +320,28 @@ struct ToolCallChipView: View {
             .buttonStyle(.plain)
             .help("도구 호출: \(record.displayTitle)")
             if open, let result = record.result {
-                Text(result)
-                    .font(DS.captionFont).foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                if record.externalURL != nil {
-                    Button {
-                        if let url = record.externalURL { NSWorkspace.shared.open(url) }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.up.right")
-                            Text("브라우저에서 열기")
-                        }.font(DS.captionFont)
-                    }.buttonStyle(.link)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(showRaw ? result : record.displayResult)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if record.hasPrettiedResult {
+                        Button(showRaw ? "정리해서 보기" : "원문 JSON 보기") {
+                            showRaw.toggle()
+                        }.buttonStyle(.link).font(DS.captionFont)
+                    }
+                    if record.externalURL != nil {
+                        Button {
+                            if let url = record.externalURL { NSWorkspace.shared.open(url) }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.up.right")
+                                Text("브라우저에서 열기")
+                            }.font(DS.captionFont)
+                        }.buttonStyle(.link)
+                    }
                 }
             }
         }
