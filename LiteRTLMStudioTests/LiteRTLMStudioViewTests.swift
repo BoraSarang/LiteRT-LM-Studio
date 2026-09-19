@@ -257,6 +257,23 @@ final class LiteRTLMStudioViewTests: XCTestCase {
         XCTAssertEqual(Set(InspectorTitle.all).count, 3)
     }
 
+    /// 인스펙터 기본값 (T-323): T-176 실측 기준.
+    func testInspectorDefaults() {
+        XCTAssertEqual(InspectorDefaults.temperature, 1.0, accuracy: 0.0001)
+        XCTAssertEqual(InspectorDefaults.topK, 64)
+        XCTAssertEqual(InspectorDefaults.topP, 0.95, accuracy: 0.0001)
+    }
+
+    /// 인스펙터 헤더 요약 (T-323): 상태 1줄 문구.
+    func testInspectorSummaries() {
+        XCTAssertEqual(InspectorDefaults.systemSummary(live: true), "LIVE")
+        XCTAssertEqual(InspectorDefaults.systemSummary(live: false), "중지됨")
+        XCTAssertEqual(InspectorDefaults.backendSummary(hasChanges: true), "변경됨")
+        XCTAssertEqual(InspectorDefaults.backendSummary(hasChanges: false), "적용됨")
+        XCTAssertEqual(InspectorDefaults.generateSummary(temperature: 1.0, topK: 64),
+                       "온도 1.00 · 상위K 64")
+    }
+
     /// 회귀: 툴바 SF Symbol 실렌더 가능 (외부 link.badge.minus 링 현상 방지).
     func testToolbarSymbolsResolve() {
         for name in ["play.fill", "stop.fill", "terminal", "command", "sidebar.right",

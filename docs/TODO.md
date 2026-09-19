@@ -316,3 +316,4 @@
 * [x] T-320 Benchmark·Settings 잘림: 2줄 셀+실패사유+Section 4개+ScrollView+DSSegmented (PLAN_v96 P0)
 * [x] T-321 My Models P1: WarningBanner+원본 삭제+Badge+litertlm 숨김+버튼 위계 (PLAN_v96 P1)
 * [x] T-322 차트·툴팁 P2: 바 수치라벨+GPU/MTP/환경 hover+EmptyState (PLAN_v96 P2)
+* [x] T-323 인스펙터 사이드바식: List 전환+헤더 요약+호버 메뉴(기본값·숨기기)+unit (PLAN_v97)

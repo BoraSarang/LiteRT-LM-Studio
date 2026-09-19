@@ -2,6 +2,12 @@
 
 ## [Unreleased] (macos)
 
+* 인스펙터 사이드바식 개편 (T-323, PLAN_v97): 우측 Form을 `List(.sidebar)`로
+  교체 — 헤더=제목+상태 요약 1줄(시스템 LIVE/중지됨·실행 변경됨/적용됨·
+  생성 온도·상위K), 호버 ⋯ 메뉴(기본값으로 되돌리기+섹션 숨기기, 우클릭 병행).
+  생성 기본값(T-176: 온도 1.0·상위K 64·상위P 0.95·나머지 빈칸/off),
+  실행 되돌리기=초안 파기. 사이드바 탭·모델행 잔여 accentColor → Primary 통일. [macos]
+
 * 디자인 시스템 토큰 + 4화면 개선 (T-318~T-322, PLAN_v96): `Core/DSTokens/`
   (Colors·Typography·Spacing·Components) 신규, 기존 DS 별칭 유지.
   Primary `#0A84FF` 고정·Success/Warning/Error 통일, 전 화면 커스텀 스타일 금지.

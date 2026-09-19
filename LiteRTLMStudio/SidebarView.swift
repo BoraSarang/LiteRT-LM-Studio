@@ -64,7 +64,7 @@ extension ContentView {
                             .padding(.vertical, 7)
                             .background {
                                 if sidebarTab == t {
-                                    RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15))
+                                    RoundedRectangle(cornerRadius: 8).fill(DSColor.primary.opacity(0.15))
                                 }
                             }
                             .contentShape(Rectangle())
@@ -152,7 +152,7 @@ extension ContentView {
         return HStack(spacing: 8) {
             Image(systemName: "circle")
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+                .foregroundStyle(selected ? DSColor.primary : Color.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(ModelAlias.display(id: m.id)).font(.system(size: 13, weight: .medium))
                 Text("\(m.id) · \(m.listedSize) · 실점유 \(m.realSize)")
@@ -178,7 +178,7 @@ extension ContentView {
         .padding(.horizontal, 8).padding(.vertical, 6)
         .background {
             if selected {
-                RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15))
+                RoundedRectangle(cornerRadius: 8).fill(DSColor.primary.opacity(0.15))
             }
         }
         .contentShape(Rectangle())

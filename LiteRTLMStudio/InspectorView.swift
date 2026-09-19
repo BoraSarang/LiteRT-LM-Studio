@@ -3,24 +3,87 @@ import Combine
 import SwiftUI
 
 extension ContentView {
-    // MARK: - 인스펙터 (3섹션 on/off, 토글은 툴바 섹션 토글)
+    // MARK: - 인스펙터 (T-323 사이드바식: List+헤더 요약+호버 메뉴, on/off는 툴바 토글)
     var inspector: some View {
-        Form {
+        List {
             if showSystem {
-                Section(InspectorTitle.system) {
+                Section {
                     SystemMetersView(monitor: monitor)
+                } header: {
+                    InspectorSectionHeader(
+                        title: InspectorTitle.system,
+                        summary: InspectorDefaults.systemSummary(live: monitor.live),
+                        onHide: { showSystem = false })
+                }
+                .contextMenu {
+                    Button("이 섹션 숨기기") { showSystem = false }
                 }
             }
             if showBackend {
-                Section(InspectorTitle.backend) {
+                Section {
                     BackendSectionView(config: config, model: selectedModel,
-                                           isNativeRoute: chat.route == .native) {
+                                       isNativeRoute: chat.route == .native) {
                         applyBackend()
                     }
+                } header: {
+                    InspectorSectionHeader(
+                        title: InspectorTitle.backend,
+                        summary: InspectorDefaults.backendSummary(hasChanges: config.hasChanges),
+                        onReset: resetBackend,
+                        onHide: { showBackend = false })
+                }
+                .contextMenu {
+                    Button("기본값으로 되돌리기") { resetBackend() }
+                    Button("이 섹션 숨기기") { showBackend = false }
                 }
             }
             if showGenerate {
-                Section(InspectorTitle.generate) {
+                Section {
+                    generateSectionBody
+                } header: {
+                    InspectorSectionHeader(
+                        title: InspectorTitle.generate,
+                        summary: InspectorDefaults.generateSummary(
+                            temperature: chat.temperature, topK: chat.topK),
+                        onReset: resetGenerate,
+                        onHide: { showGenerate = false })
+                }
+                .contextMenu {
+                    Button("기본값으로 되돌리기") { resetGenerate() }
+                    Button("이 섹션 숨기기") { showGenerate = false }
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        .navigationSplitViewColumnWidth(min: 320, ideal: 320, max: 320) // T-072 사이드바 접힘 영향 차단
+    }
+
+    /// 실행 설정 되돌리기 (T-323): 초안 파기, 변경 없으면 모델 기준 재로드.
+    private func resetBackend() {
+        if config.hasChanges {
+            config.revert()
+        } else {
+            config.load(modelID: chat.model)
+        }
+        DebugLogger.shared.info(feature: "실행설정", "기본값으로 되돌리기")
+    }
+
+    /// 생성 설정 되돌리기 (T-323): T-176 기본값 복원.
+    private func resetGenerate() {
+        chat.temperature = InspectorDefaults.temperature
+        chat.topK = InspectorDefaults.topK
+        chat.topP = InspectorDefaults.topP
+        chat.maxTokens = nil
+        chat.seed = nil
+        chat.systemPrompt = ""
+        chat.thinkingEnabled = false
+        chat.thinkingBudget = -1
+        DebugLogger.shared.info(feature: "생성설정", "기본값으로 되돌리기")
+    }
+
+    /// 생성 설정 본체 (T-323 분리: inspector 길이 분산).
+    private var generateSectionBody: some View {
+        Group {
                     HStack {
                         Text("온도"); Slider(value: $chat.temperature, in: 0...1.5, step: 0.05)
                         Text(String(format: "%.2f", chat.temperature)).monospacedDigit()
@@ -87,13 +150,8 @@ extension ContentView {
                     }
                     Text("지원 모델을 가져오면 활성화됩니다.")
                         .font(DS.captionFont).foregroundStyle(.secondary)
-                }
-            }
         }
-        .formStyle(.grouped).padding(8)
-        .navigationSplitViewColumnWidth(min: 320, ideal: 320, max: 320) // T-072 사이드바 접힘 영향 차단
     }
-
 }
 
 /// 미지원 툴팁 문구 (T-122 줄길이 정리용 순수 헬퍼).
@@ -108,6 +166,61 @@ enum InspectorTitle {
     static let backend = "실행 설정"
     static let generate = "생성 설정"
     static var all: [String] { [system, backend, generate] }
+}
+
+/// 인스펙터 기본값·요약 (T-323, 순수, 테스트 가능, T-176 기준).
+enum InspectorDefaults {
+    static let temperature = 1.0
+    static let topK = 64
+    static let topP = 0.95
+
+    nonisolated static func systemSummary(live: Bool) -> String {
+        live ? "LIVE" : "중지됨"
+    }
+
+    nonisolated static func backendSummary(hasChanges: Bool) -> String {
+        hasChanges ? "변경됨" : "적용됨"
+    }
+
+    nonisolated static func generateSummary(temperature: Double, topK: Int) -> String {
+        String(format: "온도 %.2f · 상위K %d", temperature, topK)
+    }
+}
+
+/// 인스펙터 섹션 헤더 (T-323, 사이드바식): 제목+요약+호버 ⋯ 메뉴.
+struct InspectorSectionHeader: View {
+    let title: String
+    let summary: String
+    var onReset: (() -> Void)?
+    let onHide: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+            Spacer()
+            Text(summary).font(.system(size: 11)).foregroundStyle(.secondary)
+                .lineLimit(1).truncationMode(.tail)
+            if hovering {
+                Menu {
+                    if let reset = onReset {
+                        Button("기본값으로 되돌리기", action: reset)
+                    }
+                    Button("이 섹션 숨기기", action: onHide)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .help("\(title) 메뉴")
+            }
+        }
+        .onHover { hovering = $0 }
+    }
 }
 
 /// 툴바 섹션 토글 3칸 (T-016 보기 옵션): 눌러서 켜고 끄는 버튼, 인디게이터 아님.
