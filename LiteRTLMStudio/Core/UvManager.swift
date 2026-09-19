@@ -7,8 +7,24 @@ final class UvManager: ObservableObject {
     static let litertBin = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".local/bin/litert-lm").path
 
-    @Published var uvVersion = "확인 중…"
-    @Published var litertVersion = "확인 중…"
+    /// 조회 전·미설치 상태 토큰 (표시 문구와 분리, T-363).
+    nonisolated static let checkingStatus = "__checking__"
+    nonisolated static let missingStatus = "__missing__"
+
+    /// 표시용 버전 문자열 (확인 중·없음은 번역, 그 외 원문).
+    nonisolated static func display(_ raw: String) -> String {
+        switch raw {
+        case checkingStatus: return L(L10n.Env.checking)
+        case missingStatus: return L(L10n.Env.missing)
+        default: return raw
+        }
+    }
+
+    nonisolated static func isChecking(_ raw: String) -> Bool { raw == checkingStatus }
+    nonisolated static func isMissing(_ raw: String) -> Bool { raw == missingStatus }
+
+    @Published var uvVersion = UvManager.checkingStatus
+    @Published var litertVersion = UvManager.checkingStatus
     @Published var uvAvailable = false
     @Published var lastError: String?
 
@@ -21,8 +37,10 @@ final class UvManager: ObservableObject {
         let (uvOut, uvCode) = await uv
         let (litOut, litCode) = await lv
         uvAvailable = uvCode == 0
-        uvVersion = uvCode == 0 ? uvOut.trimmingCharacters(in: .whitespacesAndNewlines) : "없음"
-        litertVersion = litCode == 0 ? litOut.trimmingCharacters(in: .whitespacesAndNewlines) : "없음"
+        uvVersion = uvCode == 0 ? uvOut.trimmingCharacters(in: .whitespacesAndNewlines)
+            : UvManager.missingStatus
+        litertVersion = litCode == 0 ? litOut.trimmingCharacters(in: .whitespacesAndNewlines)
+            : UvManager.missingStatus
         if uvCode != 0 {
             lastError = "E-MAC-VALID-0001"
             logger.error(code: "E-MAC-VALID-0001", feature: "환경확인", "uv를 찾을 수 없음")

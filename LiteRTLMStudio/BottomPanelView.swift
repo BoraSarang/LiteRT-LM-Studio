@@ -16,26 +16,28 @@ struct BottomPanelView: View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 Picker("", selection: $logTab) {
-                    Text("서버 로그").tag(0)
-                    Text("시스템").tag(1)
+                    Text(L(L10n.Panel.serverLog)).tag(0)
+                    Text(L(L10n.Panel.system)).tag(1)
                 }.pickerStyle(.segmented).frame(width: 160)
-                Text(daemon.external ? "외부 데몬" : "앱 데몬")
+                Text(L(daemon.external ? L10n.Panel.externalDaemon : L10n.Panel.appDaemon))
                     .font(.system(size: 10)).foregroundStyle(.tertiary)
                 Spacer()
                 // T-100 헤더 자리 유지: 복사 3종 상시 배치 + 조건 opacity (시스템 탭에서도 X 위치·높이 고정)
                 HStack(spacing: 8) {
-                    Button(copyFlag.copied ? "복사됨" : "선택 복사") { copyTargets(selectionOrAll) }
-                        .help("선택 행 복사 (선택 없으면 전체)")
-                    Button("전체 복사") { copyTargets(daemon.logLines) }
-                        .help("로그 전체 복사")
-                    Button("지우기") { daemon.clearLog(); selection.removeAll() }
-                        .help("로그 비우기")
+                    Button(L(copyFlag.copied ? L10n.Panel.copied : L10n.Panel.copySelection)) {
+                        copyTargets(selectionOrAll)
+                    }
+                        .help(L(L10n.Panel.copySelectionHelp))
+                    Button(L(L10n.Panel.copyAll)) { copyTargets(daemon.logLines) }
+                        .help(L(L10n.Panel.copyAllHelp))
+                    Button(L(L10n.Panel.clear)) { daemon.clearLog(); selection.removeAll() }
+                        .help(L(L10n.Panel.clearHelp))
                 }
                 .opacity(showLogActions ? 1 : 0)
                 .disabled(!showLogActions)
                 Button(action: onClose) {
                     Image(systemName: "xmark")
-                }.buttonStyle(.plain).help("패널 닫기 (⌘J)")
+                }.buttonStyle(.plain).help(L(L10n.Panel.closeHelp))
             }
             // T-100 탭 전환 고정: 콘텐츠 영역 동일 지오메트리 (서버 List 풀필 vs 시스템 셀 밑단 일치)
             Group {
@@ -44,19 +46,19 @@ struct BottomPanelView: View {
                     // 외부 데몬 로그는 수집 불가 → 안내 + 인수.
                     VStack(spacing: 8) {
                         ContentUnavailableView(
-                            "외부 데몬의 로그는 여기서 볼 수 없어요",
+                            L(L10n.Panel.externalLogTitle),
                             systemImage: "terminal",
-                            description: Text("터미널에서 직접 띄운 데몬이라 앱에 로그 파이프가 없습니다.")
+                            description: Text(L(L10n.Panel.externalLogDetail))
                         )
-                        Button("인수해서 재시작 (로그 보기)") { onTakeover() }
+                        Button(L(L10n.Panel.takeover)) { onTakeover() }
                             .buttonStyle(.borderedProminent)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if daemon.logLines.isEmpty {
                     ContentUnavailableView(
-                        "아직 로그가 없어요",
+                        L(L10n.Panel.noLogTitle),
                         systemImage: "terminal",
-                        description: Text("서버 시작 후 출력이 여기에 쌓입니다.")
+                        description: Text(L(L10n.Panel.noLogDetail))
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {

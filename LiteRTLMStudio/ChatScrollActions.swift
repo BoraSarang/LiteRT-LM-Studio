@@ -221,9 +221,9 @@ extension ContentView {
         }
         .buttonStyle(.plain)
         .padding(.bottom, 12)
-        .help("최신 메시지로 이동")
-        .hoverTip("최신 메시지로 이동")
-        .accessibilityLabel("최신 메시지로 이동")
+        .help(L(L10n.Chat.scrollToLatest))
+        .hoverTip(L(L10n.Chat.scrollToLatest))
+        .accessibilityLabel(L(L10n.Chat.scrollToLatest))
     }
     /// 켜진 섹션이 하나라도 있는지 (순수, 테스트 가능).
     nonisolated static func anyVisible(_ flags: Bool...) -> Bool {

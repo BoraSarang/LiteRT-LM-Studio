@@ -75,19 +75,19 @@ struct ContentView: View {
     /// 사이드바 타이틀 = 현재 채팅방 이름 (T-141). 드래프트는 "새 채팅".
     var roomTitle: String {
         guard let id = chat.currentSessionID,
-              let s = chat.sessions.first(where: { $0.id == id }) else { return "새 채팅" }
+              let s = chat.sessions.first(where: { $0.id == id }) else { return L(L10n.Chat.newChat) }
         return s.displayTitle
     }
 
     /// 헤더 1줄째: 모델 표시명 (별칭 > 자동 예쁘게 > 원 ID).
     var headerTitle: String {
-        guard let id = selectedModelID ?? models.models.first?.id else { return "모델 선택" }
+        guard let id = selectedModelID ?? models.models.first?.id else { return L(L10n.Chat.selectModel) }
         return ModelAlias.display(id: id)
     }
 
     /// 헤더 2줄째: 용량·모달리티·가속 요약 (여유 있게).
     var headerSubtitle: String {
-        guard let mdl = selectedModel else { return "사이드바에서 모델을 고르세요" }
+        guard let mdl = selectedModel else { return L(L10n.Chat.pickModel) }
         var parts = [mdl.listedSize, mdl.modalities]
         if mdl.speculative { parts.append("MTP") }
         return parts.joined(separator: " · ")
@@ -116,25 +116,25 @@ struct ContentView: View {
                     aliasTarget = nil
                 }
             }
-            .confirmationDialog("외부 데몬 인수", isPresented: $showTakeoverConfirm,
+            .confirmationDialog(L(L10n.Dialog.takeoverTitle), isPresented: $showTakeoverConfirm,
                                  titleVisibility: .visible) {
-                Button("종료 후 앱 데몬으로 재시작", role: .destructive) {
+                Button(L(L10n.Dialog.takeoverRestart), role: .destructive) {
                     Task { await daemon.takeOverAndRestart() }
                 }
-                Button("설정만 저장 (직접 재시작)") {
+                Button(L(L10n.Dialog.takeoverSaveOnly)) {
                     config.externalRestartPending = true
                 }
-                Button("취소", role: .cancel) {}
+                Button(L(L10n.Common.cancel), role: .cancel) {}
             } message: {
-                Text("터미널에서 실행 중인 데몬을 종료하고 앱이 직접 띄운 데몬으로 바꿉니다. 터미널 쪽 연결은 끊어집니다.")
+                Text(L(L10n.Dialog.takeoverMessage))
             }
-            .confirmationDialog("도구 실행 허용", isPresented: toolApprovalBinding,
+            .confirmationDialog(L(L10n.Dialog.toolTitle), isPresented: toolApprovalBinding,
                                 titleVisibility: .visible) {
-                Button("허용") { toolApproval.resolve(true) }
-                Button("거부", role: .cancel) { toolApproval.resolve(false) }
+                Button(L(L10n.Dialog.allow)) { toolApproval.resolve(true) }
+                Button(L(L10n.Dialog.deny), role: .cancel) { toolApproval.resolve(false) }
             } message: {
                 Text(toolApproval.pending.map { "\(ToolCatalog.title(for: $0.toolName)) \($0.detail)" }
-                    ?? "도구 실행을 허용할까요? (120초 무응답 시 거부)")
+                    ?? L(L10n.Dialog.toolMessage))
             }
             .task {
                 await restoreState()
@@ -244,7 +244,7 @@ struct ContentView: View {
         ToolbarItem(placement: .navigation) {
             Button { showPalette = true } label: {
                 Image(systemName: "command").font(.system(size: 16, weight: .semibold))
-            }.help("명령 팔레트 (⌘K)").keyboardShortcut("k", modifiers: .command)
+            }.help(L(L10n.Help.commandPalette)).keyboardShortcut("k", modifiers: .command)
         }
         ToolbarItem(placement: .principal) {
             VStack(spacing: 1) {
@@ -269,7 +269,7 @@ struct ContentView: View {
             Button { toggleLogPanel() } label: {
                 Image(systemName: "terminal").font(.system(size: 16, weight: .semibold))
             }
-            .help(daemon.status == .running ? "하단 패널 토글 (⌘J)" : "서버 실행 중에만 볼 수 있어요 (⌘J)")
+            .help(L(daemon.status == .running ? L10n.Help.bottomPanelOn : L10n.Help.bottomPanelOff))
             .disabled(daemon.status != .running)
         }
         ToolbarItem(placement: .primaryAction) {
@@ -280,7 +280,7 @@ struct ContentView: View {
             // 인스펙터 전체 보이기/숨기기 (맨 오른쪽 끝).
             Button { toggleInspectorColumn() } label: {
                 Image(systemName: "sidebar.right").font(.system(size: 16, weight: .semibold))
-            }.help(anySectionVisible ? "인스펙터 토글 (⌥⌘I)" : "인스펙터 보이기 (⌥⌘I)")
+            }.help(L(anySectionVisible ? L10n.Help.inspectorToggle : L10n.Help.inspectorShow))
         }
     }
 

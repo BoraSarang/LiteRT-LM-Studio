@@ -88,12 +88,12 @@ struct UserBubbleView: View {
                             Image(systemName: copyFlag.copied ? "checkmark" : "square.on.square")
                                 .frame(minWidth: 20, minHeight: 20) // T-168 응답 푸터와 동일 아이콘
                                 .contentShape(Rectangle())
-                        }.buttonStyle(.plain).help("질문 복사").hoverTip("질문 복사")
+                        }.buttonStyle(.plain).help(L(L10n.Chat.copyQuestion)).hoverTip(L(L10n.Chat.copyQuestion))
                         Button { onEdit(message) } label: {
                             Image(systemName: "pencil")
                                 .frame(minWidth: 20, minHeight: 20) // T-168 수정 의미 구분
                                 .contentShape(Rectangle())
-                        }.buttonStyle(.plain).help("수정해서 다시 요청").hoverTip("수정해서 다시 요청")
+                        }.buttonStyle(.plain).help(L(L10n.Chat.editResend)).hoverTip(L(L10n.Chat.editResend))
                     }
                     .font(DS.captionFont).foregroundStyle(.tertiary)
                     .frame(height: 20) // T-165 공간 예약 (숨김 때도 자리 유지)
@@ -185,11 +185,11 @@ struct AssistantBubbleView: View {    let message: ChatStore.Message
                         if let since = message.startedAt {
                             // T-345: 대기 경과 초 표시 (멈춤처럼 보이는 시간 가시화).
                             TimelineView(.periodic(from: since, by: 1.0)) { context in
-                                Text("첫 토큰 대기 중… (\(Int(context.date.timeIntervalSince(since)))초)")
+                                Text(L(L10n.Chat.waitingFirstTokenSeconds, Int(context.date.timeIntervalSince(since))))
                                     .font(DS.captionFont).foregroundStyle(.secondary)
                             }
                         } else {
-                            Text("첫 토큰 대기 중…")
+                            Text(L(L10n.Chat.waitingFirstToken))
                                 .font(DS.captionFont).foregroundStyle(.secondary)
                         }
                     }
@@ -198,7 +198,7 @@ struct AssistantBubbleView: View {    let message: ChatStore.Message
                 if isStreaming && !preparing {
                     HStack(spacing: 6) {
                         ProgressView().scaleEffect(0.7)
-                        Text("응답 중…")
+                        Text(L(L10n.Chat.responding))
                             .font(DS.captionFont).foregroundStyle(.secondary)
                     }
                 }
@@ -219,12 +219,12 @@ struct AssistantBubbleView: View {    let message: ChatStore.Message
                             Image(systemName: copyFlag.copied ? "checkmark" : "square.on.square")
                                 .frame(minWidth: 20, minHeight: 20) // T-162 본문 직하 단일행
                                 .contentShape(Rectangle())
-                        }.buttonStyle(.plain).help("응답 복사").hoverTip("응답 복사")
+                        }.buttonStyle(.plain).help(L(L10n.Chat.copyAnswer)).hoverTip(L(L10n.Chat.copyAnswer))
                         Button { onRetry() } label: {
                             Image(systemName: "arrow.counterclockwise")
                                 .frame(minWidth: 20, minHeight: 20) // T-162 본문 직하 단일행
                                 .contentShape(Rectangle())
-                        }.buttonStyle(.plain).help("응답 재시도").hoverTip("응답 재시도")
+                        }.buttonStyle(.plain).help(L(L10n.Chat.retry)).hoverTip(L(L10n.Chat.retry))
                     }
                     .font(DS.captionFont).foregroundStyle(.tertiary)
                     .frame(height: 20) // T-162 공간 예약 (숨김 때도 자리 유지)
@@ -263,7 +263,7 @@ struct ThinkingBlockView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "brain")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
-                    Text(expanded ? "추론 중…" : "추론 과정")
+                    Text(L(expanded ? L10n.Chat.reasoningActive : L10n.Chat.reasoningTitle))
                         .font(DS.captionFont).foregroundStyle(.secondary)
                     Image(systemName: (open ?? expanded) ? "chevron.down" : "chevron.right")
                         .font(.system(size: 10)).foregroundStyle(.tertiary)
@@ -273,7 +273,7 @@ struct ThinkingBlockView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(expanded ? "추론 과정 (생성 중)" : "추론 과정 펼치기")
+            .help(L(expanded ? L10n.Chat.reasoningGenerating : L10n.Chat.reasoningExpand))
             if open ?? expanded {
                 Text(thinking)
                     .font(DS.captionFont).foregroundStyle(.secondary)
@@ -326,7 +326,7 @@ struct ToolCallChipView: View {
                 }
             }
             .buttonStyle(.plain)
-            .help("도구 호출: \(record.displayTitle)")
+            .help(L(L10n.ToolCall.help, record.displayTitle))
             if open, let result = record.result {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(showRaw ? result : record.displayResult)
@@ -336,7 +336,7 @@ struct ToolCallChipView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
                     if record.hasPrettiedResult {
-                        Button(showRaw ? "정리해서 보기" : "원문 JSON 보기") {
+                        Button(L(showRaw ? L10n.ToolCall.showFormatted : L10n.ToolCall.showRaw)) {
                             showRaw.toggle()
                         }.buttonStyle(.link).font(DS.captionFont)
                     }
@@ -346,7 +346,7 @@ struct ToolCallChipView: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "arrow.up.right")
-                                Text("브라우저에서 열기")
+                                Text(L(L10n.ToolCall.openInBrowser))
                             }.font(DS.captionFont)
                         }.buttonStyle(.link)
                     }
@@ -356,7 +356,7 @@ struct ToolCallChipView: View {
         .padding(.horizontal, 10).padding(.vertical, 6)
         .background(Color.accentColor.opacity(0.08))
         .clipShape(.rect(cornerRadius: 8))
-        .help("도구 호출: \(record.displayTitle)")
+        .help(L(L10n.ToolCall.help, record.displayTitle))
     }
 
     var statusIcon: String {

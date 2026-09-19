@@ -25,24 +25,24 @@ extension ContentView {
         if chat.route == .native {
             switch nativeEngine.state {
             case .preparing:
-                return "앱 내 엔진 준비 중…"
+                return L(L10n.Server.nativePreparing)
             case .ready:
-                return "앱 내 엔진 중지 — 메모리 반납 (다시 실행은 사이드바)"
+                return L(L10n.Server.nativeStop)
             case .failed:
-                return "앱 내 엔진 다시 실행"
+                return L(L10n.Server.nativeRestart)
             case .idle:
-                return "앱 내 엔진 초기화"
+                return L(L10n.Server.nativeInit)
             }
         }
         if daemon.status == .running {
             return daemon.external
-                ? "외부 데몬 연결 끊기 (⌘.) — 터미널 데몬은 계속 실행됩니다"
-                : "서버 중지 (⌘.)"
+                ? L(L10n.Server.externalDisconnect)
+                : L(L10n.Server.stop)
         }
         if nativeEngine.preparedModelID != nil {
-            return "서버 시작 (⌘R) — 앱 내 엔진으로 대화 가능합니다"
+            return L(L10n.Server.startReadyNative)
         }
-        return "서버 시작 (⌘R)"
+        return L(L10n.Server.start)
     }
 
      func toggleServer() {

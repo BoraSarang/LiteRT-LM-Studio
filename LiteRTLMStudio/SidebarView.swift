@@ -22,11 +22,13 @@ extension ContentView {
             List(selection: $selectedModelID) {
                 Section(L(L10n.Sidebar.sectionEnvironment)) {
                     LabeledRow(icon: "shippingbox", title: "uv",
-                               value: Self.envShort(prefix: "uv", full: uv.uvVersion),
-                               full: uv.uvVersion)
+                               value: UvManager.display(
+                                   Self.envShort(prefix: "uv", full: uv.uvVersion)),
+                               full: UvManager.display(uv.uvVersion))
                     LabeledRow(icon: "brain", title: "litert-lm",
-                               value: Self.envShort(prefix: "litert-lm", full: uv.litertVersion),
-                               full: uv.litertVersion)
+                               value: UvManager.display(
+                                   Self.envShort(prefix: "litert-lm", full: uv.litertVersion)),
+                               full: UvManager.display(uv.litertVersion))
                     LabeledRow(icon: "info.circle", title: L(L10n.Sidebar.labelVersion),
                                value: AboutView.appVersion)
                     LabeledRow(icon: "bolt.fill", title: L(L10n.Sidebar.labelAcceleration),

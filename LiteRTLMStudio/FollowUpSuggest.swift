@@ -5,7 +5,8 @@ import SwiftUI
 enum FollowUpSuggest {
     /// 고정 템플릿 (짧은 응답·키워드 없음 폴백).
     nonisolated static var fallback: [String] {
-        ["더 자세히 설명해줘", "예시 보여줘", "쉽게 요약해줘", "관련 주제 알려줘"]
+        [L(L10n.FollowUp.fallbackDetail), L(L10n.FollowUp.fallbackExample),
+         L(L10n.FollowUp.fallbackSummary), L(L10n.FollowUp.fallbackRelated)]
     }
 
     /// 불용어 (키워드 추출 제외).
@@ -23,15 +24,15 @@ enum FollowUpSuggest {
         let keys = keywords(from: trimmed, limit: 2)
         var out: [String] = []
         if let first = keys.first {
-            out.append("\(first) 더 자세히 알려줘")
+            out.append(L(L10n.FollowUp.more, first))
         }
         if keys.count > 1 {
-            out.append("\(keys[1]) 예시 보여줘")
+            out.append(L(L10n.FollowUp.example, keys[1]))
         } else {
-            out.append("구체적인 예시 보여줘")
+            out.append(L(L10n.FollowUp.exampleGeneric))
         }
-        out.append("이 내용 요약해줘")
-        out.append("다음에 뭘 물어보면 좋을까?")
+        out.append(L(L10n.FollowUp.summarize))
+        out.append(L(L10n.FollowUp.next))
         var seen = Set<String>()
         let clean = out.compactMap { line -> String? in
             let cut = String(line.prefix(30))
