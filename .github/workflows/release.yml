@@ -1,0 +1,80 @@
+name: Release
+
+# 태그(v0.7.151 형식) push 시 Release 빌드 → DMG 생성 → GitHub Release 업로드.
+# 수동 실행(Actions 탭 → Run workflow)도 가능.
+
+"on":
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Xcode 버전 확인
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
+          xcodebuild -version
+
+      - name: 태그 버전 확인 (MARKETING_VERSION 대조, 경고만)
+        run: |
+          TAG="${GITHUB_REF_NAME:-manual}"
+          TAG_VER="${TAG#v}"
+          PBX_VER="$(grep -m1 'MARKETING_VERSION' LiteRTLMStudio.xcodeproj/project.pbxproj | sed -E 's/.*MARKETING_VERSION = ([0-9.]+).*/\1/')"
+          echo "tag=$TAG / MARKETING_VERSION=$PBX_VER"
+          if [[ "$TAG" == v* && "$TAG_VER" != "$PBX_VER" ]]; then
+            echo "::warning::태그($TAG_VER)와 MARKETING_VERSION($PBX_VER)이 다릅니다. 릴리스 전 버전을 맞춰주세요."
+          fi
+
+      - name: Release 빌드
+        run: |
+          xcodebuild -project LiteRTLMStudio.xcodeproj \
+            -scheme LiteRTLMStudio \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            build
+
+      - name: DMG 생성
+        run: |
+          TAG="${GITHUB_REF_NAME:-manual}"
+          VER="${TAG#v}"
+          APP="$(find build/DerivedData -name 'LiteRTLMStudio.app' -maxdepth 5 | head -n 1)"
+          [[ -z "$APP" ]] && { echo "빌드 결과물(.app)을 찾을 수 없음"; exit 1; }
+          echo "APP=$APP"
+          rm -rf dist staging
+          mkdir -p staging dist
+          cp -R "$APP" "staging/LiteRT-LM Studio.app"
+          ln -s /Applications "staging/Applications"
+          DMG="dist/LiteRT-LM-Studio-${VER}-macos-arm64.dmg"
+          hdiutil create -volname "LiteRT-LM Studio" \
+            -srcfolder staging -ov -format UDZO "$DMG"
+          (shasum -a 256 "$DMG" > "${DMG}.sha256")
+          ls -lh dist
+
+      - name: GitHub Release 업로드
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.dmg
+            dist/*.sha256
+          generate_release_notes: true
+          body: |
+            ## 설치
+            1. `LiteRT-LM-Studio-*-macos-arm64.dmg`를 받아 실행합니다.
+            2. `LiteRT-LM Studio.app`을 `Applications` 폴더로 드래그합니다.
+            3. Ad-hoc 서명 빌드이므로 첫 실행 시 Gatekeeper 경고가 나오면
+               Finder에서 앱을 **우클릭 → 열기**로 실행해주세요.
+
+            ## 요구 사항
+            - macOS 14 (Sonoma) 이상, Apple Silicon 권장
+            - `uv` (`/opt/homebrew/bin/uv`) + `litert-lm` CLI, 모델은 `~/.litert-lm/models`
