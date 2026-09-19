@@ -2,6 +2,10 @@
 
 ## [Unreleased] (macos)
 
+* 대화 목차 높이·색·간격 정리 (T-258 후속): 내용 높이에 맞춰 목록을 축소하고
+  400을 넘을 때만 스크롤되게 해 세로 중앙에 위치(`ChatOutline.cappedHeight`). 흰 배경+
+  파란 틴트 캡슐을 반투명 머티리얼+테두리로 교체해 입력창과 구분. 행 간격·세로 패딩 축소. [macos]
+
 * macOS 시스템 도구팩 (T-270, PLAN_v63): 읽기 `get_system_info`·`read_clipboard`·
   `list_calendar_events`·`list_reminders`, 쓰기 `write_clipboard`·`open_url`(http/https만)·
   `run_shortcut`(허용 목록만)·`add_reminder`·`add_calendar_event`. 한국어 상대 시간
