@@ -74,6 +74,7 @@ extension ContentView {
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
             if inspectorTab == .backend, config.hasChanges {
                 Divider()
                 HStack(spacing: 8) {
@@ -93,6 +94,7 @@ extension ContentView {
             }
         }
         .navigationSplitViewColumnWidth(min: 320, ideal: 320, max: 320) // T-072 사이드바 접힘 영향 차단
+        .background(Color(nsColor: .controlBackgroundColor)) // T-333 사이드바 동일 배경
     }
 
     /// 현재 탭 (원시값 불일치 시 실행 설정 기본).
