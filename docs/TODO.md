@@ -300,7 +300,7 @@
 * [x] T-305 NativeEngine 400줄 관리: 주석 정리로 file_length 임계 유지
 * [x] T-306 첫터치 프리필 예열 (PLAN_v87): prepare 선행+기본 OFF 토글+발동 didSet
 * [x] T-307 예열 게이트: unit 252/252·lint 신규 0·build 통과
-* [ ] T-302 첫터치 프리필 실측: 방 열람→첫 전송 TTFT 대조 (게이트 후)
+* [x] T-302 첫터치 프리필 실측: 방 열람→첫 전송 TTFT 대조 (실측 통과)
 * [x] T-308 검색 데몬 실행 로그: serve 출력 수집+로그 보기 팝오버 (PLAN_v88)
 * [x] T-309 웹 토글 명칭 정리: 마스터→웹 도구 사용 (PLAN_v89)
 * [x] T-310 wigolo node PATH: node 경유 실행+PATH 주입 (PLAN_v90)
