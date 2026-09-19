@@ -76,6 +76,39 @@ extension ChatStore {
         }
     }
 
+    /// 서버 전송 실행 (T-345): 스톨 1회 자동 복구 포함 (본문 길이 관리로 Stream 분리).
+    func runServerSend(prompt: String, image: ChatImage?, idx: Int, started: Date,
+                       stallRetried: Bool = false) async {
+        do {
+            try await self.runServerTurns(prompt: prompt, image: image, idx: idx, started: started)
+            let elapsed = Date().timeIntervalSince(started)
+            let chars = messages[idx].text.count
+            messages[idx].perf = Self.perfLine(chars: chars, elapsed: elapsed)
+            messages[idx].finishedAt = Date() // T-077 완료 시각 기록
+            logger.perf(feature: "채팅전송", "완료 elapsed=\(String(format: "%.1f", elapsed))s chars=\(chars)")
+        } catch is CancellationError {
+            logger.info(feature: "채팅중단", "사용자 중단")
+        } catch is ServerStallError {
+            guard !stallRetried, let restart = restartDaemon, await restart() else {
+                self.requestTimedOut(at: idx)
+                preparing = false
+                streaming = false
+                save()
+                return
+            }
+            messages[idx].toolCalls = nil // 스톨 턴 부분 칩 제거 후 재전송
+            messages[idx].thinking = nil
+            logger.info(feature: "채팅전송", "스톨 복구 — 데몬 재시작 후 1회 재전송")
+            await self.runServerSend(prompt: prompt, image: image, idx: idx,
+                                     started: Date(), stallRetried: true)
+        } catch {
+            self.requestFailed(at: idx, error: error)
+        }
+        preparing = false
+        streaming = false
+        save()
+    }
+
     /// 서버 멀티턴 전송 (T-268 S-3): tool_calls 종료 시 로컬 실행 후 재전송, 최대 3턴.
     /// messages[]는 user/assistant만 유지, tool 턴은 요청 히스토리에만 포함.
     /// T-343: 턴별 구간 타이밍+요청 크기 로그 (전체 TTFT와 분리 진단).

@@ -31,6 +31,18 @@ final class AppServices: ObservableObject {
         // T-340: 저장된 모델 선택값으로 시드 — 옛 기본값(gemma4-12b) 제거 후 첫 prepare가
         // 실제 설치 모델을 쓰도록. 선택값이 없으면 빈 문자열(초기화는 사용자 조작 시에만).
         chat.model = UserDefaults.standard.string(forKey: "selectedModelID") ?? ""
+        // T-345: 스톨 자동 복구 — 앱 소유 데몬만 재시작 (외부 데몬은 보호).
+        chat.restartDaemon = { [weak self] in
+            guard let self else { return false }
+            guard !self.daemon.external else {
+                self.logger.info(feature: "채팅전송", "외부 데몬은 자동 재시작 제외")
+                return false
+            }
+            self.logger.info(feature: "채팅전송", "스톨 복구 — 데몬 재시작")
+            self.daemon.stop()
+            await self.daemon.start()
+            return self.daemon.status == .running
+        }
         // Dock 메뉴 종료 등 모든 종료 경로에서 데몬 정리.
         // willTerminate 퇴출 중에는 런루프가 돌지 않으므로 동기 실행 필수 (Task 비동기는 실행 보장 없음).
         // queue:nil = 게시 스레드(항상 메인)에서 동기 전달.

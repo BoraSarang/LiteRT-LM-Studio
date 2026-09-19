@@ -182,8 +182,16 @@ struct AssistantBubbleView: View {    let message: ChatStore.Message
                 if preparing {
                     HStack(spacing: 6) {
                         ProgressView().scaleEffect(0.7)
-                        Text("첫 토큰 대기 중…")
-                            .font(DS.captionFont).foregroundStyle(.secondary)
+                        if let since = message.startedAt {
+                            // T-345: 대기 경과 초 표시 (멈춤처럼 보이는 시간 가시화).
+                            TimelineView(.periodic(from: since, by: 1.0)) { context in
+                                Text("첫 토큰 대기 중… (\(Int(context.date.timeIntervalSince(since)))초)")
+                                    .font(DS.captionFont).foregroundStyle(.secondary)
+                            }
+                        } else {
+                            Text("첫 토큰 대기 중…")
+                                .font(DS.captionFont).foregroundStyle(.secondary)
+                        }
                     }
                 }
                 // T-103: 스트리밍 중 하단 진행 표시 (웜업 줄과 겹치지 않게 준비 제외). 완료 시 사라짐.

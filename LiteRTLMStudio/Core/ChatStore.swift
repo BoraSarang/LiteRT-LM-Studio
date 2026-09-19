@@ -23,6 +23,7 @@ final class ChatStore: ObservableObject {
         var finishedAt: Date? // T-077 응답 완료 시각 (nil=완료 전·구 기록)
         var thinking: String? // T-266 생각 과정 (nil=없음·구 기록)
         var toolCalls: [ToolCallRecord]? // T-266 도구 호출 (nil=없음·구 기록)
+        var startedAt: Date? // T-345 전송 시작 시각 (대기 경과 표시용, 구 기록 nil)
     }
 
     struct Session: Identifiable, Codable {
@@ -136,6 +137,8 @@ final class ChatStore: ObservableObject {
     var inferenceEngine: (any InferenceEngine)?
 
     var currentTask: Task<Void, Never>? // T-344: 서버 워치독이 스톨 시 취소 (Stream 확장 접근)
+    /// 스톨 자동 복구 주입 (T-345, AppServices): 앱 소유 데몬 재시작, 성공 시 true.
+    var restartDaemon: (() async -> Bool)?
     let logger = DebugLogger.shared
     let storageURL: URL
 
@@ -197,25 +200,10 @@ final class ChatStore: ObservableObject {
         preparing = true
         let idx = messages.count - 1
         let started = Date()
+        messages[idx].startedAt = started // T-345: 대기 경과 표시 기준
         if startNativeIfNeeded(prompt: prompt, image: image, idx: idx, started: started) { return }
         currentTask = Task {
-            do {
-                try await self.runServerTurns(prompt: prompt, image: image, idx: idx, started: started)
-                let elapsed = Date().timeIntervalSince(started)
-                let chars = messages[idx].text.count
-                messages[idx].perf = Self.perfLine(chars: chars, elapsed: elapsed)
-                messages[idx].finishedAt = Date() // T-077 완료 시각 기록
-                logger.perf(feature: "채팅전송", "완료 elapsed=\(String(format: "%.1f", elapsed))s chars=\(chars)")
-            } catch is CancellationError {
-                logger.info(feature: "채팅중단", "사용자 중단")
-            } catch is ServerStallError {
-                self.requestTimedOut(at: idx)
-            } catch {
-                self.requestFailed(at: idx, error: error)
-            }
-            preparing = false
-            streaming = false
-            save()
+            await self.runServerSend(prompt: prompt, image: image, idx: idx, started: started)
         }
     }
 

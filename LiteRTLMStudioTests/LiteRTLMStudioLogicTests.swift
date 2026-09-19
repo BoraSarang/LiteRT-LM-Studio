@@ -1476,6 +1476,22 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(ChatStore.jsonBytes("not-json"), 0)
     }
 
+    /// 스톨 타임아웃 반영 (T-344/T-345): 코드·버블·시각 확정, 복구 미주입 기본 nil.
+    @MainActor
+    func testRequestTimedOut() {
+        let url = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("stall-\(UUID().uuidString).json")
+        let defaults = UserDefaults(suiteName: "stall-test-\(UUID().uuidString)")!
+        let store = ChatStore(storageURL: url, routeDefaults: defaults)
+        XCTAssertNil(store.restartDaemon)
+        store.messages.append(ChatStore.Message(role: "assistant", text: ""))
+        store.requestTimedOut(at: 0)
+        XCTAssertEqual(store.lastError, "E-MAC-NET-0006")
+        XCTAssertTrue(store.messages[0].isError)
+        XCTAssertNotNil(store.messages[0].finishedAt)
+        XCTAssertTrue(store.messages[0].text.contains("60초"))
+    }
+
     /// 서버 히스토리 조립 (T-268 S-3): assistant/tool 메시지 형상.
     func testServerToolHistory() {
         let calls = [ToolCallRecord(callID: "c1", name: "get_time", argumentsJSON: "{}")]
