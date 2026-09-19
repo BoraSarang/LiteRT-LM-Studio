@@ -8,6 +8,7 @@ let mainWindowTitle = "LiteRT-LM Studio"
 @main
 struct LiteRTLMStudioApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @Environment(\.openWindow) private var openWindow
     @StateObject private var services: AppServices
     @AppStorage("showInDock") private var showInDock = false
     @AppStorage("onboardingDone") private var onboardingDone = false
@@ -36,6 +37,11 @@ struct LiteRTLMStudioApp: App {
                 } else {
                     LandingView(done: $onboardingDone)
                 }
+            }
+            // T-355: 메뉴바 팝오버(씬 밖)는 openWindow 환경을 못 쓰므로 노티로 창을 연다.
+            .onReceive(NotificationCenter.default.publisher(for: .openMainWindow)) { _ in
+                openWindow(id: "main")
+                NSApp.activate(ignoringOtherApps: true)
             }
         }
         .defaultSize(width: 1340, height: 800) // T-092 계산치: 사이드바 220+열 768+여백 32+인스펙터 320
@@ -101,14 +107,7 @@ struct LiteRTLMStudioApp: App {
                     .keyboardShortcut("q", modifiers: .command)
             }
         }
-        MenuBarExtra {
-            MenuBarView()
-                .environmentObject(services)
-        } label: {
-            MenuBarLabel()
-                .environmentObject(services)
-        }
-        .menuBarExtraStyle(.menu)
+        // T-355: MenuBarExtra 대신 AppDelegate가 수동 NSStatusItem+NSPopover를 소유 (StatusItemController).
         Settings { SettingsView(config: services.config) }
     }
 }
@@ -141,9 +140,26 @@ struct WindowTitleSync: NSViewRepresentable {
 /// 이기지 못했다. AppKit 런치 단계(표시 전)에서 창을 잡아 autosave 프레임을 적용한다.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// T-355: 메뉴바 상태 아이템 (앱 수명 동안 유지).
+    private var statusController: StatusItemController?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        guard let window = NSApp.windows.first(where: { $0.title == mainWindowTitle })
-                ?? NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { return }
-        window.setFrameAutosaveName(mainWindowFrameName)
+        if let window = NSApp.windows.first(where: { $0.title == mainWindowTitle })
+                ?? NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) {
+            window.setFrameAutosaveName(mainWindowFrameName)
+        }
+        // 메뉴바: 앱이 소유한 공유 서비스로 생성 (창을 닫아도 유지).
+        if let services = AppServices.shared {
+            statusController = StatusItemController(services: services)
+        }
+        // 창이 숨겨진 상태에서도 팝오버의 "메인 창 열기"가 동작하도록 AppKit에서도 처리.
+        NotificationCenter.default.addObserver(
+            forName: .openMainWindow, object: nil, queue: nil
+        ) { _ in
+            MainActor.assumeIsolated {
+                NSApp.windows.first { $0.title == mainWindowTitle }?.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
     }
 }

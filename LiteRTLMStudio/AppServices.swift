@@ -5,6 +5,10 @@ import SwiftUI
 /// 앱 전역 공유 서비스 (메인 창·메뉴바가 같은 인스턴스 사용).
 @MainActor
 final class AppServices: ObservableObject {
+    /// T-355: 메뉴바 상태 아이템(AppDelegate가 생성)이 씬 밖에서 같은 인스턴스를 쓰도록 약참조 등록.
+    /// 앱이 소유(@StateObject)하므로 여기선 소유하지 않는다 — 단위 테스트에선 nil.
+    static private(set) weak var shared: AppServices?
+
     let daemon = DaemonManager()
     let monitor = SystemMonitor()
     let nativeEngine = NativeEngine()
@@ -49,6 +53,7 @@ final class AppServices: ObservableObject {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.shutdown() }
         }
+        Self.shared = self
     }
 
     /// 구 번들 설정 이사 (T-060, 1회): UserDefaults는 번들ID 기준이라 개명 시 초기화됨.

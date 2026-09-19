@@ -94,6 +94,87 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(MenuStatus.dotKey(for: .stopped), "gray")
     }
 
+    /// 메뉴바 문구·툴팁·가동시간 (T-355, 순수).
+    func testMenuBarStatusText() {
+        XCTAssertEqual(MenuBarStatusText.line(status: .running, external: false, unlinked: false),
+                       "● 실행 중 · :9379")
+        XCTAssertTrue(MenuBarStatusText.line(status: .running, external: true, unlinked: false)
+            .contains("(외부)"))
+        XCTAssertTrue(MenuBarStatusText.line(status: .stopped, external: false, unlinked: true)
+            .contains("미연결"))
+        XCTAssertEqual(MenuBarStatusText.line(status: .stopped, external: false, unlinked: false),
+                       "○ 중지됨")
+        XCTAssertTrue(MenuBarStatusText.tooltip(status: .running, external: false, unlinked: false)
+            .hasPrefix("LiteRT-LM Studio — "))
+
+        XCTAssertNil(MenuBarStatusText.uptimeText(since: nil))
+        let base = Date(timeIntervalSince1970: 1_000_000)
+        XCTAssertEqual(MenuBarStatusText.uptimeText(since: base, now: base.addingTimeInterval(45)),
+                       "가동 45초")
+        XCTAssertEqual(MenuBarStatusText.uptimeText(since: base, now: base.addingTimeInterval(125)),
+                       "가동 2분 05초")
+        XCTAssertEqual(MenuBarStatusText.uptimeText(since: base, now: base.addingTimeInterval(3725)),
+                       "가동 1시간 02분")
+    }
+
+    /// 최근 채팅방 선별 (T-355, 순수): 갱신 내림차순 상위 limit개.
+    func testMenuBarRecents() {
+        let base = Date(timeIntervalSince1970: 1_000_000)
+        let sessions = (0..<4).map { index in
+            ChatStore.Session(title: "방\(index)", updatedAt: base.addingTimeInterval(Double(index)))
+        }
+        let recent = MenuBarRecents.recent(sessions, limit: 3)
+        XCTAssertEqual(recent.count, 3)
+        XCTAssertEqual(recent.map(\.title), ["방3", "방2", "방1"])
+        XCTAssertEqual(MenuBarRecents.recent(sessions, limit: 0).count, 0)
+        XCTAssertEqual(MenuBarRecents.recent([], limit: 3).count, 0)
+    }
+
+    /// 경로(서버/앱 내 엔진) 구분 문구·색 (T-355, 순수).
+    func testMenuBarRouteStatus() {
+        func line(_ route: EngineMode, _ daemon: DaemonManager.Status,
+                  _ native: NativeEngine.State) -> String {
+            MenuBarRouteStatus.line(route: route, daemon: daemon, external: false,
+                                    unlinked: false, nativeState: native)
+        }
+        XCTAssertEqual(line(.cli, .running, .idle), "● 실행 중 · :9379")
+        XCTAssertEqual(line(.native, .stopped, .ready), "● 앱 내 엔진 · 준비됨")
+        XCTAssertEqual(line(.native, .running, .preparing), "◌ 앱 내 엔진 · 준비 중…")
+        XCTAssertEqual(line(.native, .running, .idle), "○ 앱 내 엔진 · 준비 안 됨")
+        XCTAssertEqual(line(.native, .stopped, .failed), "● 앱 내 엔진 · 실패 — 로그 확인")
+        XCTAssertTrue(MenuBarRouteStatus.tooltip(route: .native, daemon: .stopped,
+                                                 external: false, unlinked: false,
+                                                 nativeState: .ready)
+            .hasPrefix("LiteRT-LM Studio — "))
+
+        XCTAssertEqual(MenuStatus.dotKey(route: .native, daemon: .stopped, nativeState: .ready),
+                       "green")
+        XCTAssertEqual(MenuStatus.dotKey(route: .native, daemon: .running, nativeState: .idle),
+                       "gray")
+        XCTAssertEqual(MenuStatus.dotKey(route: .cli, daemon: .failed, nativeState: .ready),
+                       "red")
+    }
+
+    /// 경로별 토글 버튼 문구·아이콘 (T-355, 순수).
+    func testMenuBarActionText() {
+        XCTAssertEqual(MenuBarActionText.title(route: .native, daemon: .stopped,
+                                               external: false, nativeReady: false),
+                       "앱 내 엔진 준비")
+        XCTAssertEqual(MenuBarActionText.title(route: .native, daemon: .running,
+                                               external: false, nativeReady: true),
+                       "앱 내 엔진 중지")
+        XCTAssertEqual(MenuBarActionText.title(route: .cli, daemon: .running,
+                                               external: true, nativeReady: false),
+                       "외부 연결 끊기")
+        XCTAssertEqual(MenuBarActionText.title(route: .cli, daemon: .stopped,
+                                               external: false, nativeReady: true),
+                       "서버 시작")
+        XCTAssertEqual(MenuBarActionText.icon(route: .native, daemon: .stopped,
+                                              nativeReady: true), "stop.fill")
+        XCTAssertEqual(MenuBarActionText.icon(route: .cli, daemon: .starting,
+                                              nativeReady: false), "play.fill")
+    }
+
     /// 실효 scheme: 시스템 모드는 환경 다크 여부를 명시로 풂 (T-042).
     func testEffectiveScheme() {
         XCTAssertEqual(AppearanceMode.effectiveScheme(mode: .system, systemDark: true), .dark)
