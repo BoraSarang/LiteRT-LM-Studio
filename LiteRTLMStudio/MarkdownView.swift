@@ -45,6 +45,29 @@ struct MarkdownView: View, Equatable {
             .tracking(NativeMarkdown.tracking(for: size))
     }
 
+    /// 인라인 SVG 포함 본문 (T-341): SVG가 있으면 텍스트와 이미지를 나란히 렌더.
+    /// 없으면 기존 bodyText와 동일 (Text 그대로, 줄바꿈·선택 동작 보존).
+    @ViewBuilder
+    func richText(_ s: String, size: CGFloat, weight: Font.Weight = .regular) -> some View {
+        let segs = NativeMarkdown.inlineSegments(s)
+        if segs.count == 1, case .text(let only) = segs[0] {
+            bodyText(only, size: size, weight: weight)
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                ForEach(Array(segs.enumerated()), id: \.offset) { _, seg in
+                    switch seg {
+                    case .text(let t):
+                        if !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            bodyText(t, size: size, weight: weight)
+                        }
+                    case .svg(let markup, let link):
+                        SVGBadgeView(markup: markup, size: size, link: link)
+                    }
+                }
+            }
+        }
+    }
+
     /// 문단 렌더: 줄 블록별 표시 (T-151/T-152).
     /// T-194: 스트리밍 중 미완성 `**` 마커는 표시 제외 (깜빡임 방지, 코드 제외).
     func proseBody(_ p: String) -> some View {
@@ -60,7 +83,7 @@ struct MarkdownView: View, Equatable {
                 case .bullet(let t, let indent):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("•").foregroundStyle(.secondary)
-                        bodyText(t, size: 14 * fontScale)
+                        richText(t, size: 14 * fontScale)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -68,7 +91,7 @@ struct MarkdownView: View, Equatable {
                 case .ordered(let n, let t, let indent):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("\(n).").foregroundStyle(.secondary)
-                        bodyText(t, size: 14 * fontScale)
+                        richText(t, size: 14 * fontScale)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -82,7 +105,7 @@ struct MarkdownView: View, Equatable {
                         RoundedRectangle(cornerRadius: 1.5)
                             .fill(.secondary)
                             .frame(width: 3)
-                        bodyText(t, size: 14 * fontScale)
+                        richText(t, size: 14 * fontScale)
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -91,7 +114,7 @@ struct MarkdownView: View, Equatable {
                     Spacer().frame(height: 6)
                 case .paragraph(let t):
                     if !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        bodyText(t, size: 14 * fontScale)
+                        richText(t, size: 14 * fontScale)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -109,7 +132,7 @@ struct MarkdownView: View, Equatable {
             ForEach(Array(padded.enumerated()), id: \.offset) { ri, row in
                 GridRow {
                     ForEach(Array(row.enumerated()), id: \.offset) { ci, cell in
-                        bodyText(cell, size: 13 * fontScale,
+                        richText(cell, size: 13 * fontScale,
                                      weight: (header && ri == 0) ? .semibold : .regular)
                             .textSelection(.enabled)
                             .padding(.vertical, 6)
@@ -156,6 +179,31 @@ struct MarkdownView: View, Equatable {
             return Text(attr).textSelection(.enabled)
         }
         return Text(s).textSelection(.enabled)
+    }
+}
+
+/// 인라인 SVG 배지 (T-341): macOS NSImage가 SVG를 디코드(_NSSVGImageRep).
+/// 라인 높이에 맞춰 축소 표시하고, `currentColor` 도형은 템플릿으로 그려 다크모드 대응.
+struct SVGBadgeView: View {
+    let markup: String
+    let size: CGFloat
+    var link: String?
+
+    var body: some View {
+        if let img = NSImage(data: Data(markup.utf8)), img.size.width > 0, img.size.height > 0 {
+            let template = markup.lowercased().contains("currentcolor")
+            let badge = Image(nsImage: img)
+                .renderingMode(template ? .template : .original)
+                .resizable()
+                .scaledToFit()
+                .frame(height: min(22, max(12, size * 1.2)))
+                .accessibilityLabel("이미지")
+            if let link, let url = URL(string: link) {
+                Link(destination: url) { badge }
+            } else {
+                badge
+            }
+        }
     }
 }
 

@@ -19,7 +19,8 @@ extension ContentView {
         if selectedModelID == nil {
             selectedModelID = legacySelectedModelID
         }
-        let modelID = selectedModelID ?? models.models.first?.id ?? "gemma4-12b"
+        // T-340: 옛 기본값(gemma4-12b) 제거 — 선택 없으면 빈 값(초기화는 사용자 조작 시).
+        let modelID = selectedModelID ?? models.models.first?.id ?? ""
         config.load(modelID: modelID)
         if await daemon.isHealthy() {
             daemon.status = .running

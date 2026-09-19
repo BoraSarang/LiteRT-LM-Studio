@@ -80,11 +80,12 @@ final class NativeEngine: InferenceEngine, ObservableObject {
             logger.info(feature: "앱내엔진", "캐시 히트: \(modelID) 이미 준비됨")
             return
         }
-        // T-336: 파일 선확인 — 없으면 엔진까지 가지 않고 원인 확정.
+        // T-340/T-336: 빈 선택·파일 부재를 엔진 진입 전에 원인 확정 (빈 경로 혼동 방지).
         let path = Self.modelPath(for: modelID)
-        guard FileManager.default.fileExists(atPath: path) else {
-            markInitFailed("모델 파일 없음: \(path)")
-            throw EngineError.initFailed("모델 파일 없음: \(path)")
+        guard !modelID.isEmpty, FileManager.default.fileExists(atPath: path) else {
+            let why = modelID.isEmpty ? "모델 미선택 — 모델을 먼저 고르세요" : "모델 파일 없음: \(path)"
+            markInitFailed(why)
+            throw EngineError.initFailed(why)
         }
         state = .preparing
         lastError = nil

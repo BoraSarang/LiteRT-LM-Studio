@@ -358,6 +358,7 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         fake.preparedModelID = "gemma4-12b"
         store.inferenceEngine = fake
         store.route = .native
+        store.model = "gemma4-12b" // T-340 기본값 "" → 모델 명시
         store.send("질문")
         await waitStreaming(store)
         let userID = store.messages.first(where: { $0.role == "user" })!
@@ -388,6 +389,7 @@ final class LiteRTLMStudioNativeTests: XCTestCase {
         fake.preparedModelID = "gemma4-12b"
         store.inferenceEngine = fake
         store.route = .native
+        store.model = "gemma4-12b" // T-340 기본값 "" → 모델 명시
         store.send("hi")
         await waitStreaming(store)
         XCTAssertFalse(store.streaming)

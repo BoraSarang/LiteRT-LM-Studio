@@ -111,7 +111,9 @@ final class ChatStore: ObservableObject {
     var warmupTask: Task<Void, Never>?
 
     var baseURL = URL(string: "http://127.0.0.1:9379")!
-    var model = "gemma4-12b"
+    /// 선택 모델 ID (T-340): 하드코딩 기본값 제거 — AppServices가 저장된 선택값으로 시드한다.
+    /// 옛 기본값 `gemma4-12b`가 남아 실행 시 없는 모델을 초기화하던 결함 차단.
+    var model = ""
     var temperature = 1.0 // T-176 모델 내장·Gallery 대조 (기존 0.7)
     var topK = 64 // T-176 describe 실측
     var topP = 0.95 // T-176 describe 실측

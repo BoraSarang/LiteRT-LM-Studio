@@ -28,6 +28,9 @@ final class AppServices: ObservableObject {
     init() {
         Self.migrateLegacyDefaults()
         chat.inferenceEngine = nativeEngine
+        // T-340: 저장된 모델 선택값으로 시드 — 옛 기본값(gemma4-12b) 제거 후 첫 prepare가
+        // 실제 설치 모델을 쓰도록. 선택값이 없으면 빈 문자열(초기화는 사용자 조작 시에만).
+        chat.model = UserDefaults.standard.string(forKey: "selectedModelID") ?? ""
         // Dock 메뉴 종료 등 모든 종료 경로에서 데몬 정리.
         // willTerminate 퇴출 중에는 런루프가 돌지 않으므로 동기 실행 필수 (Task 비동기는 실행 보장 없음).
         // queue:nil = 게시 스레드(항상 메인)에서 동기 전달.

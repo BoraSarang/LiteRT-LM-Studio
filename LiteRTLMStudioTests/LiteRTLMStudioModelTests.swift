@@ -270,6 +270,27 @@ final class LiteRTLMStudioModelTests: XCTestCase {
         XCTAssertEqual(NativeMarkdown.svgLinkLabeled(code), code)
     }
 
+    /// 인라인 SVG 조각 분리 (T-341): 링크형·맨 태그형 → 이미지 조각, 코드 스팬은 텍스트.
+    func testInlineSegments() {
+        let seg = NativeMarkdown.inlineSegments(
+            "앞 [<svg xmlns=\"http://x\"><path d=\"M0\"/></svg>](https://a) 뒤")
+        XCTAssertEqual(seg.count, 3)
+        if case .text(let t) = seg[0] { XCTAssertEqual(t, "앞 ") } else { XCTFail("텍스트 아님") }
+        if case .svg(let markup, let link) = seg[1] {
+            XCTAssertTrue(markup.hasPrefix("<svg"))
+            XCTAssertEqual(link, "https://a")
+        } else { XCTFail("svg 조각 아님") }
+        if case .text(let t) = seg[2] { XCTAssertEqual(t, " 뒤") } else { XCTFail("텍스트 아님") }
+
+        let bare = NativeMarkdown.inlineSegments("<svg><path/></svg>")
+        XCTAssertEqual(bare.count, 1)
+        if case .svg(_, let link) = bare[0] { XCTAssertNil(link) } else { XCTFail("svg 조각 아님") }
+
+        XCTAssertEqual(NativeMarkdown.inlineSegments("일반 텍스트"), [.text("일반 텍스트")])
+        let code = NativeMarkdown.inlineSegments("`[<svg></svg>](u)`")
+        XCTAssertFalse(code.contains { if case .svg = $0 { return true } else { return false } })
+    }
+
     /// 파이프 표 svg 행 종단 (T-335): 셀이 아이콘 링크로 바뀜.
     func testPipeTableSvgRow() {
         let doc = "| A | B |\n|---|---|\n| [<svg><path d=\"M0\"/></svg>](https://x) | y |"

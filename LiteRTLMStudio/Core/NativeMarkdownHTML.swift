@@ -67,6 +67,54 @@ extension NativeMarkdown {
         return re.stringByReplacingMatches(in: s, range: range, withTemplate: "[아이콘]($1)")
     }
 
+    /// 인라인 조각 (T-341): 일반 텍스트 또는 인라인 SVG 마크업(+링크).
+    enum InlineSegment: Equatable {
+        case text(String)
+        case svg(markup: String, link: String?)
+    }
+
+    /// 인라인 SVG 조각 분리 (T-341, 순수): `[<svg…>…</svg>](url)`·맨 `<svg…>…</svg>`를
+    /// 이미지 조각으로 돌려준다. 코드 스팬(백틱) 안은 텍스트로 유지.
+    nonisolated static func inlineSegments(_ s: String) -> [InlineSegment] {
+        guard s.lowercased().contains("<svg") else { return [.text(s)] }
+        let parts = s.components(separatedBy: "`")
+        guard parts.count > 1 else { return svgSegments(parts[0]) }
+        var out: [InlineSegment] = []
+        for i in parts.indices {
+            if i.isMultiple(of: 2) {
+                out.append(contentsOf: svgSegments(parts[i]))
+            } else {
+                out.append(.text("`\(parts[i])`"))
+            }
+        }
+        return out
+    }
+
+    /// 단일 일반 구간 svg 분해 (순수, T-341): 링크형·맨 태그형 모두 인식.
+    nonisolated static func svgSegments(_ s: String) -> [InlineSegment] {
+        guard let re = try? NSRegularExpression(
+            pattern: #"\[(<svg[\s\S]*?</svg>)\]\(([^)]+)\)|(<svg[\s\S]*?</svg>)"#,
+            options: .caseInsensitive) else { return [.text(s)] }
+        let ns = s as NSString
+        var out: [InlineSegment] = []
+        var pos = 0
+        for m in re.matches(in: s, range: NSRange(location: 0, length: ns.length)) {
+            if m.range.location > pos {
+                out.append(.text(ns.substring(with: NSRange(location: pos,
+                                                              length: m.range.location - pos))))
+            }
+            if m.range(at: 1).location != NSNotFound {
+                out.append(.svg(markup: ns.substring(with: m.range(at: 1)),
+                                link: ns.substring(with: m.range(at: 2))))
+            } else {
+                out.append(.svg(markup: ns.substring(with: m.range(at: 3)), link: nil))
+            }
+            pos = m.range.location + m.range.length
+        }
+        if pos < ns.length { out.append(.text(ns.substring(from: pos))) }
+        return out.isEmpty ? [.text(s)] : out
+    }
+
     /// HTML 표 줄 소비 (T-237): 해당하면 누적하고 true.
     nonisolated static func consumeHtmlLine(_ t: String, acc: inout ProseAccumulator) -> Bool {
         guard acc.htmlRows != nil || t.lowercased().contains("<table") else { return false }

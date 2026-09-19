@@ -148,6 +148,7 @@ struct ContentView: View {
                     chat.model = v
                     config.load(modelID: v)
                 }
+                // T-340: 시드된 선택값으로 초기화 (옛 기본값 gemma4-12b 제거).
                 autoPrepareNativeIfNeeded()
             }
             .onChange(of: chat.route) { _, _ in
