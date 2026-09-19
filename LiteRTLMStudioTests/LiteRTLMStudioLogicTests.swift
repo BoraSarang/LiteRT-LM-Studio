@@ -107,7 +107,7 @@ final class LiteRTLMStudioLogicTests: LiteRTLMStudioTestCase {
         XCTAssertEqual(MenuBarStatusText.line(status: .stopped, external: false, unlinked: false),
                        "○ 중지됨")
         XCTAssertTrue(MenuBarStatusText.tooltip(status: .running, external: false, unlinked: false)
-            .hasPrefix("LiteRT-LM Studio — "))
+            .hasPrefix("LiteRT-LM Studio · "))
 
         XCTAssertNil(MenuBarStatusText.uptimeText(since: nil))
         let base = Date(timeIntervalSince1970: 1_000_000)
@@ -143,11 +143,11 @@ final class LiteRTLMStudioLogicTests: LiteRTLMStudioTestCase {
         XCTAssertEqual(line(.native, .stopped, .ready), "● 앱 내 엔진 · 준비됨")
         XCTAssertEqual(line(.native, .running, .preparing), "◌ 앱 내 엔진 · 준비 중…")
         XCTAssertEqual(line(.native, .running, .idle), "○ 앱 내 엔진 · 준비 안 됨")
-        XCTAssertEqual(line(.native, .stopped, .failed), "● 앱 내 엔진 · 실패 — 로그 확인")
+        XCTAssertEqual(line(.native, .stopped, .failed), "● 앱 내 엔진 · 실패 (로그 확인)")
         XCTAssertTrue(MenuBarRouteStatus.tooltip(route: .native, daemon: .stopped,
                                                  external: false, unlinked: false,
                                                  nativeState: .ready)
-            .hasPrefix("LiteRT-LM Studio — "))
+            .hasPrefix("LiteRT-LM Studio · "))
 
         XCTAssertEqual(MenuStatus.dotKey(route: .native, daemon: .stopped, nativeState: .ready),
                        "green")

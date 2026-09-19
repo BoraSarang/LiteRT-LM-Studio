@@ -109,7 +109,7 @@ struct CatalogBrowserView: View {
             .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
-        .help("\(pick.label) — \(pick.blurb)")
+        .help("\(pick.label) · \(pick.blurb)")
     }
 
     // MARK: - 전체 모드 필터

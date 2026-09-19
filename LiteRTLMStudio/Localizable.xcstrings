@@ -470,7 +470,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "About %@–%@ (average of past runs)"
+            "value": "About %@-%@ (average of past runs)"
           }
         },
         "ko": {
@@ -486,7 +486,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "About 3–10 min (12B may time out while warming up)"
+            "value": "About 3-10 min (12B may time out while warming up)"
           }
         },
         "ko": {
@@ -502,7 +502,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "About 1–3 min (including first-time setup)"
+            "value": "About 1-3 min (including first-time setup)"
           }
         },
         "ko": {
@@ -3846,13 +3846,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No model selected — pick a model first"
+            "value": "No model selected. Pick a model first."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "모델 미선택 — 모델을 먼저 고르세요"
+            "value": "모델이 선택되지 않았습니다. 모델을 먼저 고르세요."
           }
         }
       }
@@ -4022,13 +4022,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Success · %@ — %@"
+            "value": "Success · %@ (%@)"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "성공 · %@ — %@"
+            "value": "성공 · %@ (%@)"
           }
         }
       }
@@ -4486,13 +4486,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No `.litertlm` — check the repository and token, or type the file name directly."
+            "value": "No `.litertlm`. Check the repository and token, or type the file name."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "`.litertlm` 없음 — 저장소·토큰 확인 또는 파일명 직접 입력."
+            "value": "`.litertlm` 없음. 저장소·토큰을 확인하거나 파일명을 직접 입력하세요."
           }
         }
       }
@@ -4502,13 +4502,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Waiting — progress appears here once you press Start Download."
+            "value": "Waiting. Progress appears here once you press Start Download."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "대기 중 — 다운로드 시작을 누르면 여기에 표시됩니다."
+            "value": "대기 중. 다운로드 시작을 누르면 여기에 표시됩니다."
           }
         }
       }
@@ -5174,13 +5174,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Not supported by the current model — a FunctionGemma series model is required."
+            "value": "Not supported by the current model. A FunctionGemma series model is required."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "현 모델 미지원 — FunctionGemma 계열이 필요해요."
+            "value": "현 모델에서는 지원하지 않아요. FunctionGemma 계열이 필요해요."
           }
         }
       }
@@ -5862,13 +5862,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Not supported by the current model — a reasoning model (E2B/E4B, etc.) is required."
+            "value": "Not supported by the current model. A reasoning model (E2B/E4B, etc.) is required."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "현 모델 미지원 — 추론 지원 모델(E2B/E4B 등)이 필요해요."
+            "value": "현 모델에서는 지원하지 않아요. 추론 지원 모델(E2B/E4B 등)이 필요해요."
           }
         }
       }
@@ -6614,13 +6614,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "● Failed — check the log"
+            "value": "● Failed (check the log)"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "● 실패 — 로그 확인"
+            "value": "● 실패 (로그 확인)"
           }
         }
       }
@@ -6630,13 +6630,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "● In-app engine · failed — check the log"
+            "value": "● In-app engine · failed (check the log)"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "● 앱 내 엔진 · 실패 — 로그 확인"
+            "value": "● 앱 내 엔진 · 실패 (로그 확인)"
           }
         }
       }
@@ -6758,13 +6758,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "LiteRT-LM Studio — %@"
+            "value": "LiteRT-LM Studio · %@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "LiteRT-LM Studio — %@"
+            "value": "LiteRT-LM Studio · %@"
           }
         }
       }
@@ -9222,13 +9222,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Disconnect from the external daemon (⌘.) — the terminal daemon keeps running"
+            "value": "Disconnect from the external daemon (⌘.). The terminal daemon keeps running"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "외부 데몬 연결 끊기 (⌘.) — 터미널 데몬은 계속 실행됩니다"
+            "value": "외부 데몬 연결 끊기 (⌘.). 터미널 데몬은 계속 실행됩니다"
           }
         }
       }
@@ -9292,7 +9292,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "앱 내 엔진 중지 — 메모리 반납 (다시 실행은 사이드바)"
+            "value": "앱 내 엔진 중지 (메모리 반납, 다시 실행은 사이드바)"
           }
         }
       }
@@ -9318,13 +9318,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Start the server (⌘R) — you can already chat with the in-app engine"
+            "value": "Start the server (⌘R). You can already chat with the in-app engine"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "서버 시작 (⌘R) — 앱 내 엔진으로 대화 가능합니다"
+            "value": "서버 시작 (⌘R). 앱 내 엔진으로 대화할 수 있습니다"
           }
         }
       }
@@ -9766,13 +9766,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Shows 3–4 related questions below the assistant once a response finishes. Turn off to hide."
+            "value": "Shows 3-4 related questions below the assistant once a response finishes. Turn off to hide."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "응답 완료 후 관련 질문 3~4개를 어시스턴트 아래 우측에 표시. 끄면 숨겨집니다."
+            "value": "응답이 끝나면 관련 질문 3~4개를 어시스턴트 아래 우측에 표시합니다. 끄면 숨겨집니다."
           }
         }
       }
@@ -10662,13 +10662,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "External daemon needs a restart — restart it in the terminal"
+            "value": "External daemon needs a restart (restart it in the terminal)"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "외부 데몬 재시작 필요 — 터미널에서 재시작하세요"
+            "value": "외부 데몬 재시작 필요 (터미널에서 재시작하세요)"
           }
         }
       }
@@ -10950,13 +10950,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unified status (Ollama-style) — %@"
+            "value": "Unified status (Ollama-style) · %@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ollama식 통합 상태 — %@"
+            "value": "Ollama식 통합 상태 · %@"
           }
         }
       }
@@ -11020,7 +11020,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "SKILL.md 없음. 폴더 열기로 직접 넣거나, 가져오기로 외부 스킬을 복사하세요."
+            "value": "SKILL.md 없음. 폴더 열기로 직접 넣거나 가져오기로 외부 스킬을 복사하세요."
           }
         }
       }
@@ -12774,13 +12774,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Offline — saved notes"
+            "value": "Offline · saved notes"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "오프라인 — 저장된 소식"
+            "value": "오프라인 · 저장된 소식"
           }
         }
       }
@@ -12870,13 +12870,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "On-device LLM chat manager — type your question below"
+            "value": "On-device LLM chat manager. Type your question below."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "온디바이스 LLM 채팅 매니저 — 아래에 질문을 입력하세요"
+            "value": "온디바이스 LLM 채팅 매니저. 아래에 질문을 입력하세요"
           }
         }
       }

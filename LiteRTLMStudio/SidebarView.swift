@@ -262,7 +262,7 @@ extension ContentView {
                 Text(nativeEngine.lastErrorDetail ?? nativeEngine.lastError ?? "")
                     .font(DS.captionFont).foregroundStyle(.red)
                     .lineLimit(2).truncationMode(.tail)
-                    .help("\(nativeEngine.lastError ?? "") — \(nativeEngine.lastErrorDetail ?? "")")
+                    .help("\(nativeEngine.lastError ?? "") · \(nativeEngine.lastErrorDetail ?? "")")
                 lifecycleActionRow(icon: "arrow.clockwise", title: L(L10n.Sidebar.actionRestart),
                                    help: L(L10n.Sidebar.actionRestartHelp)) {
                     Task { try? await nativeEngine.restart(modelID: chat.model) }
