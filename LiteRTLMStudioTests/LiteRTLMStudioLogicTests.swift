@@ -1724,6 +1724,27 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
                                                permission: .ask))
     }
 
+    /// T-350 인자 없는 도구의 빈/공백/null 인자는 빈 객체로 정규화 (파싱 실패 방지).
+    func testServerToolArgsNormalize() {
+        XCTAssertEqual(ServerToolArgs.normalize("")?.isEmpty, true)
+        XCTAssertEqual(ServerToolArgs.normalize("  \n ")?.isEmpty, true)
+        XCTAssertEqual(ServerToolArgs.normalize("null")?.isEmpty, true)
+        XCTAssertEqual(ServerToolArgs.normalize("{}")?.isEmpty, true)
+        XCTAssertEqual(ServerToolArgs.normalize(" {\n} ")?.isEmpty, true)
+        let withValue = ServerToolArgs.normalize(#"{"title":"회의"}"#)
+        XCTAssertEqual(withValue?["title"] as? String, "회의")
+        // 데몬 중복 조각: `{}{}`처럼 연결된 객체는 첫 완전 객체만 채택.
+        XCTAssertEqual(ServerToolArgs.normalize("{}{}")?.isEmpty, true)
+        XCTAssertEqual(ServerToolArgs.normalize(#"{"title":"회의"}{"title":"회의"}"#)?["title"] as? String,
+                       "회의")
+        // 문자열 안의 중괄호는 판별에 영향 없음.
+        XCTAssertEqual(ServerToolArgs.normalize(#"{"a":"}"}"#)?["a"] as? String, "}")
+        // 진짜 malformed JSON만 nil (실패 기록 대상).
+        XCTAssertNil(ServerToolArgs.normalize("{"))
+        XCTAssertNil(ServerToolArgs.normalize("garbage"))
+        XCTAssertNil(ServerToolArgs.normalize(#"{"a":}"#))
+    }
+
     /// T-346 정직 가드: 시스템 프롬프트에 호출-주장 분리 문구 포함.
     func testToolHonestyBlock() {
         let block = ChatStore.toolHonestyBlock()

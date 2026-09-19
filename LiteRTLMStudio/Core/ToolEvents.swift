@@ -1,5 +1,55 @@
 import Foundation
 
+/// 서버 도구 인자 정규화 (T-350, 순수·테스트 가능): 인자 없는 도구의 빈 문자열·
+/// 공백·null은 빈 객체로 취급해 파싱 실패("인자 파싱 실패")를 막는다.
+/// 데몬이 같은 인자 JSON을 중복 조각으로 보내면 `{}{}`처럼 이어지는데,
+/// 이 경우 첫 완전 객체만 채택한다 (중복 델타 흡수).
+/// 진짜 malformed JSON이면 nil (호출 측이 실패 기록).
+enum ServerToolArgs {
+    nonisolated static func normalize(_ raw: String) -> [String: Any]? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != "null" else { return [:] }
+        guard let slice = firstObjectEnd(of: trimmed) else { return nil }
+        guard let data = slice.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        return obj
+    }
+
+    /// 첫 완전 JSON 객체의 끝 인덱스까지 잘라낸 문자열 (순수): 문자열 안의 따옴표·
+    /// 중첩을 추적해 `{}{}`같은 연결 객체에서 첫 `{...}`만 반환. 완전 객체가 없으면 nil.
+    nonisolated static func firstObjectEnd(of text: String) -> String? {
+        var depth = 0
+        var inString = false
+        var escaped = false
+        var end: String.Index?
+        for i in text.indices {
+            let c = text[i]
+            if inString {
+                if escaped { escaped = false }
+                else if c == "\\" { escaped = true }
+                else if c == "\"" { inString = false }
+                continue
+            }
+            switch c {
+            case "\"":
+                inString = true
+            case "{":
+                depth += 1
+            case "}":
+                depth -= 1
+                if depth == 0 { end = i; break }
+            default:
+                break
+            }
+            if end != nil { break }
+        }
+        guard let end else { return nil }
+        return String(text[text.startIndex...end])
+    }
+}
+
 /// 도구 호출 상태 (T-266 S-1): 수신 → S-2에서 실행 결과로 전이.
 enum ToolCallStatus: String, Codable, Sendable {
     case streaming // 조각 수신 중

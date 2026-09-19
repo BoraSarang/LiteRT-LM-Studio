@@ -250,9 +250,10 @@ extension ChatStore {
     /// 서버 도구 1건 실행 (T-268): 승인 게이트+원장 기록은 각 도구 run() 내부
     /// runTolled가 1회 담당. 여기서 또 감싸면 팝업·원장이 2번 발생한다 (T-343).
     func executeServerTool(_ call: ToolCallRecord) async -> String {
-        guard let data = call.argumentsJSON.data(using: .utf8),
-              let args = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            await ToolLedger.shared.record(toolName: call.name, detail: call.argumentsJSON,
+        guard let args = ServerToolArgs.normalize(call.argumentsJSON) else {
+            let preview = String(call.argumentsJSON.trimmingCharacters(in: .whitespacesAndNewlines).prefix(120))
+            logger.info(feature: "도구", "인자 파싱 실패 원문: [\(preview)]")
+            await ToolLedger.shared.record(toolName: call.name, detail: preview,
                                            result: "인자 파싱 실패", denied: false, failed: true)
             return "인자 파싱 실패"
         }
