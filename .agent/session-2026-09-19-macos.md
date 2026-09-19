@@ -1,10 +1,10 @@
 # session-2026-09-19-macos (8줄 요약)
 
-1. T-346(도구 진실화)·T-347(성능)·T-348(한글명 UI)·T-349(일정·미리알림 삭제 도구) 커밋 `678950b`, 테스트 309/309.
-2. T-347 DoD 실측 마감: 히스토리 1턴 626자→3턴 104자, 승인 대기 0.97~2.14s, 왕복 19.5~36.4s, 읽기전용 자동 승인 확인, MTP ON 유지(P2-6: MTP는 디코드 속도 전용, TTFT 무관).
-3. get_time 누락은 버그 아님(시스템 프롬프트 날짜로 모델 자답, curl 재현).
-4. T-350 신규: 서버 도구 인자 정규화 — 데몬 중복 조각 `{}{}`가 "인자 파싱 실패" 유발, 첫 완전 객체 채택으로 해결. 실측: get_system_info·read_clipboard 정상 (310/310, build OK).
-5. 미검증: 왕복 36~37s가 모델의 순차 호출(get_system_info→read_clipboard 2턴)의 결과 — 1턴 멀티콜/병합 강제는 T-351 후보.
-6. 주의: warmup이 실엔진으로 구모델ID 준비 시도, `log show` 무응답, Debug 패널이 유일 로그 창구 (기존 유지).
-7. 다음 세션: 커밋(T-347 실측·T-350) 승인 여부, T-351(멀티콜 병합) 우선순위.
+1. T-351~T-353 커밋 `0ab3f03`: 웹 검색 wigolo→Exa REST 교체 + 라이브 크롤 + 1턴 병렬 도구. 테스트 306/306, lint 신규 0, build OK.
+2. T-352: `api.exa.ai/search`(`contents.highlights`)·`/contents`(text) Bearer, 파서 `parseExaSearch`/`parseExaContents`, 등록 게이트 바이너리→API 키, 설정 도구 탭 Exa 키 필드+`dashboard.exa.ai` 링크+실검색 테스트. WigoloManager/WigoloSupport 삭제, 배너·데몬·설치 UI 정리(pbxproj 포함).
+3. T-353: Exa 기본 캐시가 GitHub 릴리스 페이지를 v0.16.1에서 멈춤(실측, 실제 v0.17.1) → 요청에 `maxAgeHours:0` 라이브 크롤 강제로 해결. 사용자 눈확인 통과. 요청 본문 순수 `searchBody`/`contentsBody` 분리.
+4. T-351: 시스템 프롬프트 `[도구 병렬 규칙]`+본문 `parallel_tool_calls: true`(기존 runTurnCalls 루프 재사용). curl로 1응답 멀티콜 확인. UI 눈확인(1턴 2도구)은 미완.
+5. 이전 마감 유지: T-346~T-350, T-347 실측, P2-6 MTP=ON 마감.
+6. 참고: Exa `maxAgeHours:0`은 항상 라이브 크롤이라 호출 지연·비용이 늘 수 있음(정확도 우선 결정). 키는 UserDefaults `exaApiKey`(평문, Keychain 이관은 후속 후보).
+7. 미검증/후보: T-351 병렬 눈확인, Exa 키 Keychain 이관, 모델이 본문 무시 시 시스템 프롬프트 `[1번 페이지 본문] 우선` 보강.
 8. 규칙: main 직접 push 금지, 파괴적 변경 확인, 한국어.
