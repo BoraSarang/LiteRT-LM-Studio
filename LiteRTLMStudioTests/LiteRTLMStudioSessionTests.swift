@@ -3,7 +3,7 @@ import XCTest
 @testable import LiteRTLMStudio
 
 /// 세션 회귀군 (T-127 파일 분리): ChatStore 세션 생명주기.
-final class LiteRTLMStudioSessionTests: XCTestCase {
+final class LiteRTLMStudioSessionTests: LiteRTLMStudioTestCase {
     /// 채팅 재시도 조회: 마지막 user 프롬프트 반환, 없으면 nil (T-028).
     @MainActor
     func testLastUserPrompt() throws {

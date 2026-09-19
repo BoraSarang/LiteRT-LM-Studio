@@ -7,7 +7,7 @@ struct ShortcutsAllowlistSection: View {
     @State private var draft = ""
 
     var body: some View {
-        Section("단축어 허용 목록") {
+        Section(L(L10n.Shortcuts.section)) {
             ForEach(names, id: \.self) { name in
                 HStack {
                     Text(name)
@@ -18,15 +18,15 @@ struct ShortcutsAllowlistSection: View {
                         Image(systemName: "minus.circle")
                     }
                     .buttonStyle(.plain).foregroundStyle(.secondary)
-                    .help("허용 목록에서 제거")
+                    .help(L(L10n.Shortcuts.remove))
                 }
             }
             HStack(spacing: 8) {
-                TextField("단축어 이름", text: $draft)
-                Button("추가") { add() }
+                TextField(L(L10n.Shortcuts.namePlaceholder), text: $draft)
+                Button(L(L10n.Shortcuts.add)) { add() }
                     .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            Text("여기 등록한 이름의 단축어만 모델이 run_shortcut 도구로 실행할 수 있습니다.")
+            Text(L(L10n.Shortcuts.note))
                 .font(.caption).foregroundStyle(.secondary)
         }
         .onAppear { names = ShortcutsAllowlist.names() }

@@ -29,7 +29,7 @@ struct BenchmarkListView: View {
         } label: {
             HStack {
                 Image(systemName: "plus").font(.system(size: 13, weight: .semibold))
-                Text("새 벤치마크").font(.system(size: 13, weight: .semibold))
+                Text(L(L10n.Benchmark.newBenchmark)).font(.system(size: 13, weight: .semibold))
                 Spacer()
             }
             .padding(.horizontal, 10).padding(.vertical, 7)
@@ -37,13 +37,13 @@ struct BenchmarkListView: View {
         }
         .buttonStyle(.plain)
         .disabled(bench.running)
-        .help("새 벤치마크 (측정 준비)")
+        .help(L(L10n.Benchmark.newBenchmarkHelp))
     }
 
     /// 섹션 헤더: 제목+건수.
     private var listHeader: some View {
         HStack {
-            Text("벤치마크").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+            Text(L(L10n.Benchmark.heading)).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
             Spacer()
             Text("\(history.records.count)")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
@@ -67,7 +67,7 @@ struct BenchmarkListView: View {
             Spacer(minLength: 4)
             if hoverID == rec.id || selected {
                 Menu {
-                    Button("삭제", systemImage: "trash", role: .destructive) {
+                    Button(L(L10n.Benchmark.delete), systemImage: "trash", role: .destructive) {
                         history.remove(rec.id)
                     }
                     .disabled(bench.running)
@@ -80,7 +80,7 @@ struct BenchmarkListView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
-                .help("벤치마크 메뉴")
+                .help(L(L10n.Benchmark.menu))
             }
         }
         .padding(.horizontal, 8).padding(.vertical, 6)
@@ -97,7 +97,7 @@ struct BenchmarkListView: View {
         }
         .onHover { hoverID = $0 ? rec.id : nil }
         .contextMenu {
-            Button("삭제", systemImage: "trash", role: .destructive) {
+            Button(L(L10n.Benchmark.delete), systemImage: "trash", role: .destructive) {
                 history.remove(rec.id)
             }
             .disabled(bench.running)
@@ -114,7 +114,7 @@ struct BenchmarkListView: View {
     }
 
     private func speedText(_ rec: BenchmarkRecord) -> String {
-        guard let met = rec.metrics else { return "기록 없음" }
-        return String(format: "%.1f 토큰/초", met.decodeSpeed)
+        guard let met = rec.metrics else { return L(L10n.Benchmark.noRecord) }
+        return L(L10n.Benchmark.perSecond, met.decodeSpeed)
     }
 }

@@ -41,7 +41,7 @@ struct CatalogBrowserView: View {
     private var searchBar: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("모델 검색 (입력하면 전체에서 검색)", text: $catalog.query)
+            TextField(L(L10n.Catalog.searchPlaceholder), text: $catalog.query)
                 .textFieldStyle(.roundedBorder)
                 .onChange(of: catalog.query) { _, _ in
                     searchTask?.cancel()
@@ -52,7 +52,7 @@ struct CatalogBrowserView: View {
                     }
                 }
             if catalog.mode == .all {
-                Button("추천 모델로") { catalog.mode = .recommended }
+                Button(L(L10n.Catalog.toRecommended)) { catalog.mode = .recommended }
                     .buttonStyle(.link).font(DS.captionFont)
             }
         }
@@ -63,9 +63,9 @@ struct CatalogBrowserView: View {
     private var recommendedPane: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("추천 모델").font(.system(size: 13, weight: .semibold))
+                Text(L(L10n.Catalog.recommendedSection)).font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Button("전체 모델 보기") { Task { await catalog.search() } }
+                Button(L(L10n.Catalog.seeAll)) { Task { await catalog.search() } }
                     .buttonStyle(.link).font(DS.captionFont)
             }
             ScrollView(.horizontal, showsIndicators: false) {
@@ -93,7 +93,7 @@ struct CatalogBrowserView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(pick.label).font(.system(size: 13, weight: .semibold))
-                        DSBadge(text: installed ? "설치됨" : "미설치",
+                        DSBadge(text: L(installed ? L10n.Catalog.installed : L10n.Catalog.notInstalled),
                                 kind: installed ? .success : .neutral)
                     }
                     Text(pick.blurb).font(DS.captionFont).foregroundStyle(.secondary)
@@ -109,7 +109,7 @@ struct CatalogBrowserView: View {
             .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
-        .help("\(pick.label) — \(pick.blurb)")
+        .help("\(pick.label) · \(pick.blurb)")
     }
 
     // MARK: - 전체 모드 필터
@@ -148,7 +148,7 @@ struct CatalogBrowserView: View {
             if catalog.isLoading {
                 ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
             }
-            Text("\(catalog.filtered.count)건").font(DS.captionFont).foregroundStyle(.secondary)
+            Text(L(L10n.Catalog.count, catalog.filtered.count)).font(DS.captionFont).foregroundStyle(.secondary)
         }
     }
 
@@ -157,8 +157,8 @@ struct CatalogBrowserView: View {
     private var listPane: some View {
         Group {
             if catalog.filtered.isEmpty, !catalog.isLoading {
-                ContentUnavailableView("검색 결과 없음", systemImage: "magnifyingglass",
-                                       description: Text("검색어·필터를 바꿔 보세요."))
+                ContentUnavailableView(L(L10n.Catalog.noResults), systemImage: "magnifyingglass",
+                                       description: Text(L(L10n.Catalog.noResultsDetail)))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(selection: Binding(get: { catalog.selectedRepo },
@@ -179,7 +179,7 @@ struct CatalogBrowserView: View {
                             .tag(entry.repo)
                     }
                     if catalog.hasMore {
-                        Button(catalog.isLoading ? "불러오는 중…" : "더 보기") {
+                        Button(catalog.isLoading ? L(L10n.Catalog.loading) : L(L10n.Catalog.loadMore)) {
                             Task { await catalog.loadMore() }
                         }
                         .buttonStyle(.link).font(DS.captionFont)
@@ -198,7 +198,7 @@ struct CatalogBrowserView: View {
         var parts = ["↓\(ModelCatalog.prettyCount(entry.downloads))"]
         if entry.likes > 0 { parts.append("☆\(entry.likes)") }
         if let age = ModelCatalog.daysAgo(iso: entry.lastModified ?? entry.createdAt) {
-            parts.append(age == 0 ? "오늘" : "\(age)일 전")
+            parts.append(L(age == 0 ? L10n.Catalog.updatedToday : L10n.Catalog.updatedDaysAgo, age))
         }
         return parts.joined(separator: " · ")
     }
@@ -227,13 +227,13 @@ struct CatalogBrowserView: View {
 
     private var footerBar: some View {
         HStack(spacing: 8) {
-            Text("로컬 설치 \(models.models.count)개 · 스테이징 \(models.staged.count)개"
+            Text(L(L10n.Catalog.installedSummary, models.models.count, models.staged.count)
                 + " (\(ModelDownload.formatBytes(ModelStore.totalBytes(models.staged))))")
                 .font(DS.captionFont).foregroundStyle(.secondary)
             Spacer()
             Text(models.stagingURL.path).font(DS.captionFont).foregroundStyle(.secondary)
                 .lineLimit(1).truncationMode(.middle)
-            Button("열기") { models.revealStaging() }
+            Button(L(L10n.Catalog.open)) { models.revealStaging() }
                 .buttonStyle(.link).font(DS.captionFont)
         }
     }

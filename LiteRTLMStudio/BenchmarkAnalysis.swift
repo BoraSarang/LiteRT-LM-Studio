@@ -65,9 +65,9 @@ extension BenchmarkWindowView {
         let busy = store.analyzing && store.analyzingSlotID == slotID
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text("AI 분석").font(.system(size: 13, weight: .semibold))
+                Text(L(L10n.Benchmark.aiAnalysis)).font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text("측정 \(rec.route.title) · 분석 \(shownEngine(slotID: slotID))")
+                Text(L(L10n.Benchmark.analysisSubtitle, rec.route.title, shownEngine(slotID: slotID)))
                     .font(DS.captionFont).foregroundStyle(.secondary)
                 Button {
                     PasteboardUtil.copy(shown)
@@ -78,28 +78,28 @@ extension BenchmarkWindowView {
                 }
                 .buttonStyle(.plain)
                 .disabled(shown.isEmpty)
-                .help("분석 결과 복사")
+                .help(L(L10n.Benchmark.copyResultHelp))
             }
             if busy {
                 HStack(spacing: 8) {
                     ProgressView().scaleEffect(0.7).frame(width: 14, height: 14)
-                    Text("분석 중…").font(.system(size: 12)).foregroundStyle(.secondary)
+                    Text(L(L10n.Benchmark.analyzing)).font(.system(size: 12)).foregroundStyle(.secondary)
                 }
             } else if !shown.isEmpty {
                 MarkdownView(text: shown)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Button("분석 시작") {
+                Button(L(L10n.Benchmark.startAnalysis)) {
                     let avg = BenchmarkHistoryStore.averageDuration(history.records, modelID: rec.modelID)
                     store.analyze(record: rec, avgDuration: avg, chat: chat, slotID: slotID)
                 }
                 .disabled(analysisDisabled(for: rec) || store.analyzing)
-                .help("측정한 경로의 모델로 결과를 해석하고 개선안을 제안합니다.")
+                .help(L(L10n.Benchmark.analysisHelp))
             }
             if let err = store.analysisError {
                 Text(err).font(.system(size: 12)).foregroundStyle(.red)
             }
-            DisclosureGroup("분석 프롬프트 보기", isExpanded: $showPrompt) {
+            DisclosureGroup(L(L10n.Benchmark.showPrompt), isExpanded: $showPrompt) {
                 Text(promptPreview(rec))
                     .font(.system(size: 11, design: .monospaced))
                     .textSelection(.enabled)

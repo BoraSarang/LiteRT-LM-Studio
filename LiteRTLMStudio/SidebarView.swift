@@ -10,8 +10,8 @@ extension ContentView {
 
         var title: String {
             switch self {
-            case .chat: return "채팅"
-            case .models: return "모델"
+            case .chat: return L(L10n.Sidebar.chat)
+            case .models: return L(L10n.Sidebar.models)
             }
         }
     }
@@ -20,19 +20,22 @@ extension ContentView {
     var sidebar: some View {
         VStack(spacing: 0) {
             List(selection: $selectedModelID) {
-                Section("환경") {
+                Section(L(L10n.Sidebar.sectionEnvironment)) {
                     LabeledRow(icon: "shippingbox", title: "uv",
-                               value: Self.envShort(prefix: "uv", full: uv.uvVersion),
-                               full: uv.uvVersion)
+                               value: UvManager.display(
+                                   Self.envShort(prefix: "uv", full: uv.uvVersion)),
+                               full: UvManager.display(uv.uvVersion))
                     LabeledRow(icon: "brain", title: "litert-lm",
-                               value: Self.envShort(prefix: "litert-lm", full: uv.litertVersion),
-                               full: uv.litertVersion)
-                    LabeledRow(icon: "info.circle", title: "버전", value: AboutView.appVersion)
-                    LabeledRow(icon: "bolt.fill", title: "가속",
-                               value: config.configExists ? config.summary : "미설정(CPU 기본값)")
-                    LabeledRow(icon: "cpu", title: "엔진", value: engineModeValue)
+                               value: UvManager.display(
+                                   Self.envShort(prefix: "litert-lm", full: uv.litertVersion)),
+                               full: UvManager.display(uv.litertVersion))
+                    LabeledRow(icon: "info.circle", title: L(L10n.Sidebar.labelVersion),
+                               value: AboutView.appVersion)
+                    LabeledRow(icon: "bolt.fill", title: L(L10n.Sidebar.labelAcceleration),
+                               value: config.configExists ? config.summary : L(L10n.Sidebar.accelUnset))
+                    LabeledRow(icon: "cpu", title: L(L10n.Sidebar.labelEngine), value: engineModeValue)
                     HStack {
-                        Label("상태", systemImage: "server.rack")
+                        Label(L(L10n.Sidebar.labelStatus), systemImage: "server.rack")
                             .symbolRenderingMode(.hierarchical).font(.system(size: 13))
                         Spacer()
                         Circle().fill(unifiedDot)
@@ -40,13 +43,13 @@ extension ContentView {
                         Text(unifiedStatus.title)
                             .font(DS.captionFont).foregroundStyle(.secondary)
                     }
-                    .help("Ollama식 통합 상태 — \(unifiedDetail)")
+                    .help(L(L10n.Sidebar.statusHelp, unifiedDetail))
                     engineLifecycleRow
                     if config.externalRestartPending {
-                        Label("외부 데몬 재시작 필요 — 터미널에서 재시작하세요", systemImage: "exclamationmark.triangle")
+                        Label(L(L10n.Sidebar.externalRestart), systemImage: "exclamationmark.triangle")
                             .font(DS.captionFont).foregroundStyle(.orange)
                             .contextMenu {
-                                Button("재시작 명령 복사") {
+                                Button(L(L10n.Sidebar.copyRestartCommand)) {
                                     PasteboardUtil.copy("litert-lm serve --host 127.0.0.1 --port 9379")
                                 }
                             }
@@ -93,7 +96,7 @@ extension ContentView {
             ToolbarItem(placement: .primaryAction) {
                 Button { Task { await models.refresh() } } label: {
                     Image(systemName: "arrow.clockwise")
-                }.help("모델 목록 새로고침 (⌘R은 서버 시작)")
+                }.help(L(L10n.Sidebar.refreshHelp))
             }
         }
     }
@@ -130,7 +133,7 @@ extension ContentView {
             }
         } header: {
             HStack {
-                Text("모델").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                Text(L(L10n.Sidebar.models)).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
                 Spacer()
                 Text("\(models.models.count)")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
@@ -147,14 +150,14 @@ extension ContentView {
         } label: {
             HStack {
                 Image(systemName: "plus").font(.system(size: 13, weight: .semibold))
-                Text("모델 관리").font(.system(size: 13, weight: .semibold))
+                Text(L(L10n.Sidebar.manage)).font(.system(size: 13, weight: .semibold))
                 Spacer()
             }
             .padding(.horizontal, 10).padding(.vertical, 7)
             .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
-        .help("모델 관리 창 열기")
+        .help(L(L10n.Sidebar.manageHelp))
     }
 
     /// 모델 1행: 탭=선택+호버 메뉴 (채팅식).
@@ -166,7 +169,7 @@ extension ContentView {
                 .foregroundStyle(selected ? DSColor.primary : Color.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(ModelAlias.display(id: m.id)).font(.system(size: 13, weight: .medium))
-                Text("\(m.id) · \(m.listedSize) · 실점유 \(m.realSize)")
+                Text(L(L10n.Sidebar.rowDetail, m.id, m.listedSize, m.realSize))
                     .font(DS.captionFont).foregroundStyle(.secondary)
             }
             .lineLimit(1).truncationMode(.tail)
@@ -183,7 +186,7 @@ extension ContentView {
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
-                .help("모델 메뉴")
+                .help(L(L10n.Sidebar.menu))
             }
         }
         .padding(.horizontal, 8).padding(.vertical, 6)
@@ -200,15 +203,15 @@ extension ContentView {
     /// 모델 메뉴 본체 (⋯ 버튼·우클릭 공용).
     @ViewBuilder
     private func modelMenu(_ m: ModelStore.Model) -> some View {
-        Button("채팅 모델로 선택") { selectedModelID = m.id }
-        Button("표시 이름 바꾸기") {
+        Button(L(L10n.Sidebar.menuSelectForChat)) { selectedModelID = m.id }
+        Button(L(L10n.Sidebar.menuRename)) {
             aliasTarget = m.id
             aliasText = ModelAlias.display(id: m.id)
         }
-        Button("벤치마크 실행") { runBenchmark(id: m.id) }
+        Button(L(L10n.Sidebar.menuRunBenchmark)) { runBenchmark(id: m.id) }
             .disabled(bench.running)
         Divider()
-        Button("모델 관리에서 삭제") {
+        Button(L(L10n.Sidebar.menuRemove)) {
             DebugLogger.shared.info(feature: "모델관리", "사이드바에서 관리 창으로 이동: \(m.id)")
             NotificationCenter.default.post(name: .openModelManagerMyModels, object: m.id)
         }
@@ -221,9 +224,9 @@ extension ContentView {
             return "\(EngineMode.native.title) · \(ModelAlias.display(id: id))"
         }
         switch nativeEngine.state {
-        case .preparing: return "\(EngineMode.native.title) · 준비 중…"
-        case .failed: return "\(EngineMode.native.title) · 실패"
-        case .idle, .ready: return "\(EngineMode.native.title) · 미초기화"
+        case .preparing: return L(L10n.Sidebar.enginePreparing, EngineMode.native.title)
+        case .failed: return L(L10n.Sidebar.engineFailed, EngineMode.native.title)
+        case .idle, .ready: return L(L10n.Sidebar.engineIdle, EngineMode.native.title)
         }
     }
 
@@ -233,46 +236,47 @@ extension ContentView {
         if Self.showsNativeLifecycle(route: chat.route) {
             switch nativeEngine.state {
             case .idle:
-                lifecycleActionRow(icon: "play.fill", title: "앱 내 엔진 초기화",
-                                   help: "앱 내 엔진 초기화 (\(ModelAlias.display(id: chat.model)), 처음 1회 약 10초 이상)") {
+                lifecycleActionRow(icon: "play.fill", title: L(L10n.Sidebar.actionInitNative),
+                                   help: L(L10n.Sidebar.actionInitNativeHelp,
+                                           ModelAlias.display(id: chat.model))) {
                     Task { try? await nativeEngine.prepare(modelID: chat.model) }
                 }
             case .preparing:
                 HStack(spacing: 6) {
                     ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
-                    Text("준비 중…").font(.system(size: 13, weight: .semibold))
+                    Text(L(L10n.Sidebar.preparing)).font(.system(size: 13, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 7)
             case .ready:
-                lifecycleActionRow(icon: "stop.fill", title: "앱 내 엔진 중지",
-                                   help: "앱 내 엔진 메모리 반납") {
+                lifecycleActionRow(icon: "stop.fill", title: L(L10n.Sidebar.actionStopNative),
+                                   help: L(L10n.Sidebar.actionStopNativeHelp)) {
                     nativeEngine.release()
                     DebugLogger.shared.info(feature: "앱내엔진", "사용자 중지 (메모리 반납)")
                 }
-                lifecycleActionRow(icon: "arrow.clockwise", title: "다시 실행",
-                                   help: "반납 후 처음부터 다시 준비") {
+                lifecycleActionRow(icon: "arrow.clockwise", title: L(L10n.Sidebar.actionRestart),
+                                   help: L(L10n.Sidebar.actionRestartHelp)) {
                     Task { try? await nativeEngine.restart(modelID: chat.model) }
                 }
             case .failed:
                 Text(nativeEngine.lastErrorDetail ?? nativeEngine.lastError ?? "")
                     .font(DS.captionFont).foregroundStyle(.red)
                     .lineLimit(2).truncationMode(.tail)
-                    .help("\(nativeEngine.lastError ?? "") — \(nativeEngine.lastErrorDetail ?? "")")
-                lifecycleActionRow(icon: "arrow.clockwise", title: "다시 실행",
-                                   help: "반납 후 처음부터 다시 준비") {
+                    .help("\(nativeEngine.lastError ?? "") · \(nativeEngine.lastErrorDetail ?? "")")
+                lifecycleActionRow(icon: "arrow.clockwise", title: L(L10n.Sidebar.actionRestart),
+                                   help: L(L10n.Sidebar.actionRestartHelp)) {
                     Task { try? await nativeEngine.restart(modelID: chat.model) }
                 }
             }
         } else {
             if daemon.status == .running {
-                lifecycleActionRow(icon: "stop.fill", title: "데몬 중지",
-                                   help: "서버 데몬 중지 (⌘.)") {
+                lifecycleActionRow(icon: "stop.fill", title: L(L10n.Sidebar.actionStopDaemon),
+                                   help: L(L10n.Sidebar.actionStopDaemonHelp)) {
                     daemon.stop()
                 }
             } else {
-                lifecycleActionRow(icon: "play.fill", title: "데몬 시작",
-                                   help: "서버 데몬 시작 (⌘R)") {
+                lifecycleActionRow(icon: "play.fill", title: L(L10n.Sidebar.actionStartDaemon),
+                                   help: L(L10n.Sidebar.actionStartDaemonHelp)) {
                     Task { await daemon.start() }
                 }
             }
@@ -314,8 +318,8 @@ extension ContentView {
     /// 통합 상태 상세 (외부 데몬 표기 포함).
     var unifiedDetail: String {
         var detail = unifiedStatus.detail
-        if daemon.status == .running, daemon.external, !detail.contains("외부") {
-            detail += " (외부)"
+        if daemon.status == .running, daemon.external {
+            detail += " " + L(L10n.Sidebar.externalSuffix)
         }
         return detail
     }

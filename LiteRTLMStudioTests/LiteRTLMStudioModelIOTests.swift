@@ -2,7 +2,7 @@ import XCTest
 @testable import LiteRTLMStudio
 
 /// 모델 영속 테스트군 (T-249/T-252 분리: 파일 길이 분산).
-final class LiteRTLMStudioModelIOTests: XCTestCase {
+final class LiteRTLMStudioModelIOTests: LiteRTLMStudioTestCase {
     /// 매핑 구 호환 디코드 (T-252): 문자열·객체·왕복.
     func testFileMappingCompat() throws {
         let legacy = try JSONDecoder().decode([String: FileMapping].self,

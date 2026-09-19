@@ -115,7 +115,7 @@ final class ModelDownloader: NSObject, ObservableObject, URLSessionDataDelegate,
         do {
             handle = try FileHandle(forWritingTo: partURL)
         } catch {
-            fail("파일 쓰기 실패: \(error.localizedDescription)")
+            fail(L(L10n.Downloader.writeFailed, error.localizedDescription))
             return
         }
         var req = URLRequest(url: url)
@@ -180,7 +180,7 @@ final class ModelDownloader: NSObject, ObservableObject, URLSessionDataDelegate,
                 self.resuming = true
             }
         } catch {
-            fail("파일 열기 실패: \(error.localizedDescription)")
+            fail(L(L10n.Downloader.openFailed, error.localizedDescription))
             return
         }
         var request = URLRequest(url: url)
@@ -233,7 +233,7 @@ final class ModelDownloader: NSObject, ObservableObject, URLSessionDataDelegate,
                     didReceive response: URLResponse,
                     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
         guard let http = response as? HTTPURLResponse else {
-            fail("응답 오류")
+            fail(L(L10n.Downloader.responseError))
             completionHandler(.cancel)
             return
         }
@@ -296,7 +296,7 @@ final class ModelDownloader: NSObject, ObservableObject, URLSessionDataDelegate,
             return
         }
         guard let partURL, let finalURL else {
-            fail("내부 경로 오류")
+            fail(L(L10n.Downloader.internalPathError))
             return
         }
         do {
@@ -311,7 +311,7 @@ final class ModelDownloader: NSObject, ObservableObject, URLSessionDataDelegate,
                 self?.completion = nil
             }
         } catch {
-            fail("개명 실패: \(error.localizedDescription)")
+            fail(L(L10n.Downloader.renameFailed, error.localizedDescription))
         }
     }
 

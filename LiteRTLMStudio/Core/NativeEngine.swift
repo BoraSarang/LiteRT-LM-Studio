@@ -83,7 +83,7 @@ final class NativeEngine: InferenceEngine, ObservableObject {
         // T-340/T-336: 빈 선택·파일 부재를 엔진 진입 전에 원인 확정 (빈 경로 혼동 방지).
         let path = Self.modelPath(for: modelID)
         guard !modelID.isEmpty, FileManager.default.fileExists(atPath: path) else {
-            let why = modelID.isEmpty ? "모델 미선택 — 모델을 먼저 고르세요" : "모델 파일 없음: \(path)"
+            let why = modelID.isEmpty ? L(L10n.EngineNotice.noModel) : L(L10n.EngineNotice.noFile, path)
             markInitFailed(why)
             throw EngineError.initFailed(why)
         }

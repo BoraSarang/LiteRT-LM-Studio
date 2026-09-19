@@ -11,8 +11,8 @@ extension CatalogBrowserView {
             if let repo = catalog.selectedRepo {
                 detailBody(repo: repo)
             } else {
-                ContentUnavailableView("모델을 고르세요", systemImage: "square.grid.2x2",
-                                       description: Text("왼쪽 목록에서 고르면 상세·다운로드 옵션이 나옵니다."))
+                ContentUnavailableView(L(L10n.Catalog.pickModel), systemImage: "square.grid.2x2",
+                                       description: Text(L(L10n.Catalog.pickModelDetail)))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -53,24 +53,24 @@ extension CatalogBrowserView {
                     Image(systemName: "doc.on.doc").foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("저장소 ID 복사")
+                .help(L(L10n.Catalog.copyRepoID))
             }
             HStack(spacing: 10) {
                 Label("↓\(ModelCatalog.prettyCount(detail.downloads))", systemImage: "arrow.down.circle")
                 Label("\(detail.likes)", systemImage: "star")
                 if let days = ModelCatalog.daysAgo(iso: detail.lastModified ?? detail.createdAt) {
-                    Text(days == 0 ? "오늘 업데이트" : "\(days)일 전 업데이트")
+                    Text(L(days == 0 ? L10n.Catalog.updatedTodayFull : L10n.Catalog.updatedDaysAgoFull, days))
                 }
             }
             .font(DS.captionFont).foregroundStyle(.secondary)
             HStack(spacing: 6) {
                 if let params = ModelCatalog.paramsHint(repo: detail.repo) {
-                    DetailChip(text: "매개변수 \(params)")
+                    DetailChip(text: L(L10n.Catalog.params, params))
                 }
                 ForEach(ModelCatalog.badges(pipelineTag: detail.pipelineTag), id: \.rawValue) { badge in
                     DetailChip(text: badge.title)
                 }
-                Text("수치는 참고용").font(DS.captionFont).foregroundStyle(.secondary)
+                Text(L(L10n.Catalog.numbersNote)).font(DS.captionFont).foregroundStyle(.secondary)
             }
         }
     }
@@ -79,9 +79,9 @@ extension CatalogBrowserView {
 
     private func downloadOptions(_ detail: CatalogEntry) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("다운로드 옵션").font(.system(size: 13, weight: .semibold))
+            Text(L(L10n.Catalog.downloadOptions)).font(.system(size: 13, weight: .semibold))
             if detail.siblings.isEmpty {
-                Text("`.litertlm` 파일을 찾지 못했습니다.")
+                Text(L(L10n.Catalog.noLiteFile))
                     .font(DS.captionFont).foregroundStyle(.secondary)
             } else {
                 Picker("", selection: $detailFileIndex) {
@@ -92,23 +92,23 @@ extension CatalogBrowserView {
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .help(detail.siblings.indices.contains(detailFileIndex)
-                    ? detail.siblings[detailFileIndex] : "파일 선택")
+                    ? detail.siblings[detailFileIndex] : L(L10n.Catalog.fileSelect))
                 .onChange(of: detailFileIndex) { _, _ in refreshDetailSize(detail) }
                 HStack(spacing: 8) {
-                    TextField("로컬 모델 ID", text: $detailLocalID)
+                    TextField(L(L10n.Catalog.localModelID), text: $detailLocalID)
                         .textFieldStyle(.roundedBorder)
                     Spacer()
                     downloadActionTrailing(detail)
-                    Button("다운로드") { startDetailDownload(detail) }
+                    Button(L(L10n.Catalog.download)) { startDetailDownload(detail) }
                         .buttonStyle(.borderedProminent)
                         .tint(DSColor.primary)
                         .disabled(detailFile(detail).isEmpty
                             || detailLocalID.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 if detail.gated {
-                    SecureField("Hugging Face 토큰 (게이트 저장소만)", text: $catalog.token)
+                    SecureField(L(L10n.Catalog.hfToken), text: $catalog.token)
                         .textFieldStyle(.roundedBorder)
-                        .help("google 계열 등 승인 필요 저장소는 HF에서 접근 승인 후 토큰 입력 (세션만 유지)")
+                        .help(L(L10n.Catalog.hfTokenHelp))
                 }
                 if let notice = downloadNotice {
                     Text(notice).font(DS.captionFont).foregroundStyle(.orange)
@@ -137,9 +137,9 @@ extension CatalogBrowserView {
                 .font(DS.captionFont).foregroundStyle(.secondary)
         }
         if let treeURL = ModelDownload.repoTreeURL(repo: detail.repo) {
-            Link("수동 다운로드", destination: treeURL)
+            Link(L(L10n.Catalog.manualDownload), destination: treeURL)
                 .font(.system(size: 13))
-                .help("브라우저에서 파일 목록을 열어 직접 받기")
+                .help(L(L10n.Catalog.manualDownloadHelp))
         }
     }
 
@@ -155,12 +155,12 @@ extension CatalogBrowserView {
         let file = detailFile(detail)
         let trimmedID = detailLocalID.trimmingCharacters(in: .whitespaces)
         guard GlobalPermission.current() != .off else {
-            downloadNotice = "권한이 꺼져 있습니다. 설정에서 바꿔 주세요."
+            downloadNotice = L(L10n.Catalog.permissionOff)
             return
         }
         let states = center.items.map { (fileName: $0.fileName, active: $0.downloader.isDownloading) }
         guard !ModelDownload.hasActiveDownload(states, fileName: file) else {
-            downloadNotice = "같은 파일을 이미 받는 중입니다."
+            downloadNotice = L(L10n.Catalog.duplicateDownload)
             return
         }
         guard models.ensureStaging(),
@@ -169,7 +169,7 @@ extension CatalogBrowserView {
         let item = DownloadItem(repo: detail.repo, fileName: file,
                                   localID: trimmedID, downloader: downloader)
         center.add(item)
-        downloadNotice = "다운로드를 요청했습니다. 내 모델 탭 다운로드 중에서 확인하세요."
+        downloadNotice = L(L10n.Catalog.downloadRequested)
         DebugLogger.shared.info(feature: "모델가져오기", "카탈로그 다운로드: \(file) → \(trimmedID)")
         downloader.start(url: url, token: catalog.token.isEmpty ? nil : catalog.token,
                          partURL: models.stagingURL.appendingPathComponent(ModelDownload.partName(for: file)),
@@ -182,13 +182,14 @@ extension CatalogBrowserView {
                 models.invalidateListCache()
                 center.saveQueue()
             } else {
-                downloadNotice = "다운로드 실패: \(item.downloader.errorMessage ?? "원인 불명")"
+                let reason = item.downloader.errorMessage ?? L(L10n.Catalog.unknownCause)
+                downloadNotice = L(L10n.Catalog.downloadFailed, reason)
             }
         }
     }
 
     private func capabilitiesNote(_ detail: CatalogEntry) -> some View {
-        Text("추론·함수 호출 지원은 설치 후 실측으로 확정됩니다 (실행 설정 표시).")
+        Text(L(L10n.Catalog.supportNote))
             .font(DS.captionFont).foregroundStyle(.secondary)
     }
 
@@ -196,11 +197,11 @@ extension CatalogBrowserView {
 
     private var readmeSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("모델 설명").font(.system(size: 13, weight: .semibold))
+            Text(L(L10n.Catalog.modelDescription)).font(.system(size: 13, weight: .semibold))
             if let readme = catalog.readme, !readme.isEmpty {
                 MarkdownView(text: String(readme.prefix(60_000)))
             } else {
-                Text("모델 설명이 없습니다.").font(DS.captionFont).foregroundStyle(.secondary)
+                Text(L(L10n.Catalog.noDescription)).font(DS.captionFont).foregroundStyle(.secondary)
             }
         }
     }

@@ -7,10 +7,9 @@ extension ContentView {
     /// 빈 화면 문구 (순수, 테스트 가능, T-143): 서버 실행 중이면 환영형, 아니면 시작 안내.
     nonisolated static func emptyStateCopy(isRunning: Bool) -> (title: String, message: String) {
         if isRunning {
-            return ("무엇을 도와드릴까요?", "아래에 질문을 입력하세요")
+            return (L(L10n.Chat.emptyNativeTitle), L(L10n.Chat.emptyNativeMessage))
         }
-        return ("서버를 시작하고 채팅해 보세요",
-                "사이드바에서 모델을 고르고 ▶ 버튼(⌘R)으로 데몬을 띄우세요. 서버 시작 후 ⌘J로 서버 로그를 볼 수 있어요.")
+        return (L(L10n.Chat.emptyServerTitle), L(L10n.Chat.emptyServerMessage))
     }
 
     var chatPane: some View {

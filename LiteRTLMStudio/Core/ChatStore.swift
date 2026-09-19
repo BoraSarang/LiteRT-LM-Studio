@@ -69,9 +69,9 @@ final class ChatStore: ObservableObject {
 
         var title: String {
             switch self {
-            case .recent: "최근 순"
-            case .name: "이름 순"
-            case .created: "생성 순"
+            case .recent: L(L10n.Session.sortRecent)
+            case .name: L(L10n.Session.sortName)
+            case .created: L(L10n.Session.sortCreated)
             }
         }
     }
@@ -225,8 +225,7 @@ final class ChatStore: ObservableObject {
 
     /// 앱 내 엔진 미준비 안내 (T-185): 전송 소비, 에러코드 없음 (실패 아님).
     func noticeNativeNotReady(at idx: Int) {
-        messages[idx].text = "앱 내 엔진이 준비되지 않았습니다. "
-            + "사이드바 엔진 행의 실행 버튼을 눌러 준비한 뒤 다시 전송해 주세요."
+        messages[idx].text = L(L10n.ChatError.nativeNotReady)
         messages[idx].isError = true
         messages[idx].finishedAt = Date()
         preparing = false
@@ -238,8 +237,7 @@ final class ChatStore: ObservableObject {
     /// 서버 무응답 타임아웃 반영 (T-344 분리): 60초 무수신 시 스톨 확정.
     func requestTimedOut(at idx: Int) {
         lastError = "E-MAC-NET-0006"
-        messages[idx].text = "서버 응답이 60초간 없어 중단했습니다. "
-            + "데몬 상태를 확인한 뒤 다시 시도해 주세요. (E-MAC-NET-0006)"
+        messages[idx].text = L(L10n.ChatError.timeout)
         messages[idx].isError = true
         messages[idx].finishedAt = Date()
         logger.error(code: "E-MAC-NET-0006", feature: "채팅전송", "서버 스톨 타임아웃")
@@ -248,7 +246,7 @@ final class ChatStore: ObservableObject {
     /// 요청 실패 반영 (T-127 분리): 에러 버블+시각+로그.
     func requestFailed(at idx: Int, error: Error) {
         lastError = "E-MAC-NET-0005"
-        messages[idx].text = "요청 실패: 서버 상태를 확인해 주세요. (E-MAC-NET-0005)"
+        messages[idx].text = L(L10n.ChatError.request)
         messages[idx].isError = true
         messages[idx].finishedAt = Date() // T-077 실패 시각도 기록
         logger.error(code: "E-MAC-NET-0005", feature: "채팅전송", "\(error)")
@@ -257,7 +255,7 @@ final class ChatStore: ObservableObject {
     /// PERF 뱃지 문구 (순수, 테스트 가능, T-126): "12.3s · 약 15 토큰/초".
     nonisolated static func perfLine(chars: Int, elapsed: TimeInterval) -> String {
         let est = chars / max(1, Int(elapsed * 4))
-        return String(format: "%.1fs · 약 %d 토큰/초", elapsed, est)
+        return L(L10n.Perf.line, elapsed, est)
     }
 
     /// 스트리밍 화면 갱신 판정 (순수, 테스트 가능, T-148): 0.1초 간격으로 묶음 처리.

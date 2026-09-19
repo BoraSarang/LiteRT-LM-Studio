@@ -9,7 +9,7 @@ enum SkillSource: String, Codable, CaseIterable, Sendable {
         case .opencode: return "opencode"
         case .claude:   return "claude"
         case .agents:   return "agents"
-        case .other:    return "기타"
+        case .other:    return L(L10n.Skill.sourceOther)
         }
     }
 

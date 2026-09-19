@@ -73,11 +73,11 @@ final class MCPStore: ObservableObject {
         do {
             let tools = try await MCPClient.listTools(server: server)
             logger.info(feature: "MCP", "\(server.name) 연결 성공 (도구 \(tools.count)건)")
-            return "연결 성공 (도구 \(tools.count)건)"
+            return L(L10n.MCP.connected, tools.count)
         } catch {
             lastError = "E-MAC-NET-0016"
             logger.error(code: "E-MAC-NET-0016", feature: "MCP", "\(server.name) 연결 실패: \(error)")
-            return "연결 실패: \(error)"
+            return L(L10n.MCP.failed, "\(error)")
         }
     }
 }

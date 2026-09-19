@@ -69,44 +69,44 @@ struct DebugPanelView: View {
     /// 빈 상태 설명: 활성 조건 표시 (T-055).
     var filterDescription: Text {
         var parts: [String] = []
-        if let filter { parts.append("레벨 \(filter.rawValue)") }
+        if let filter { parts.append(L(L10n.Debug.filterLevel, filter.rawValue)) }
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !q.isEmpty { parts.append("검색 '\(q)'") }
-        if parts.isEmpty { return Text("조건을 바꾸어 보세요.") }
-        return Text(parts.joined(separator: " · ") + " 조건에 맞는 로그가 없어요.")
+        if !q.isEmpty { parts.append(L(L10n.Debug.filterQuery, q)) }
+        if parts.isEmpty { return Text(L(L10n.Debug.filterHint)) }
+        return Text(L(L10n.Debug.filterEmpty, parts.joined(separator: " · ")))
     }
 
     var body: some View {
         ScrollViewReader { proxy in
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    TextField("검색", text: $query)
+                    TextField(L(L10n.Debug.search), text: $query)
                         .textFieldStyle(.roundedBorder).frame(width: 150)
                     if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(rows.isEmpty ? "0건" : "\(matchIndex + 1)/\(rows.count)건")
+                        Text(rows.isEmpty ? L(L10n.Debug.none) : L(L10n.Debug.position, matchIndex + 1, rows.count))
                             .font(DS.captionFont).foregroundStyle(.secondary)
                             .monospacedDigit()
                             .frame(minWidth: 52, alignment: .leading)
-                        Button("이전") { jumpMatch(-1, proxy: proxy) }.disabled(rows.isEmpty)
-                        Button("다음") { jumpMatch(1, proxy: proxy) }.disabled(rows.isEmpty)
+                        Button(L(L10n.Debug.prev)) { jumpMatch(-1, proxy: proxy) }.disabled(rows.isEmpty)
+                        Button(L(L10n.Debug.next)) { jumpMatch(1, proxy: proxy) }.disabled(rows.isEmpty)
                     }
                     Spacer()
-                    Toggle("자동 스크롤", isOn: $follow).toggleStyle(.switch).controlSize(.small)
-                    Picker("레벨", selection: $filter) {
-                        Text("전체").tag(nil as DebugLogger.Level?)
+                    Toggle(L(L10n.Debug.autoScroll), isOn: $follow).toggleStyle(.switch).controlSize(.small)
+                    Picker(L(L10n.Debug.level), selection: $filter) {
+                        Text(L(L10n.Debug.all)).tag(nil as DebugLogger.Level?)
                         ForEach(DebugLogger.Level.allCases, id: \.self) {
                             Text($0.rawValue).tag($0 as DebugLogger.Level?)
                         }
                     }.pickerStyle(.menu).frame(width: 110)
                 }.padding(12)
                 HStack(spacing: 8) {
-                    Button(copyFlag.copied ? "복사됨" : "선택 복사") { copySelection() }
-                        .help("선택한 행 복사 (선택 없으면 표시 전체)")
-                    Button("전체 복사") { copyAll() }
-                        .help("필터·검색 무관 전체 로그 복사")
+                    Button(copyFlag.copied ? L(L10n.Debug.copied) : L(L10n.Debug.copySelection)) { copySelection() }
+                        .help(L(L10n.Debug.copySelectionHelp))
+                    Button(L(L10n.Debug.copyAll)) { copyAll() }
+                        .help(L(L10n.Debug.copyAllHelp))
                     Spacer()
-                    Button("지우기") { logger.clear(); selection.removeAll() }
-                    Button("닫기") { dismiss() }.keyboardShortcut(.cancelAction)
+                    Button(L(L10n.Debug.clear)) { logger.clear(); selection.removeAll() }
+                    Button(L(L10n.Debug.close)) { dismiss() }.keyboardShortcut(.cancelAction)
                 }.padding(.horizontal, 12).padding(.bottom, 8)
                 Divider()
                 // 빈 상태는 가로·세로 중앙 (AGENTS.local 정렬 규칙, T-055).
@@ -172,26 +172,26 @@ struct DebugPanelView: View {
                     }
                     .overlay(alignment: .bottomTrailing) {
                         if !atBottom {
-                            Button("맨 아래로") {
+                            Button(L(L10n.Debug.jumpBottom)) {
                                 if let last = rows.last?.id {
                                     withAnimation { proxy.scrollTo(last, anchor: .bottom) }
                                 }
                             }
                             .buttonStyle(.bordered)
                             .padding(12)
-                            .help("최신 로그로 이동")
+                            .help(L(L10n.Debug.jumpBottomHelp))
                         }
                     }
                 case .noLogs:
                     ContentUnavailableView(
-                        "아직 로그가 없어요",
+                        L(L10n.Debug.emptyTitle),
                         systemImage: "tray",
-                        description: Text("앱을 사용하시면 여기에 쌓입니다.")
+                        description: Text(L(L10n.Debug.emptyDetail))
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 case .noMatch:
                     ContentUnavailableView(
-                        "일치하는 로그가 없어요",
+                        L(L10n.Debug.noMatchTitle),
                         systemImage: "magnifyingglass",
                         description: filterDescription
                     )

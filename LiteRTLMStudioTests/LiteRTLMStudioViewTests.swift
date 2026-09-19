@@ -3,7 +3,7 @@ import XCTest
 @testable import LiteRTLMStudio
 
 /// 뷰·표시 테스트군 (T-060 파일 분리).
-final class LiteRTLMStudioViewTests: XCTestCase {
+final class LiteRTLMStudioViewTests: LiteRTLMStudioTestCase {
     /// Sticky-Pin 판정: 앵커가 뷰포트 안이면 고정 (T-031).
     func testPinnedToBottom() {
         XCTAssertTrue(ContentView.isPinnedToBottom(bottomMaxY: 600, viewportHeight: 600))

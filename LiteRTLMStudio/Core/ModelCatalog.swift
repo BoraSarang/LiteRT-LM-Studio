@@ -9,10 +9,10 @@ enum CatalogFamily: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .all: return "전체"
+        case .all: return L(L10n.ModelCatalog.familyAll)
         case .gemma: return "Gemma"
         case .qwen: return "Qwen"
-        case .other: return "기타"
+        case .other: return L(L10n.ModelCatalog.familyOther)
         }
     }
 }
@@ -25,9 +25,9 @@ enum CatalogSort: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .downloads: return "다운로드순"
-        case .likes: return "좋아요순"
-        case .updated: return "최신순"
+        case .downloads: return L(L10n.ModelCatalog.sortDownloads)
+        case .likes: return L(L10n.ModelCatalog.sortLikes)
+        case .updated: return L(L10n.ModelCatalog.sortUpdated)
         }
     }
 
@@ -104,21 +104,21 @@ enum ModelCatalog {
     nonisolated static func recommendedModels() -> [RecommendedModel] {
         [
             RecommendedModel(repo: "litert-community/gemma-4-E2B-it-litert-lm", label: "Gemma 4 E2B",
-                      suggestedID: "gemma4-e2b", blurb: "노트북용 경량, 추론·도구·이미지 지원"),
+                      suggestedID: "gemma4-e2b", blurb: L(L10n.Catalog.blurbGemma4E2B)),
             RecommendedModel(repo: "litert-community/gemma-4-12B-it-litert-lm", label: "Gemma 4 12B",
-                      suggestedID: "gemma4-12b", blurb: "균형형 12B, QAT 양자화"),
+                      suggestedID: "gemma4-12b", blurb: L(L10n.Catalog.blurbGemma4_12B)),
             RecommendedModel(repo: "google/gemma-3n-E2B-it-litert-lm", label: "Gemma 3n E2B",
-                      suggestedID: "gemma3n-e2b", blurb: "모바일 우선 E2B"),
+                      suggestedID: "gemma3n-e2b", blurb: L(L10n.Catalog.blurbGemma3nE2B)),
             RecommendedModel(repo: "google/gemma-3n-E4B-it-litert-lm", label: "Gemma 3n E4B",
-                      suggestedID: "gemma3n-e2b", blurb: "모바일 우선 E4B"),
+                      suggestedID: "gemma3n-e2b", blurb: L(L10n.Catalog.blurbGemma3nE4B)),
             RecommendedModel(repo: "litert-community/Qwen3-4B", label: "Qwen3 4B",
-                      suggestedID: "qwen3-4b", blurb: "가성비 4B 텍스트"),
+                      suggestedID: "qwen3-4b", blurb: L(L10n.Catalog.blurbQwen3_4B)),
             RecommendedModel(repo: "litert-community/Qwen2.5-1.5B-Instruct", label: "Qwen2.5 1.5B",
-                      suggestedID: "qwen2.5-1.5b", blurb: "초경량 1.5B 입문용"),
+                      suggestedID: "qwen2.5-1.5b", blurb: L(L10n.Catalog.blurbQwen2_5_1_5B)),
             RecommendedModel(repo: "litert-community/Qwen2-VL-2B", label: "Qwen2-VL 2B",
-                      suggestedID: "qwen2-vl-2b", blurb: "이미지+텍스트 2B"),
+                      suggestedID: "qwen2-vl-2b", blurb: L(L10n.Catalog.blurbQwen2VL_2B)),
             RecommendedModel(repo: "litert-community/Qwen3-ASR-0.6B", label: "Qwen3-ASR 0.6B",
-                      suggestedID: "qwen3-asr-0.6b", blurb: "음성 인식 0.6B")
+                      suggestedID: "qwen3-asr-0.6b", blurb: L(L10n.Catalog.blurbQwen3ASR_0_6B))
         ]
     }
 
@@ -326,7 +326,7 @@ final class CatalogStore: ObservableObject {
             entries += ModelCatalog.parseList(data)
             logger.info(feature: "카탈로그", "목록 \(entries.count)건 (질의: \(query))")
         } catch {
-            errorMessage = "목록 조회 실패: \(error.localizedDescription)"
+            errorMessage = L(L10n.Catalog.fetchListFailed, error.localizedDescription)
             logger.error(code: "E-MAC-NET-0013", feature: "카탈로그",
                          "목록 조회 실패: \(error.localizedDescription)")
         }
@@ -350,7 +350,7 @@ final class CatalogStore: ObservableObject {
             detail = ModelCatalog.parseDetail(repo: repo, data: data)
             readme = text
         } catch {
-            errorMessage = "상세 조회 실패: \(error.localizedDescription)"
+            errorMessage = L(L10n.Catalog.fetchDetailFailed, error.localizedDescription)
             logger.error(code: "E-MAC-NET-0013", feature: "카탈로그",
                          "상세 조회 실패: \(error.localizedDescription)")
         }

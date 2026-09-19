@@ -27,11 +27,11 @@ extension BenchmarkWindowView {
 
     var historyPane: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("기록").font(.system(size: 13, weight: .semibold))
+            Text(L(L10n.Benchmark.records)).font(.system(size: 13, weight: .semibold))
             HStack(spacing: 6) {
-                Text("필터").font(DS.captionFont).foregroundStyle(.secondary)
+                Text(L(L10n.Benchmark.filter)).font(DS.captionFont).foregroundStyle(.secondary)
                 Picker("", selection: $filterModel) {
-                    Text("전체 기록").tag("전체 기록")
+                    Text(L(L10n.Benchmark.allRecords)).tag(BenchmarkHistoryStore.allModelsToken)
                     ForEach(modelIDs, id: \.self) { id in
                         Text(ModelAlias.display(id: id)).tag(id)
                     }
@@ -40,8 +40,9 @@ extension BenchmarkWindowView {
                 .labelsHidden()
             }
             if filteredRecords.isEmpty {
-                ContentUnavailableView("기록이 없어요", systemImage: "gauge.with.dots.needle.0.percent",
-                                       description: Text("측정을 시작하면 결과가 여기에 쌓여요."))
+                ContentUnavailableView(L(L10n.Benchmark.noRecordsTitle),
+                                       systemImage: "gauge.with.dots.needle.0.percent",
+                                       description: Text(L(L10n.Benchmark.noRecordsDesc)))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(filteredRecords, selection: $history.selectedRecordID) { rec in
@@ -66,7 +67,7 @@ extension BenchmarkWindowView {
                     .tag(rec.id)
                     .help(ModelAlias.display(id: rec.modelID))
                     .contextMenu {
-                        Button("삭제", role: .destructive) { history.remove(rec.id) }
+                        Button(L(L10n.Benchmark.delete), role: .destructive) { history.remove(rec.id) }
                     }
                 }
                 .listStyle(.sidebar)
@@ -74,7 +75,7 @@ extension BenchmarkWindowView {
             }
             HStack {
                 Spacer()
-                Button("전체 지우기") { history.clear() }
+                Button(L(L10n.Benchmark.clearAll)) { history.clear() }
                     .buttonStyle(.link).font(DS.captionFont)
                     .disabled(history.records.isEmpty)
             }
@@ -102,8 +103,8 @@ extension BenchmarkWindowView {
                         recordSection(rec)
                     } else {
                         ContentUnavailableView(
-                            "측정 전이에요", systemImage: "play.circle",
-                            description: Text("모델과 모드를 고르고 측정을 시작하세요."))
+                            L(L10n.Benchmark.beforeMeasureTitle), systemImage: "play.circle",
+                            description: Text(L(L10n.Benchmark.beforeMeasureDesc)))
                             .frame(maxWidth: .infinity)
                     }
                 }
@@ -131,9 +132,9 @@ extension BenchmarkWindowView {
             }
             analysisSection(record: record, metrics: met)
             if let record {
-                DisclosureGroup("원문 출력") { recordLogView(record.logTail) }
+                DisclosureGroup(L(L10n.Benchmark.rawOutput)) { recordLogView(record.logTail) }
             } else {
-                DisclosureGroup("원문 출력") { logSection }
+                DisclosureGroup(L(L10n.Benchmark.rawOutput)) { logSection }
             }
         }
     }
@@ -145,7 +146,7 @@ extension BenchmarkWindowView {
                 Text("\(ModelAlias.display(id: rec.modelID)) · \(rec.route.title) · \(rec.status.title)")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text("소요 \(BenchmarkStore.elapsedText(rec.durationSec))")
+                Text(L(L10n.Benchmark.elapsed, BenchmarkStore.elapsedText(rec.durationSec)))
                     .font(DS.captionFont).foregroundStyle(.secondary)
             }
             if let met = rec.metrics {
@@ -174,15 +175,15 @@ extension BenchmarkWindowView {
 
     private var setupSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("새 측정").font(.system(size: 13, weight: .semibold))
+            Text(L(L10n.Benchmark.newMeasurement)).font(.system(size: 13, weight: .semibold))
             HStack(spacing: 8) {
-                Picker("모델", selection: $selectedModelID) {
+                Picker(L(L10n.Benchmark.modelPicker), selection: $selectedModelID) {
                     ForEach(modelIDs, id: \.self) { id in
                         Text(ModelAlias.display(id: id)).tag(id)
                     }
                 }
                 .pickerStyle(.menu).frame(maxWidth: 220)
-                Picker("모드", selection: $selectedRoute) {
+                Picker(L(L10n.Benchmark.modePicker), selection: $selectedRoute) {
                     ForEach(EngineMode.allCases, id: \.rawValue) { mode in
                         Text(mode.title).tag(mode)
                     }
@@ -195,15 +196,15 @@ extension BenchmarkWindowView {
                 HStack(spacing: 4) {
                     Label(powerStatus.text, systemImage: "exclamationmark.triangle")
                         .font(DS.captionFont).foregroundStyle(.orange)
-                        .help("MTP(추측적 디코딩)가 켜져 있거나 배터리가 20% 이하로 방전 중이면 측정값이 흔들릴 수 있어요.")
+                        .help(L(L10n.Benchmark.mtpUnstableHelp))
                     Image(systemName: "info.circle")
                         .font(DS.captionFont).foregroundStyle(.secondary)
-                        .help("배터리 충전 중에는 속도 제한")
+                        .help(L(L10n.Benchmark.batteryHelp))
                 }
             } else {
                 Text(powerStatus.text)
                     .font(DS.captionFont).foregroundStyle(.secondary)
-                    .help("MTP는 기본 꺼짐. 켜면 가속되지만 측정값이 달라질 수 있어요.")
+                    .help(L(L10n.Benchmark.mtpHelp))
             }
             if selectedRoute == .cli {
                 Label(cliWarningText, systemImage: "exclamationmark.triangle")
@@ -211,9 +212,9 @@ extension BenchmarkWindowView {
             }
             HStack(spacing: 8) {
                 if store.running {
-                    Button("중지") { store.cancel() }.keyboardShortcut(".", modifiers: .command)
+                    Button(L(L10n.Benchmark.stop)) { store.cancel() }.keyboardShortcut(".", modifiers: .command)
                 } else {
-                    Button("측정 시작") {
+                    Button(L(L10n.Benchmark.startMeasure)) {
                         history.selectedRecordID = nil // T-221: 새 측정 시작 시 선택 해제
                         store.prepare(modelID: selectedModelID, route: selectedRoute)
                         store.start()
@@ -222,7 +223,7 @@ extension BenchmarkWindowView {
                     .disabled(selectedModelID.isEmpty)
                 }
                 if store.running {
-                    Text("경과 \(BenchmarkStore.elapsedText(store.elapsed))")
+                    Text(L(L10n.Benchmark.elapsedShort, BenchmarkStore.elapsedText(store.elapsed)))
                         .font(DS.captionFont).foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
@@ -253,26 +254,24 @@ extension BenchmarkWindowView {
     }
 
     private var stageProgressText: String {
-        "\(store.stage.title) 진행 중… · 경과 \(BenchmarkStore.elapsedText(store.elapsed))"
+        L(L10n.Benchmark.stageProgress, store.stage.title, BenchmarkStore.elapsedText(store.elapsed))
     }
 
     private var cliWarningText: String {
-        "CLI는 12B급에서 워밍업 10분을 넘기면 타임아웃될 수 있어요. "
-            + "중지(⌘.) 후 앱 내 엔진으로 시도해 보세요."
+        L(L10n.Benchmark.cliTimeout)
     }
 
     private var measureProgressText: String {
-        "반복 \(store.currentIter)/\(store.totalIter) 측정 중… · "
-            + "경과 \(BenchmarkStore.elapsedText(store.elapsed))"
+        L(L10n.Benchmark.iterProgress, store.currentIter, store.totalIter, BenchmarkStore.elapsedText(store.elapsed))
     }
 
     private func resultSummary(_ met: BenchmarkStore.Metrics) -> String {
-        "백엔드 \(met.backend) · 프리필 \(met.prefillTokens)토큰 · 디코드 \(met.decodeTokens)토큰"
+        L(L10n.Benchmark.backendSummary, met.backend, met.prefillTokens, met.decodeTokens)
     }
 
     private func emptyRecordText(_ rec: BenchmarkRecord) -> String {
         rec.status == .cancelled
-            ? "사용자 중단으로 결과가 없어요." : "실패로 결과가 없어요. 로그를 확인해 주세요."
+            ? L(L10n.Benchmark.cancelledNoResult) : L(L10n.Benchmark.failedNoResult)
     }
 
     /// 실패 사유 1줄 (T-320): 로그 꼬리 첫 줄, 없으면 상태 문구.
@@ -287,7 +286,7 @@ extension BenchmarkWindowView {
     private func recordLogView(_ logs: [String]) -> some View {
         Group {
             if logs.isEmpty {
-                Text("저장된 원문이 없어요 (이전 버전 기록).")
+                Text(L(L10n.Benchmark.noSavedLog))
                     .font(.system(size: 12)).foregroundStyle(.secondary)
             } else {
                 ScrollView {
@@ -313,18 +312,20 @@ extension BenchmarkWindowView {
 
     private func miniChart(_ met: BenchmarkStore.Metrics) -> some View {
         Chart {
-            BarMark(x: .value("구간", "입력 처리"), y: .value("초당 토큰", met.prefillSpeed))
+            BarMark(x: .value(L(L10n.Benchmark.chartSection), L(L10n.Benchmark.chartPrefill)),
+                    y: .value(L(L10n.Benchmark.chartPerSecond), met.prefillSpeed))
                 .annotation(position: .top) {
                     Text(String(format: "%.1f", met.prefillSpeed))
                         .font(DS.captionFont).foregroundStyle(.secondary)
                 }
-            BarMark(x: .value("구간", "답 생성"), y: .value("초당 토큰", met.decodeSpeed))
+            BarMark(x: .value(L(L10n.Benchmark.chartSection), L(L10n.Benchmark.chartDecode)),
+                    y: .value(L(L10n.Benchmark.chartPerSecond), met.decodeSpeed))
                 .annotation(position: .top) {
                     Text(String(format: "%.1f", met.decodeSpeed))
                         .font(DS.captionFont).foregroundStyle(.secondary)
                 }
         }
-        .chartYAxisLabel("초당 토큰")
+        .chartYAxisLabel(L(L10n.Benchmark.chartPerSecond))
         .frame(height: 140)
     }
 
@@ -352,8 +353,8 @@ extension BenchmarkWindowView {
     }
 
     private func speedText(_ rec: BenchmarkRecord) -> String {
-        guard let met = rec.metrics else { return "기록 없음" }
-        return String(format: "%.1f 토큰/초", met.decodeSpeed)
+        guard let met = rec.metrics else { return L(L10n.Benchmark.noRecord) }
+        return L(L10n.Benchmark.perSecond, met.decodeSpeed)
     }
 
     private func shortDate(_ date: Date) -> String {

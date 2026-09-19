@@ -14,6 +14,15 @@
 - **벤치마크** — 별도 창, 히스토리 보관, AI 결과 분석
 - **메뉴바** — 상태 아이템 팝오버에서 엔진 상태·가동 시간·모델 확인, 서버 시작/중지, 최근 채팅방 이동
 - **시스템 현황** — CPU/RAM/GPU 미터, 데몬 통계, 디버그 패널
+- **한/영 UI** — 설정에서 즉시 전환. 앱이 그리는 문구는 재시작 없이 바뀌고, macOS가 그리는 문구(권한 대화상자)는 다음 실행 때 반영
+
+## 스크린샷
+
+| 채팅 | 설정 > 일반 > 외관 |
+| --- | --- |
+| <img src="docs/images/chat_ko.png" alt="스트리밍 응답과 후속 질문 제안이 있는 채팅" width="460"> | <img src="docs/images/settings-language_ko.png" alt="설정 > 일반 > 외관의 언어 항목" width="300"> |
+| **모델 관리** | **벤치마크** |
+| <img src="docs/images/model-catalog_ko.png" alt="Hugging Face 모델을 둘러보는 모델 관리 화면" width="460"> | <img src="docs/images/benchmark_ko.png" alt="히스토리와 차트가 있는 벤치마크 창" width="460"> |
 
 ## 요구 사항
 
@@ -38,18 +47,21 @@
 
 설정 창은 다섯 탭으로 나뉩니다.
 
-- **일반** — 테마, Dock 아이콘, 로그인 시 자동 실행, 앱 종료 시 데몬 종료, 첫터치 프리필, 벤치마크 기록 보관, 권한
+- **일반** — 테마, Dock 아이콘, 로그인 시 자동 실행, 앱 종료 시 데몬 종료, 첫터치 프리필, 벤치마크 기록 보관, 권한, 언어
 - **채팅** — 대화 목차, 후속 질문, 글자 크기, 세션 정렬, 대화 기록 전송
 - **도구** — 도구별 토글, 웹 검색(Exa API 키), 작업폴더
 - **MCP** — 등록한 MCP 서버
 - **스킬** — 설치한 스킬과 프롬프트 예산
+
+앱 문구는 한국어와 영어를 지원합니다. **설정 > 일반 > 외관**에서 언어를 바꾸면 다시 시작하지 않고
+바로 적용되고, 권한 대화상자처럼 macOS가 직접 그리는 문구는 다음 실행 때 바뀝니다.
 
 엔진 관련 옵션(백엔드, MTP 등)은 메인 창 **인스펙터 → 실행 설정** 탭에 있습니다.
 
 ## 프로젝트 구성
 
 - `LiteRTLMStudio/` — SwiftUI 앱 본체 (`ContentView`, `SidebarView`, `ChatPaneView`, `StatusItemController` 등)
-- `LiteRTLMStudio/Core/` — 스토어, 엔진, 마크다운, 다운로드 센터
+- `LiteRTLMStudio/Core/` — 스토어, 엔진, 다국어, 마크다운, 다운로드 센터
 - `LiteRTLMStudioTests/` — 단위 테스트
 - `docs/` — PLAN·TODO·DESIGN·CHANGELOG·사용설명서 (한국어)
 - `EngineVendor/`, `Vendor/` — 벤더링한 의존성 (엔진 헤더, Highlightr)

@@ -27,11 +27,13 @@ enum ModelAlias {
         return pretty(id: id)
     }
 
-    /// 모달리티 한글 표기 (T-334, 순수): "Text Vision Audio" → "텍스트·이미지·음성".
-    nonisolated static func modalitiesKorean(_ raw: String) -> String {
-        let map = ["text": "텍스트", "vision": "이미지", "audio": "음성"]
+    /// 모달리티 표기 (T-334, 순수 / T-362 키 전환): "Text Vision Audio" → "텍스트·이미지·음성".
+    nonisolated static func modalities(_ raw: String) -> String {
+        let map: [String: L10nKey] = ["text": L10n.Model.modalityText,
+                                      "vision": L10n.Model.modalityVision,
+                                      "audio": L10n.Model.modalityAudio]
         let parts = raw.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-        let converted = parts.map { map[$0.lowercased()] ?? $0 }
+        let converted = parts.map { map[$0.lowercased()].map { L($0) } ?? $0 }
         guard !converted.isEmpty else { return raw }
         return converted.joined(separator: "·")
     }

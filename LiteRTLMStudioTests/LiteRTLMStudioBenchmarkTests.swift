@@ -4,7 +4,7 @@ import XCTest
 
 /// 벤치마크 회귀군 (T-132): 네이티브 분기·매핑·실패.
 @MainActor
-final class LiteRTLMStudioBenchmarkTests: XCTestCase {
+final class LiteRTLMStudioBenchmarkTests: LiteRTLMStudioTestCase {
     private func waitDone(_ store: BenchmarkStore, timeout: TimeInterval = 10) async {
         let end = Date().addingTimeInterval(timeout)
         while store.running, Date() < end {
@@ -106,7 +106,7 @@ final class LiteRTLMStudioBenchmarkTests: XCTestCase {
                                 durationSec: 60, status: .done)
         let b = BenchmarkRecord(modelID: "b", route: .cli, metrics: nil,
                                 durationSec: 5, status: .cancelled)
-        XCTAssertEqual(BenchmarkHistoryStore.filtered([a, b], modelID: "전체 기록").count, 2)
+        XCTAssertEqual(BenchmarkHistoryStore.filtered([a, b], modelID: BenchmarkHistoryStore.allModelsToken).count, 2)
         XCTAssertEqual(BenchmarkHistoryStore.filtered([a, b], modelID: "a").count, 1)
         XCTAssertTrue(a.summary.contains("a"))
         XCTAssertEqual(BenchmarkHistoryStore.averageDuration([a, b], modelID: "a"), 60)

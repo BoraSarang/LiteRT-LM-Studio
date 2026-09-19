@@ -68,7 +68,7 @@ struct ChatInputBar: View {
                     Text(name).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
                     Button { attachedImage = nil } label: {
                         Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                    }.buttonStyle(.plain).help("첨부 제거")
+                    }.buttonStyle(.plain).help(L(L10n.Input.removeAttachment))
                     Spacer()
                 }.padding(.horizontal, 12).padding(.top, 8)
             }
@@ -86,7 +86,7 @@ struct ChatInputBar: View {
                     .background(Color.clear) // T-097 테두리는 바깥 박스로 이동 (터미널과 동일 뼈대)
                     .overlay(alignment: .topLeading) {
                         if input.isEmpty {
-                            Text("메시지 입력… (Return 전송·Shift 줄바꿈)")
+                            Text(L(L10n.Input.placeholder))
                                 .font(.system(size: 14)).foregroundStyle(.secondary) // T-071 진하게
                                 // T-144: TextEditor 내부 여백과 동일값으로 입력 시작점 일치
                                 // T-145: 가로 10 (세로 8 유지, 최종)
@@ -104,13 +104,13 @@ struct ChatInputBar: View {
                 HStack(spacing: 8) {
                     Button { pickImage() } label: {
                         Image(systemName: "paperclip").font(.system(size: 15, weight: .semibold))
-                    }.buttonStyle(.plain).help("이미지 첨부 (Vision 지원 모델)")
+                    }.buttonStyle(.plain).help(L(L10n.Input.attachImage))
                         .disabled(chat.streaming)
                     if models.models.isEmpty {
-                        Text("모델 없음").font(.system(size: 12)).foregroundStyle(.secondary)
-                            .help("사이드바 새로고침 후 모델을 가져오세요")
+                        Text(L(L10n.Input.noModel)).font(.system(size: 12)).foregroundStyle(.secondary)
+                            .help(L(L10n.Input.noModelHelp))
                     } else {
-                        Picker("채팅 모델", selection: Binding(
+                        Picker(L(L10n.Input.modelPicker), selection: Binding(
                             get: { selectedModelID ?? models.models.first?.id ?? "" },
                             set: { selectedModelID = $0 }
                         )) {
@@ -118,27 +118,27 @@ struct ChatInputBar: View {
                                 Text(ModelAlias.display(id: m.id)).tag(m.id)
                             }
                         }.pickerStyle(.menu)
-                            .help("이번 채팅에 쓸 모델. 설치된 모델만 표시 (Gemma·Qwen 우선).")
+                            .help(L(L10n.Input.modelPickerHelp))
                             .disabled(chat.streaming)
                     }
-                    Picker("전송 경로", selection: $chat.route) {
+                    Picker(L(L10n.Input.routePicker), selection: $chat.route) {
                         ForEach(EngineMode.allCases, id: \.rawValue) { mode in
                             Text(mode.title).tag(mode)
                         }
                     }.pickerStyle(.menu)
-                        .help("이번 전송에 쓸 경로. 데몬=서버 경유, 앱 내 엔진=프로세스 내 직접 추론.")
+                        .help(L(L10n.Input.routePickerHelp))
                         .disabled(chat.streaming)
                     Spacer()
                     if chat.streaming {
-                        Button("중지") { chat.stop() }.keyboardShortcut(".", modifiers: .command)
+                        Button(L(L10n.Input.stop)) { chat.stop() }.keyboardShortcut(".", modifiers: .command)
                     } else {
-                        Button("전송") { submit() }.keyboardShortcut(.return, modifiers: .command)
+                        Button(L(L10n.Input.send)) { submit() }.keyboardShortcut(.return, modifiers: .command)
                             .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                 || !canSend)
-                            .help(canSend ? "전송 (⌘Return)"
+                            .help(canSend ? L(L10n.Input.sendHelp)
                                 : chat.route == .native && !chat.nativePrepared
-                                ? "앱 내 엔진 초기화 후 전송 가능"
-                                : "서버 시작 후 전송 가능")
+                                ? L(L10n.Input.sendHelpNative)
+                                : L(L10n.Input.sendHelpServer))
                     }
                 }
             }.cardBox() // T-097 터미널과 동일 뼈대 (바깥 박스)
@@ -189,7 +189,7 @@ struct ChatInputBar: View {
             logger.info(feature: "첨부선택", "\(url.lastPathComponent) \(sizes)")
         } else {
             attachedImage = ChatStore.ChatImage(data: data, mime: "image/jpeg")
-            attachedName = "\(url.lastPathComponent) (원본)"
+            attachedName = L(L10n.Input.attachedOriginal, url.lastPathComponent)
             logger.info(feature: "첨부선택", "\(url.lastPathComponent) \(data.count) bytes 원본")
         }
     }

@@ -7,12 +7,14 @@ enum EngineMode: String, CaseIterable {
     case cli
     case native
 
-    var title: String {
+    var titleKey: L10nKey {
         switch self {
-        case .cli: "서버"
-        case .native: "앱 내 엔진"
+        case .cli: L10n.Engine.modeServer
+        case .native: L10n.Engine.modeNative
         }
     }
+
+    var title: String { L(titleKey) }
 
     /// 저장 키 "engineMode" 읽기 (미설정 시 cli).
     nonisolated static func current() -> EngineMode {
@@ -30,10 +32,8 @@ enum HistoryWindow: Int, CaseIterable {
 
     var title: String {
         switch self {
-        case .unlimited: "제한 없음"
-        case .turns10: "10턴"
-        case .turns20: "20턴"
-        case .turns40: "40턴"
+        case .unlimited: L(L10n.History.unlimited)
+        case .turns10, .turns20, .turns40: L(L10n.History.turns, rawValue)
         }
     }
 
@@ -60,24 +60,29 @@ struct UnifiedStatus: Equatable {
                                     engineMode: EngineMode,
                                     preparedLabel: String?) -> UnifiedStatus {
         if unlinkedRunning {
-            return UnifiedStatus(title: "외부 실행 중 (미연결)", detail: "▶ 버튼으로 재연결",
+            return UnifiedStatus(title: L(L10n.Status.externalTitle),
+                                 detail: L(L10n.Status.externalDetail),
                                  live: false, unlinked: true)
         }
         if daemonRunning {
             if engineMode == .native, let label = preparedLabel {
-                return UnifiedStatus(title: "대화 가능", detail: "서버+앱 내 엔진 · \(label)",
+                return UnifiedStatus(title: L(L10n.Status.readyTitle),
+                                     detail: L(L10n.Status.readyBothEngines, label),
                                      live: true, unlinked: false)
             }
-            return UnifiedStatus(title: "대화 가능", detail: "데몬 :9379",
+            return UnifiedStatus(title: L(L10n.Status.readyTitle),
+                                 detail: L(L10n.Status.readyDaemon),
                                  live: true, unlinked: false)
         }
         if engineMode == .native, let label = preparedLabel {
-            return UnifiedStatus(title: "대화 가능", detail: "앱 내 엔진 · \(label)",
+            return UnifiedStatus(title: L(L10n.Status.readyTitle),
+                                 detail: L(L10n.Status.readyNativeEngine, label),
                                  live: true, unlinked: false)
         }
         // T-187: 중지 사유를 선택 경로 기준으로 안내.
-        return UnifiedStatus(title: "중지됨",
-                             detail: engineMode == .native ? "엔진 실행 필요" : "서버 시작 (⌘R)",
+        return UnifiedStatus(title: L(L10n.Status.stoppedTitle),
+                             detail: L(engineMode == .native ? L10n.Status.stoppedNative
+                                                             : L10n.Status.stoppedCli),
                              live: false, unlinked: false)
     }
 }
@@ -101,7 +106,7 @@ enum EngineError: Error, Equatable {
     case inferenceFailed(String)
     case timeout(String) // T-311: 응답 스톨 워치독 발화
 
-    /// error_message_ko.json 키.
+    /// ErrorCatalog 키 (T-366: 카탈로그 `error.<코드>`).
     var code: String {
         switch self {
         case .notReady, .initFailed: "E-MAC-ENG-0001"

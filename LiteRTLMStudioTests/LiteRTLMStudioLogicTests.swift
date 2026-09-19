@@ -3,7 +3,7 @@ import XCTest
 @testable import LiteRTLMStudio
 
 /// 로직 테스트군 (T-060 파일 분리).
-final class LiteRTLMStudioLogicTests: XCTestCase {
+final class LiteRTLMStudioLogicTests: LiteRTLMStudioTestCase {
     /// 별칭: 자동 예쁘게 + 사용자 별칭 우선 + 빈 값은 해제.
     func testModelAlias() {
         XCTAssertEqual(ModelAlias.pretty(id: "gemma4-12b"), "Gemma 4 · 12B")
@@ -16,9 +16,11 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
 
     /// 모달리티 한글 표기 (T-334).
     func testModalitiesKorean() {
-        XCTAssertEqual(ModelAlias.modalitiesKorean("Text Vision Audio"), "텍스트·이미지·음성")
-        XCTAssertEqual(ModelAlias.modalitiesKorean("Text"), "텍스트")
-        XCTAssertEqual(ModelAlias.modalitiesKorean("-"), "-")
+        XCTAssertEqual(ModelAlias.modalities("Text Vision Audio"),
+                       "\(L(L10n.Model.modalityText))·\(L(L10n.Model.modalityVision))·\(L(L10n.Model.modalityAudio))")
+        XCTAssertEqual(ModelAlias.modalities("Text"), L(L10n.Model.modalityText))
+        XCTAssertEqual(ModelAlias.modalities("Vision"), L(L10n.Model.modalityVision))
+        XCTAssertEqual(ModelAlias.modalities("-"), "-")
     }
 
     /// 초안/적용/취소: 임시 경로로 실제 디스크 왕복 (실제 config 불변).
@@ -105,7 +107,7 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(MenuBarStatusText.line(status: .stopped, external: false, unlinked: false),
                        "○ 중지됨")
         XCTAssertTrue(MenuBarStatusText.tooltip(status: .running, external: false, unlinked: false)
-            .hasPrefix("LiteRT-LM Studio — "))
+            .hasPrefix("LiteRT-LM Studio · "))
 
         XCTAssertNil(MenuBarStatusText.uptimeText(since: nil))
         let base = Date(timeIntervalSince1970: 1_000_000)
@@ -141,11 +143,11 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(line(.native, .stopped, .ready), "● 앱 내 엔진 · 준비됨")
         XCTAssertEqual(line(.native, .running, .preparing), "◌ 앱 내 엔진 · 준비 중…")
         XCTAssertEqual(line(.native, .running, .idle), "○ 앱 내 엔진 · 준비 안 됨")
-        XCTAssertEqual(line(.native, .stopped, .failed), "● 앱 내 엔진 · 실패 — 로그 확인")
+        XCTAssertEqual(line(.native, .stopped, .failed), "● 앱 내 엔진 · 실패 (로그 확인)")
         XCTAssertTrue(MenuBarRouteStatus.tooltip(route: .native, daemon: .stopped,
                                                  external: false, unlinked: false,
                                                  nativeState: .ready)
-            .hasPrefix("LiteRT-LM Studio — "))
+            .hasPrefix("LiteRT-LM Studio · "))
 
         XCTAssertEqual(MenuStatus.dotKey(route: .native, daemon: .stopped, nativeState: .ready),
                        "green")
@@ -1454,20 +1456,29 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertTrue(ToolCatalog.isEnabled("get_time", defaults: defaults))
     }
 
-    /// 한글 표시명 (T-348): 영어 도구명은 UI에 노출하지 않는다.
+    /// 표시명 (T-271·T-348 / T-362 키 전환): 영어 도구명은 UI에 노출하지 않는다.
     func testToolCatalogTitleMapping() {
-        XCTAssertEqual(ToolCatalog.title(for: "get_system_info"), "시스템 정보")
-        XCTAssertEqual(ToolCatalog.title(for: "write_clipboard"), "클립보드 쓰기")
-        XCTAssertEqual(ToolCatalog.title(for: "web_fetch"), "페이지 가져오기")
-        XCTAssertEqual(ToolCatalog.title(for: "delete_calendar_event"), "일정 삭제")
-        XCTAssertEqual(ToolCatalog.title(for: "delete_reminder"), "미리 알림 삭제")
-        XCTAssertEqual(ToolCatalog.title(for: "list_calendar_events"), "일정 조회")
-        XCTAssertEqual(ToolCatalog.title(for: "mcp_list_tools"), "MCP 목록")
+        func titleKey(_ name: String) -> String? {
+            ToolCatalog.all.first { $0.name == name }?.titleKey.raw
+        }
+        XCTAssertEqual(titleKey("get_system_info"), "tools.get_system_info.title")
+        XCTAssertEqual(titleKey("write_clipboard"), "tools.write_clipboard.title")
+        XCTAssertEqual(titleKey("web_fetch"), "tools.web_fetch.title")
+        XCTAssertEqual(titleKey("delete_calendar_event"), "tools.delete_calendar_event.title")
+        XCTAssertEqual(titleKey("delete_reminder"), "tools.delete_reminder.title")
+        XCTAssertEqual(titleKey("list_calendar_events"), "tools.list_calendar_events.title")
+        XCTAssertEqual(titleKey("mcp_list_tools"), "tools.mcp_list_tools.title")
         // 미등록(MCP 동적)은 원문 폴백.
         XCTAssertEqual(ToolCatalog.title(for: "mcp__server__custom"), "mcp__server__custom")
-        // 칩 displayTitle이 한글 제목을 잇는다.
+        // 카탈로그의 모든 도구는 표시명·설명 번역이 있어야 한다(키 원문 노출 금지).
+        for info in ToolCatalog.all {
+            XCTAssertNotEqual(L(info.titleKey), info.titleKey.raw, info.name)
+            XCTAssertNotEqual(L(info.detailKey), info.detailKey.raw, info.name)
+        }
+        // 칩 displayTitle이 표시명을 잇는다.
         let record = ToolCallRecord(callID: "c", name: "read_clipboard")
-        XCTAssertEqual(record.displayTitle, "클립보드 읽기")
+        XCTAssertEqual(record.displayTitle, ToolCatalog.title(for: "read_clipboard"))
+        XCTAssertNotEqual(record.displayTitle, "read_clipboard")
     }
 
     /// 실행 결정 (T-266 S-2): Off 거부·Allow 진행.

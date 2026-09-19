@@ -7,7 +7,7 @@ extension SettingsView {
     var mcpTab: some View {
         Form {
             if mcp.servers.isEmpty {
-                Text("등록된 MCP 서버 없음. 추가 버튼으로 stdio·SSE 서버를 연결하세요.")
+                Text(L(L10n.MCP.emptyServers))
                     .font(.caption).foregroundStyle(.secondary)
             }
             ForEach(mcp.servers) { srv in
@@ -19,9 +19,9 @@ extension SettingsView {
                             .font(DS.captionFont).foregroundStyle(.tertiary)
                         Spacer()
                         Toggle("", isOn: mcpBinding(for: srv.id)).labelsHidden()
-                        Button("테스트") { Task { await runMCPTest(srv) } }
+                        Button(L(L10n.MCP.test)) { Task { await runMCPTest(srv) } }
                             .controlSize(.small)
-                        Button("삭제", role: .destructive) { mcp.remove(id: srv.id) }
+                        Button(L(L10n.MCP.delete), role: .destructive) { mcp.remove(id: srv.id) }
                             .controlSize(.small)
                     }
                     Text(mcpDetail(srv)).font(DS.captionFont).foregroundStyle(.secondary)
@@ -33,9 +33,9 @@ extension SettingsView {
             }
             HStack {
                 Spacer()
-                Button("서버 추가") { mcpDraft = MCPServerConfig(name: "") ; showMCPAdd = true }
+                Button(L(L10n.MCP.addServer)) { mcpDraft = MCPServerConfig(name: "") ; showMCPAdd = true }
             }
-            Text("외부 도구 호출은 매번 묻기 권한에서 확인 팝업이 뜹니다. stdio 명령은 직접 입력한 것만 실행됩니다.")
+            Text(L(L10n.MCP.addNote))
                 .font(.caption).foregroundStyle(.secondary)
         }.dsSettingsForm()
             .tabItem { Label("MCP", systemImage: "server.rack") }
@@ -45,7 +45,7 @@ extension SettingsView {
     var skillsTab: some View {
         Form {
             if skills.isEmpty {
-                Text("SKILL.md 없음. 폴더 열기로 직접 넣거나, 가져오기로 외부 스킬을 복사하세요.")
+                Text(L(L10n.MCP.noSkillMD))
                     .font(.caption).foregroundStyle(.secondary)
             }
             ForEach(skills) { skill in
@@ -65,13 +65,13 @@ extension SettingsView {
             }
             if !skillRoots.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("외부 스킬 폴더").font(DS.captionFont).foregroundStyle(.secondary)
+                    Text(L(L10n.MCP.externalRoots)).font(DS.captionFont).foregroundStyle(.secondary)
                     ForEach(skillRoots, id: \.self) { root in
                         HStack(spacing: 6) {
                             Text(root).font(DS.captionFont).foregroundStyle(.secondary)
                                 .lineLimit(1).truncationMode(.middle)
                             Spacer()
-                            Button("제거") {
+                            Button(L(L10n.MCP.remove)) {
                                 SkillsStore.removeRoot(root)
                                 reloadSkills()
                             }.controlSize(.small)
@@ -80,21 +80,21 @@ extension SettingsView {
                 }
             }
             HStack {
-                Button("폴더 열기") {
+                Button(L(L10n.MCP.openFolder)) {
                     NSWorkspace.shared.open(SkillsStore.skillsDir())
                 }
-                Button("폴더 추가") { pickSkillRoot() }
-                Button("가져오기") {
+                Button(L(L10n.MCP.addFolder)) { pickSkillRoot() }
+                Button(L(L10n.MCP.importButton)) {
                     skillCandidates = SkillsStore.importCandidates()
                     showSkillsImport = true
                 }
-                Button("새로고침") { reloadSkills() }
+                Button(L(L10n.MCP.refresh)) { reloadSkills() }
                 Spacer()
             }
-            Text("켜진 스킬 본문이 시스템 프롬프트 앞에 들어갑니다 (합계 8KB cap). 다음 전송부터 적용.")
+            Text(L(L10n.MCP.prefixNote))
                 .font(.caption).foregroundStyle(.secondary)
         }.dsSettingsForm()
-            .tabItem { Label("스킬", systemImage: "sparkles") }
+            .tabItem { Label(L(L10n.MCP.tab), systemImage: "sparkles") }
             .sheet(isPresented: $showSkillsImport) {
                 SkillsImportSheet(
                     candidates: $skillCandidates,
@@ -116,8 +116,8 @@ extension SettingsView {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "추가"
-        panel.message = "스킬(SKILL.md) 폴더를 선택하세요."
+        panel.prompt = L(L10n.MCP.addButton)
+        panel.message = L(L10n.MCP.pickFolderMessage)
         if panel.runModal() == .OK, let url = panel.url {
             SkillsStore.addRoot(url.path)
             reloadSkills()
@@ -144,7 +144,7 @@ extension SettingsView {
 
     /// MCP 연결 테스트 (T-285).
     func runMCPTest(_ srv: MCPServerConfig) async {
-        mcpTestResult[srv.id] = "확인 중…"
+        mcpTestResult[srv.id] = L(L10n.MCP.checking)
         mcpTestResult[srv.id] = await mcp.testConnection(srv)
     }
 
@@ -176,38 +176,38 @@ extension SettingsView {
             HStack(spacing: 6) {
                 Circle().fill(webSearchEnabled && !exaApiKey.isEmpty ? DSColor.success : .secondary)
                     .frame(width: 8, height: 8)
-                Text(exaApiKey.isEmpty ? "Exa API 키 없음" : "Exa API 키 설정됨")
+                Text(L(exaApiKey.isEmpty ? L10n.MCP.keyMissing : L10n.MCP.keySet))
                     .font(.system(size: 12))
                 Spacer()
-                Link("키 발급", destination: URL(string: "https://dashboard.exa.ai")!)
+                Link(L(L10n.MCP.getKey), destination: URL(string: "https://dashboard.exa.ai")!)
                     .font(.system(size: 12))
-                Button("테스트") { testExa() }
+                Button(L(L10n.MCP.test)) { testExa() }
                     .controlSize(.small)
                     .disabled(exaApiKey.isEmpty)
             }
-            SecureField("Exa API 키 (x-api-key)", text: $exaApiKey)
+            SecureField(L(L10n.MCP.keyPlaceholder), text: $exaApiKey)
                 .textFieldStyle(.roundedBorder)
             if let result = exaTestResult {
                 Text(result).font(.caption)
-                    .foregroundStyle(result.hasPrefix("성공") ? Color.secondary : Color.red)
+                    .foregroundStyle(result.hasPrefix(L(L10n.MCP.successPrefix)) ? Color.secondary : Color.red)
             }
-            Text("키는 이 Mac에만 저장됩니다. 웹 도구는 키가 있을 때만 모델에게 전달됩니다. "
-                + "발급: https://dashboard.exa.ai")
+            Text(L(L10n.MCP.keyFooter))
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
 
     /// Exa 키 실검색 테스트 (T-352): 1건 조회, 결과 요약 표시.
     private func testExa() {
-        exaTestResult = "확인 중…"
+        exaTestResult = L(L10n.MCP.checking)
         DebugLogger.shared.info(feature: "웹검색", "Exa 키 테스트 시작")
         Task {
             do {
                 let hits = try await WebSearch.search(query: "Swift programming", maxResults: 1)
-                exaTestResult = hits.isEmpty ? "응답은 왔으나 결과가 비었습니다."
-                    : "성공 · \(hits[0].title) — \(hits[0].url)"
+                exaTestResult = hits.isEmpty
+                    ? L(L10n.MCP.emptyResult)
+                    : L(L10n.MCP.success, hits[0].title, hits[0].url)
             } catch {
-                exaTestResult = "실패 · \(error.localizedDescription)"
+                exaTestResult = L(L10n.MCP.failure, error.localizedDescription)
                 DebugLogger.shared.error(code: "E-MAC-NET-0015", feature: "웹검색",
                                          "Exa 키 테스트 실패: \(error.localizedDescription)")
             }
@@ -224,26 +224,26 @@ struct MCPAddSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("MCP 서버 추가").font(.system(size: 13, weight: .semibold))
-            TextField("이름 (예: exa)", text: $draft.name)
+            Text(L(L10n.MCP.addTitle)).font(.system(size: 13, weight: .semibold))
+            TextField(L(L10n.MCP.namePlaceholder), text: $draft.name)
                 .textFieldStyle(.roundedBorder)
-            Picker("전송", selection: $draft.transport) {
-                Text("stdio (로컬 명령)").tag(MCPServerConfig.Transport.stdio)
-                Text("SSE (원격 URL)").tag(MCPServerConfig.Transport.sse)
+            Picker(L(L10n.MCP.transport), selection: $draft.transport) {
+                Text(L(L10n.MCP.stdio)).tag(MCPServerConfig.Transport.stdio)
+                Text(L(L10n.MCP.sse)).tag(MCPServerConfig.Transport.sse)
             }.pickerStyle(.segmented)
             if draft.transport == .stdio {
-                TextField("명령 (예: npx)", text: $draft.command)
+                TextField(L(L10n.MCP.commandPlaceholder), text: $draft.command)
                     .textFieldStyle(.roundedBorder)
-                TextField("인자 (공백 구분, 예: -y exa)", text: $argsText)
+                TextField(L(L10n.MCP.argsPlaceholder), text: $argsText)
                     .textFieldStyle(.roundedBorder)
             } else {
-                TextField("URL (http(s)만, 예: http://127.0.0.1:3333/mcp)", text: $draft.url)
+                TextField(L(L10n.MCP.urlPlaceholder), text: $draft.url)
                     .textFieldStyle(.roundedBorder)
             }
             HStack {
                 Spacer()
-                Button("취소", action: onCancel)
-                Button("저장") {
+                Button(L(L10n.MCP.cancel), action: onCancel)
+                Button(L(L10n.MCP.save)) {
                     draft.args = argsText.split(separator: " ").map(String.init)
                     onSave()
                 }

@@ -38,7 +38,7 @@ import Foundation
         if let id = currentSessionID,
            sessions.contains(where: { $0.id == id }) { return id }
         persistCurrent()
-        let session = Session(title: "새 채팅")
+        let session = Session(title: L(L10n.Session.new))
         sessions.insert(session, at: 0)
         currentSessionID = session.id
         save()
@@ -118,7 +118,7 @@ import Foundation
     func refreshTitle() {
         guard let id = currentSessionID,
               let idx = sessions.firstIndex(where: { $0.id == id }),
-              sessions[idx].title == "새 채팅",
+              sessions[idx].title == L(L10n.Session.new),
               sessions[idx].customTitle == nil,
               let first = messages.first(where: { $0.role == "user" }) else { return }
         sessions[idx].title = String(first.text.prefix(20))

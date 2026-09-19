@@ -29,10 +29,10 @@ extension ContentView {
                 }
                 .padding(.horizontal, 12).padding(.vertical, 8)
                 .contextMenu {
-                    Button("이 섹션 숨기기") { showSystem = false }
+                    Button(L(L10n.Inspector.hideSection)) { showSystem = false }
                 }
             }
-            DSSegmented("설정", selection: Binding(
+            DSSegmented(L(L10n.Inspector.settings), selection: Binding(
                 get: { inspectorTab },
                 set: {
                     inspectorTabRaw = $0.rawValue
@@ -57,7 +57,7 @@ extension ContentView {
                             onReset: resetBackend)
                     }
                     .contextMenu {
-                        Button("기본값으로 되돌리기") { resetBackend() }
+                        Button(L(L10n.Inspector.resetDefaults)) { resetBackend() }
                     }
                 } else {
                     Section {
@@ -70,7 +70,7 @@ extension ContentView {
                             onReset: resetGenerate)
                     }
                     .contextMenu {
-                        Button("기본값으로 되돌리기") { resetGenerate() }
+                        Button(L(L10n.Inspector.resetDefaults)) { resetGenerate() }
                     }
                 }
             }
@@ -79,12 +79,12 @@ extension ContentView {
             if inspectorTab == .backend, config.hasChanges {
                 Divider()
                 HStack(spacing: 8) {
-                    Text("변경 사항이 있습니다")
+                    Text(L(L10n.Inspector.hasChanges))
                         .font(DS.captionFont).foregroundStyle(.orange)
                         .lineLimit(1).truncationMode(.tail)
                     Spacer()
-                    Button("취소") { config.revert() }
-                    Button(chat.route == .native ? "적용" : "적용 후 재시작") {
+                    Button(L(L10n.Inspector.cancel)) { config.revert() }
+                    Button(L(chat.route == .native ? L10n.Inspector.apply : L10n.Inspector.applyRestart)) {
                         applyBackend()
                     }
                     .buttonStyle(.borderedProminent)
@@ -128,48 +128,48 @@ extension ContentView {
     private var generateSectionBody: some View {
         Group {
                     HStack {
-                        Text("온도"); Slider(value: $chat.temperature, in: 0...1.5, step: 0.05)
+                        Text(L(L10n.Inspector.temperature)); Slider(value: $chat.temperature, in: 0...1.5, step: 0.05)
                         Text(String(format: "%.2f", chat.temperature)).monospacedDigit()
                     }
                     HStack {
-                        Text("상위 K")
+                        Text(L(L10n.Inspector.topK))
                         Spacer()
                         Text("\(chat.topK)").monospacedDigit()
                         Stepper("", value: $chat.topK, in: 1...256).labelsHidden()
                     }
                     HStack {
-                        Text("상위 P"); Slider(value: $chat.topP, in: 0...1, step: 0.05)
+                        Text(L(L10n.Inspector.topP)); Slider(value: $chat.topP, in: 0...1, step: 0.05)
                         Text(String(format: "%.2f", chat.topP)).monospacedDigit()
                     }
                     HStack {
-                        Text("Max 토큰")
+                        Text(L(L10n.Inspector.maxTokens))
                         Spacer()
-                        TextField("예: 500", text: Binding(
+                        TextField(L(L10n.Inspector.maxTokensPlaceholder), text: Binding(
                             get: { chat.maxTokens.map(String.init) ?? "" },
                             set: { chat.maxTokens = ConfigStore.intOrNil($0, min: 1) }
                         )).multilineTextAlignment(.trailing).frame(width: 140)
                     }
-                    .help("응답 길이 상한. 빈칸이면 무제한.")
+                    .help(L(L10n.Inspector.maxTokensHelp))
                     HStack {
-                        Text("시드")
+                        Text(L(L10n.Inspector.seed))
                         Spacer()
-                        TextField("예: 7", text: Binding(
+                        TextField(L(L10n.Inspector.seedPlaceholder), text: Binding(
                             get: { chat.seed.map(String.init) ?? "" },
                             set: { chat.seed = Int($0.trimmingCharacters(in: .whitespaces)) }
                         )).multilineTextAlignment(.trailing).frame(width: 140)
                     }
-                    .help("빈칸이면 랜덤. 숫자를 고정하면 같은 질문에 같은 답.")
+                    .help(L(L10n.Inspector.seedHelp))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("시스템 프롬프트")
-                        TextField("예: 간결하게 답해", text: $chat.systemPrompt)
+                        Text(L(L10n.Inspector.systemPrompt))
+                        TextField(L(L10n.Inspector.systemPromptPlaceholder), text: $chat.systemPrompt)
                     }
-                    .help("앱 내 엔진 대화에만 전달됩니다. 서버 경로는 미지원.")
+                    .help(L(L10n.Inspector.systemPromptHelp))
                     if selectedModel?.thinking == true {
-                        Toggle("추론", isOn: $chat.thinkingEnabled)
+                        Toggle(L(L10n.Inspector.thinking), isOn: $chat.thinkingEnabled)
                         HStack {
-                            Text("추론 예산")
+                            Text(L(L10n.Inspector.thinkingBudget))
                             Spacer()
-                            TextField("무제한", text: Binding(
+                            TextField(L(L10n.Inspector.unlimitedPlaceholder), text: Binding(
                                 get: { chat.thinkingBudget == -1 ? "" : "\(chat.thinkingBudget)" },
                                 set: { chat.thinkingBudget = ConfigStore.budgetOrUnlimited($0) }
                             )).multilineTextAlignment(.trailing).frame(width: 100)
@@ -177,21 +177,21 @@ extension ContentView {
                     } else {
                         // 미지원 → 비활성화 + 사유 캡션 (describe 실측 반영)
                         VStack(alignment: .leading, spacing: 2) {
-                            Toggle("추론", isOn: .constant(false)).disabled(true)
-                                .help("이 모델은 추론 미지원 (E-MAC-VALID-0007)")
-                            Text("현 모델 미지원 — 추론 지원 모델(E2B/E4B 등)이 필요해요.")
+                            Toggle(L(L10n.Inspector.thinking), isOn: .constant(false)).disabled(true)
+                                .help(L(L10n.Inspector.thinkingUnsupportedHelp))
+                            Text(L(L10n.Inspector.thinkingUnsupported))
                                 .font(DS.captionFont).foregroundStyle(.secondary)
                         }
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Toggle("함수 호출", isOn: .constant(false)).disabled(true)
+                        Toggle(L(L10n.Inspector.functionCall), isOn: .constant(false)).disabled(true)
                             .help(functionCallHelp(selectedModel?.functionCall == true))
                         if selectedModel?.functionCall != true {
-                            Text("현 모델 미지원 — FunctionGemma 계열이 필요해요.")
+                            Text(L(L10n.Inspector.functionCallUnsupported))
                                 .font(DS.captionFont).foregroundStyle(.secondary)
                         }
                     }
-                    Text("지원 모델을 가져오면 활성화됩니다.")
+                    Text(L(L10n.Inspector.functionCallEnableHint))
                         .font(DS.captionFont).foregroundStyle(.secondary)
         }
     }
@@ -199,15 +199,15 @@ extension ContentView {
 
 /// 미지원 툴팁 문구 (T-122 줄길이 정리용 순수 헬퍼).
 nonisolated func functionCallHelp(_ supported: Bool) -> String {
-    supported ? "" : "이 모델은 함수 호출 미지원 (E-MAC-VALID-0008)"
+    supported ? "" : L(L10n.Inspector.functionCallUnsupportedHelp)
 }
 
 /// 인스펙터 3섹션 on/off 분할 컨트롤 (툴바 상시 표시).
 /// 인스펙터 섹션 타이틀 (T-072): 테스트 잠금용 상수.
 enum InspectorTitle {
-    static let system = "시스템 현황"
-    static let backend = "실행 설정"
-    static let generate = "생성 설정"
+    static var system: String { L(L10n.Inspector.system) }
+    static var backend: String { L(L10n.Inspector.backend) }
+    static var generate: String { L(L10n.Inspector.generate) }
     static var all: [String] { [system, backend, generate] }
 }
 
@@ -218,15 +218,15 @@ enum InspectorDefaults {
     static let topP = 0.95
 
     nonisolated static func systemSummary(live: Bool) -> String {
-        live ? "LIVE" : "중지됨"
+        L(live ? L10n.Inspector.summaryLive : L10n.Inspector.summaryStopped)
     }
 
     nonisolated static func backendSummary(hasChanges: Bool) -> String {
-        hasChanges ? "변경됨" : "적용됨"
+        L(hasChanges ? L10n.Inspector.summaryChanged : L10n.Inspector.summaryApplied)
     }
 
     nonisolated static func generateSummary(temperature: Double, topK: Int) -> String {
-        String(format: "온도 %.2f · 상위K %d", temperature, topK)
+        L(L10n.Inspector.summaryGenerate, temperature, topK)
     }
 }
 
@@ -247,10 +247,10 @@ struct InspectorSectionHeader: View {
             if hovering, onReset != nil || onHide != nil {
                 Menu {
                     if let reset = onReset {
-                        Button("기본값으로 되돌리기", action: reset)
+                        Button(L(L10n.Inspector.resetDefaults), action: reset)
                     }
                     if let hide = onHide {
-                        Button("이 섹션 숨기기", action: hide)
+                        Button(L(L10n.Inspector.hideSection), action: hide)
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -261,7 +261,7 @@ struct InspectorSectionHeader: View {
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
-                .help("\(title) 메뉴")
+                .help(L(L10n.Inspector.menu, title))
             }
         }
         .padding(.trailing, 8) // T-324 행 우측 여백과 맞춤 (요약 돌출 방지)
@@ -275,7 +275,7 @@ struct SectionSegments: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            seg(icon: "gauge", on: $system, help: "시스템 현황 보기/숨기기")
+            seg(icon: "gauge", on: $system, help: L(L10n.Inspector.systemToggleHelp))
         }
         .padding(4)
         .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlColor)))
@@ -294,7 +294,7 @@ struct SectionSegments: View {
                 }
         }
         .buttonStyle(.plain)
-        .help(help + (on.wrappedValue ? " (켜짐)" : " (꺼짐)"))
+        .help(help + " " + L(on.wrappedValue ? L10n.Inspector.onSuffix : L10n.Inspector.offSuffix))
     }
 }
 
@@ -307,85 +307,89 @@ struct BackendSectionView: View {
     @AppStorage("visualTokenBudget") private var visualBudget = 1120 // T-177 describe 상한
 
     var body: some View {
-        DSSegmented("LLM 실행", selection: $config.draftBackend) {
+        DSSegmented(L(L10n.Inspector.llmBackend), selection: $config.draftBackend) {
             Text("GPU (Metal)").tag("gpu"); Text("CPU").tag("cpu")
         }
-        DSSegmented("Vision 실행", selection: $config.draftVision) {
+        DSSegmented(L(L10n.Inspector.visionBackend), selection: $config.draftVision) {
             Text("GPU").tag("gpu"); Text("CPU").tag("cpu")
         }
         if model?.modalities.contains("Audio") == true {
-            DSSegmented("Audio 실행", selection: $config.draftAudio) {
+            DSSegmented(L(L10n.Inspector.audioBackend), selection: $config.draftAudio) {
                 Text("CPU").tag("cpu"); Text("GPU").tag("gpu")
             }
         }
         if config.draftBackend == "cpu" {
             HStack {
-                Text("CPU 스레드")
+                Text(L(L10n.Inspector.cpuThreads))
                 Spacer()
-                TextField("자동", text: $config.draftThreads)
+                TextField(L(L10n.Inspector.autoPlaceholder), text: $config.draftThreads)
                     .multilineTextAlignment(.trailing).frame(width: 80)
-                    .help("빈칸이면 자동. 1 이상 숫자.")
+                    .help(L(L10n.Inspector.threadsHelp))
             }
         }
-        DSSegmented("캐시", selection: $config.draftCache) {
-            Text("디스크").tag("disk"); Text("메모리").tag("memory"); Text("사용 안 함").tag("no")
+        DSSegmented(L(L10n.Inspector.cache), selection: $config.draftCache) {
+            Text(L(L10n.Inspector.cacheDisk)).tag("disk")
+            Text(L(L10n.Inspector.cacheMemory)).tag("memory")
+            Text(L(L10n.Inspector.cacheNone)).tag("no")
         }
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Text("KV 토큰")
+                Text(L(L10n.Inspector.kvTokens))
                 Spacer()
-                TextField("예: 10000", text: $config.draftKV)
+                TextField(L(L10n.Inspector.kvPlaceholder), text: $config.draftKV)
                     .multilineTextAlignment(.trailing).frame(width: 140)
-                    .help("컨텍스트+출력 창. 빈칸이면 모델 기본.")
+                    .help(L(L10n.Inspector.kvHelp))
             }
-            Text("비워두면 모델 기본값 사용. 크게 잡으면 긴 대화 가능, 메모리 사용 증가.")
+            Text(L(L10n.Inspector.kvCaption))
                 .font(DS.captionFont).foregroundStyle(.secondary)
                 .lineLimit(3).fixedSize(horizontal: false, vertical: true)
         }
         if model?.thinking == true {
-            Toggle("추론 기본값", isOn: $config.draftThinking)
+            Toggle(L(L10n.Inspector.thinkingDefault), isOn: $config.draftThinking)
             HStack {
-                Text("추론 예산")
+                Text(L(L10n.Inspector.thinkingBudget))
                 Spacer()
-                TextField("무제한", text: $config.draftBudget)
+                TextField(L(L10n.Inspector.unlimitedPlaceholder), text: $config.draftBudget)
                     .multilineTextAlignment(.trailing).frame(width: 100)
-                    .help("빈칸이면 무제한(-1).")
+                    .help(L(L10n.Inspector.budgetHelp))
             }
         }
         HStack(spacing: 4) {
-            Toggle("MTP (추측적 디코딩) 활성화", isOn: $config.draftMTP)
+            Toggle(L(L10n.Inspector.mtpEnable), isOn: $config.draftMTP)
                 .toggleStyle(.switch)
-                .help("GPU 백엔드 권장. 모델이 drafter 포함 시 가속.")
+                .help(L(L10n.Inspector.mtpHelp))
                 .disabled(model?.speculative == false)
             Image(systemName: "info.circle")
                 .font(DS.captionFont).foregroundStyle(.tertiary)
-                .help("답변 생성 속도를 높입니다. 끄면 속도만 느려지고 정확도는 동일합니다.")
+                .help(L(L10n.Inspector.mtpInfoHelp))
         }
         if let mdl = model {
-            LabeledContent("추측 디코딩", value: mdl.speculative ? "지원" : "미포함")
-            LabeledContent("지원 입력", value: ModelAlias.modalitiesKorean(mdl.modalities))
+            LabeledContent(
+                L(L10n.Inspector.speculativeDecoding),
+                value: L(mdl.speculative ? L10n.Inspector.supported : L10n.Inspector.notIncluded))
+            LabeledContent(L(L10n.Inspector.supportedInputs), value: ModelAlias.modalities(mdl.modalities))
         }
-        DisclosureGroup("고급") {
-            Toggle("Metal 상주", isOn: $residency)
+        DisclosureGroup(L(L10n.Inspector.advanced)) {
+            Toggle(L(L10n.Inspector.metalResidency), isOn: $residency)
                 .toggleStyle(.switch)
-                .help("GPU 메모리에 모델을 상주시켜 스와핑 방지. 앱 내 엔진 초기화 때 적용 (모델 전환·재실행 후).")
+                .help(L(L10n.Inspector.metalResidencyHelp))
             VStack(alignment: .leading, spacing: 4) {
-                Text("Visual 예산")
-                Picker("Visual 예산", selection: $visualBudget) {
+                Text(L(L10n.Inspector.visualBudget))
+                Picker(L(L10n.Inspector.visualBudget), selection: $visualBudget) {
                     Text("70").tag(70); Text("140").tag(140); Text("280").tag(280)
                     Text("560").tag(560); Text("1120").tag(1120)
                 }.pickerStyle(.segmented)
                 .labelsHidden()
-                .help("이미지당 시각 토큰 상한 (Gemma4 전용). 엔진 초기화 때 적용.")
+                .help(L(L10n.Inspector.visualBudgetHelp))
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("정밀도")
-                Picker("정밀도", selection: $config.draftPrecision) {
-                    Text("내장").tag(""); Text("fp16").tag("fp16"); Text("fp32").tag("fp32")
+                Text(L(L10n.Inspector.precision))
+                Picker(L(L10n.Inspector.precision), selection: $config.draftPrecision) {
+                    Text(L(L10n.Inspector.precisionBuiltin)).tag(""); Text("fp16").tag("fp16"); Text("fp32").tag("fp32")
                     Text("int8").tag("int8"); Text("int16").tag("int16")
                 }.pickerStyle(.segmented)
                 .labelsHidden()
-                .help("연산 정밀도 재지정. serve 경로만 유효, 적용 후 재시작.")
+                .help(L(L10n.Inspector.precisionHelp))
             }
         }
     }

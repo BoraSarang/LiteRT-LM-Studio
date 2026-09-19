@@ -16,7 +16,7 @@ enum ChatOutline {
         messages.filter { $0.role == "user" }.map { msg in
             let first = msg.text.components(separatedBy: .newlines).first?
                 .trimmingCharacters(in: .whitespaces) ?? ""
-            let preview = first.isEmpty ? "(이미지 첨부)" : String(first.prefix(40))
+            let preview = first.isEmpty ? L(L10n.Chat.imageAttachment) : String(first.prefix(40))
             return ChatOutlineEntry(id: msg.id, preview: preview)
         }
     }

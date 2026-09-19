@@ -8,13 +8,15 @@ enum GlobalPermission: String, CaseIterable {
     case ask
     case allowAll
 
-    var title: String {
+    var titleKey: L10nKey {
         switch self {
-        case .off: return "사용 안 함"
-        case .ask: return "매번 묻기"
-        case .allowAll: return "모두 허용"
+        case .off: return L10n.Permission.off
+        case .ask: return L10n.Permission.ask
+        case .allowAll: return L10n.Permission.allowAll
         }
     }
+
+    var title: String { L(titleKey) }
 
     /// 순수 게이트 판정 (테스트 가능).
     /// - off: 항상 차단, ask: 확인됨일 때만 허용, allowAll: 항상 허용.

@@ -22,27 +22,27 @@ struct SystemMetersView: View {
     var body: some View {
         HStack(spacing: 4) {
             Circle().fill(monitor.live ? .green : .gray).frame(width: 7, height: 7)
-            Text(monitor.live ? "LIVE · 1초 갱신" : "중지됨")
+            Text(L(monitor.live ? L10n.SystemMonitor.live : L10n.SystemMonitor.stopped))
                 .font(DS.captionFont).foregroundStyle(.secondary)
             Spacer()
             Image(systemName: "info.circle")
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
-                .help("GPU는 순간 추정치 (IOKit busy). powermetrics급 정밀도가 아닙니다.")
+                .help(L(L10n.SystemMonitor.gpuHelp))
         }
         // T-293: 데몬 히어로 카드 완전 삭제 (양 경로 무의미). CPU/RAM/GPU 미터만 유지.
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 meterTitle(label: "CPU",
                            value: String(format: "%.0f%%", monitor.cpu),
-                           help: "사용자(nice 포함)+시스템 (활성 상태 보기와 동일)")
+                           help: L(L10n.SystemMonitor.cpuHelp))
                 cpuLinesChart
                     .onHover { cpuHover = $0 }
                     .popover(isPresented: $cpuHover, arrowEdge: .top) {
                         MeterPopover(rows: cpuRows())
                     }
                 HStack(spacing: 8) {
-                    legendDot(color: MeterColor.cpuUser, label: "사용자")
-                    legendDot(color: MeterColor.cpuSystem, label: "시스템")
+                    legendDot(color: MeterColor.cpuUser, label: L(L10n.SystemMonitor.cpuUser))
+                    legendDot(color: MeterColor.cpuSystem, label: L(L10n.SystemMonitor.cpuSystem))
                 }
             }
             VStack(alignment: .leading, spacing: 4) {
@@ -50,7 +50,7 @@ struct SystemMetersView: View {
                            value: String(format: "%.0f%%",
                                           Self.ramUsedPct(usedGB: monitor.ramUsedGB,
                                                           totalGB: monitor.ramTotalGB)),
-                           help: "App+Wired+압축 (활성 상태 보기와 동일). 비활성은 캐시된 파일로 별도 표기")
+                           help: L(L10n.SystemMonitor.ramHelp))
                 ramLinesChart
                     .onHover { ramHover = $0 }
                     .popover(isPresented: $ramHover, arrowEdge: .top) {
@@ -60,12 +60,12 @@ struct SystemMetersView: View {
             VStack(alignment: .leading, spacing: 4) {
                 meterTitle(label: "GPU",
                            value: monitor.gpu.map { String(format: "%.0f%%", $0) } ?? "–",
-                           help: "IOKit 순간 추정치 (Apple Silicon)")
+                           help: L(L10n.SystemMonitor.gpuMeterHelp))
                 miniChart(monitor.gpuHistory, color: .purple, height: 44)
                     .onHover { gpuHover = $0 }
                     .popover(isPresented: $gpuHover, arrowEdge: .top) {
                         MeterPopover(rows: [MeterRow(
-                            color: .purple, label: "사용률",
+                            color: .purple, label: L(L10n.SystemMonitor.usage),
                             value: monitor.gpu.map { String(format: "%.0f%%", $0) } ?? "–")])
                     }
             }
@@ -75,9 +75,9 @@ struct SystemMetersView: View {
     /// CPU 팝오버 행 (순수, 테스트 가능, T-073).
     nonisolated static func cpuPopoverRows(sys: Double, user: Double) -> [(label: String, value: String)] {
         let idle = max(0, 100 - user - sys)
-        return [("시스템", String(format: "%.0f%%", sys)),
-                ("사용자", String(format: "%.0f%%", user)),
-                ("유휴", String(format: "%.0f%%", idle))]
+        return [(L(L10n.SystemMonitor.cpuSystem), String(format: "%.0f%%", sys)),
+                (L(L10n.SystemMonitor.cpuUser), String(format: "%.0f%%", user)),
+                (L(L10n.SystemMonitor.idle), String(format: "%.0f%%", idle))]
     }
 
     /// RAM 팝오버 행 (순수, 테스트 가능, T-073).
@@ -85,8 +85,8 @@ struct SystemMetersView: View {
                                            comp: Double, cache: Double) -> [(label: String, value: String)] {
         [("App", String(format: "%.1fGB", app)),
          ("Wired", String(format: "%.1fGB", wired)),
-         ("압축", String(format: "%.1fGB", comp)),
-         ("캐시", String(format: "%.1fGB", cache))]
+         (L(L10n.SystemMonitor.compressed), String(format: "%.1fGB", comp)),
+         (L(L10n.SystemMonitor.cache), String(format: "%.1fGB", cache))]
     }
 
     private func cpuRows() -> [MeterRow] {

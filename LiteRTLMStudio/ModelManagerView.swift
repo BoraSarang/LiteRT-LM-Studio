@@ -205,21 +205,21 @@ struct ModelManagerView: View {
             // T-321: 디스크 2배 사용 경고 배너 (설치됨+스테이징 중복분 정리 액션).
             if !purgeableStaged.isEmpty {
                 DSWarningBanner(
-                    text: "설치된 모델의 원본 \(purgeableStaged.count)개가 스테이징에 남아 디스크를 2배 씁니다.",
-                    actionTitle: "원본 삭제") {
+                    text: L(L10n.ModelManager.purgeNotice, purgeableStaged.count),
+                    actionTitle: L(L10n.ModelManager.purgeAction)) {
                     guard checkPermission() else { return }
                     showPurgeConfirm = true
                 }
             }
             if models.models.isEmpty, models.staged.isEmpty,
                center.items.isEmpty, center.orphans.isEmpty {
-                ContentUnavailableView("모델이 없어요", systemImage: "archivebox",
-                                       description: Text("새 모델 가져오기로 Hugging Face에서 받으세요."))
+                ContentUnavailableView(L(L10n.ModelManager.emptyTitle), systemImage: "archivebox",
+                                       description: Text(L(L10n.ModelManager.emptyDescription)))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
                     if !center.items.isEmpty {
-                        Section("다운로드 중") {
+                        Section(L(L10n.ModelManager.sectionDownloading)) {
                             ForEach(center.items) { item in
                                 DSCardRow {
                                     DownloadRow(item: item, center: center, models: models)
@@ -228,7 +228,7 @@ struct ModelManagerView: View {
                         }
                     }
                     if !center.orphans.isEmpty {
-                        Section("미완성") {
+                        Section(L(L10n.ModelManager.sectionIncomplete)) {
                             ForEach(center.orphans) { part in
                                 DSCardRow {
                                     orphanRow(part)
@@ -236,14 +236,14 @@ struct ModelManagerView: View {
                             }
                         }
                     }
-                    Section("설치됨 (\(models.models.count))") {
+                    Section(L(L10n.ModelManager.sectionInstalled, models.models.count)) {
                         ForEach(models.models) { m in
                             DSCardRow {
                                 installedRow(m)
                             }
                         }
                     }
-                    Section("스테이징 (\(models.staged.count))") {
+                    Section(L(L10n.ModelManager.sectionStaging, models.staged.count)) {
                         ForEach(models.staged) { s in
                             DSCardRow {
                                 stagedRow(s)
@@ -257,12 +257,12 @@ struct ModelManagerView: View {
             }
             footer
         }
-        .confirmationDialog("설치된 모델의 원본 \(purgeableStaged.count)개를 지울까요?",
+        .confirmationDialog(L(L10n.ModelManager.purgeConfirm, purgeableStaged.count),
                             isPresented: $showPurgeConfirm, titleVisibility: .visible) {
-            Button("원본 삭제", role: .destructive) { purgeStagedOriginals() }
-            Button("취소", role: .cancel) {}
+            Button(L(L10n.ModelManager.purgeAction), role: .destructive) { purgeStagedOriginals() }
+            Button(L(L10n.ModelManager.cancel), role: .cancel) {}
         } message: {
-            Text("설치된 모델은 유지되고 스테이징 원본만 지워집니다. 다시 설치하려면 다시 받아야 합니다.")
+            Text(L(L10n.ModelManager.purgeConfirmNote))
         }
     }
 
@@ -285,7 +285,7 @@ struct ModelManagerView: View {
         models.scanStaging()
         models.invalidateListCache()
         if failed > 0 {
-            notice = "원본 삭제 중 \(failed)개가 실패했습니다."
+            notice = L(L10n.ModelManager.purgeFailed, failed)
         } else {
             notice = nil
         }
@@ -308,7 +308,7 @@ struct ModelManagerView: View {
     /// 로컬 파일 선택 (T-254): NSOpenPanel → 스테이징 복사.
     private func pickLocalFile() {
         let panel = NSOpenPanel()
-        panel.message = ".litertlm 모델 파일을 고르세요"
+        panel.message = L(L10n.ModelManager.importPanelMessage)
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
@@ -316,7 +316,7 @@ struct ModelManagerView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
             let ok = await models.importLocalFile(sourceURL: url)
-            if !ok { notice = "파일 가져오기가 실패했습니다. 로그를 확인해 주세요." }
+            if !ok { notice = L(L10n.ModelManager.importFailed) }
         }
     }
 
@@ -326,23 +326,23 @@ struct ModelManagerView: View {
                 guard checkPermission() else { return }
                 showImport = true
             } label: {
-                Label("새 모델 가져오기", systemImage: "plus")
+                Label(L(L10n.ModelManager.importNew), systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
             .tint(DSColor.primary)
-            .help("Hugging Face 저장소에서 직접 다운로드")
+            .help(L(L10n.ModelManager.importNewHelp))
             Button {
                 guard checkPermission() else { return }
                 pickLocalFile()
             } label: {
-                Label("파일로 설치", systemImage: "folder")
+                Label(L(L10n.ModelManager.installFromFile), systemImage: "folder")
             }
-            .help("로컬 .litertlm 파일을 스테이징에 복사 (원본 유지)")
+            .help(L(L10n.ModelManager.installFromFileHelp))
             Spacer()
-            Button("폴더 열기") { models.revealStaging() }
-                .help("스테이징 폴더 열기 (~/Documents/.LiteRT-LM, 숨김 폴더)")
-            Button("새로고침") { Task { await models.refresh() } }
-                .help("목록 강제 새로고침 (캐시 무시)")
+            Button(L(L10n.ModelManager.openFolder)) { models.revealStaging() }
+                .help(L(L10n.ModelManager.openFolderHelp))
+            Button(L(L10n.ModelManager.refresh)) { Task { await models.refresh() } }
+                .help(L(L10n.ModelManager.refreshHelp))
         }
     }
 
@@ -351,7 +351,7 @@ struct ModelManagerView: View {
             if let notice {
                 Text(notice).font(DS.captionFont).foregroundStyle(.red)
             }
-            Text("스테이징에 보관된 파일 + 설치된 모델이라 디스크를 2배 씁니다. 완료 후에도 스테이징 파일은 유지됩니다.")
+            Text(L(L10n.ModelManager.stagingNote))
                 .font(DS.captionFont).foregroundStyle(.secondary)
         }
     }
@@ -364,7 +364,7 @@ struct ModelManagerView: View {
     private func checkPermission() -> Bool {
         let perm = GlobalPermission.current()
         guard perm != .off else {
-            notice = "권한이 꺼져 있어 가져올 수 없습니다. 설정에서 권한을 바꿔 주세요."
+            notice = L(L10n.ModelManager.permissionImportOff)
             DebugLogger.shared.error(code: "E-MAC-PERM-0011", feature: "권한", "가져오기 차단 (권한 꺼짐)")
             return false
         }
@@ -377,8 +377,8 @@ struct ModelManagerView: View {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = message
-        alert.addButton(withTitle: "계속")
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: L(L10n.ModelManager.continueButton))
+        alert.addButton(withTitle: L(L10n.ModelManager.cancel))
         return alert.runModal() == .alertFirstButtonReturn
     }
 }

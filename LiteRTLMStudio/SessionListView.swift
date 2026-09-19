@@ -46,7 +46,7 @@ struct SessionListView: View {
         } label: {
             HStack {
                 Image(systemName: "plus").font(.system(size: 13, weight: .semibold))
-                Text("새 채팅").font(.system(size: 13, weight: .semibold))
+                Text(L(L10n.Session.new)).font(.system(size: 13, weight: .semibold))
                 Spacer()
             }
             .padding(.horizontal, 10).padding(.vertical, 7)
@@ -59,13 +59,13 @@ struct SessionListView: View {
         }
         .buttonStyle(.plain)
         .disabled(chat.streaming)
-        .help("새 채팅 (⌘N)")
+        .help(L(L10n.Session.newHelp))
     }
 
     /// 섹션 헤더: 제목+정렬 메뉴 (T-058).
     private var listHeader: some View {
         HStack {
-                Text("채팅").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                Text(L(L10n.Sidebar.chat)).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
             Spacer()
             Menu {
                 ForEach(ChatStore.SessionSort.allCases, id: \.self) { o in
@@ -81,7 +81,7 @@ struct SessionListView: View {
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
-            .help("정렬: \(order.title)")
+            .help(L(L10n.Session.sortHelp, order.title))
         }
     }
 
@@ -112,7 +112,7 @@ struct SessionListView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
-                        .help("채팅 메뉴")
+                        .help(L(L10n.Session.menu))
             }
         }
         .padding(.horizontal, 8).padding(.vertical, 6)
@@ -131,13 +131,13 @@ struct SessionListView: View {
     /// 채팅 메뉴 본체 (⋯ 버튼·우클릭 공용, T-058).
     @ViewBuilder
     private func sessionMenu(_ s: ChatStore.Session) -> some View {
-        Button(s.pinned ? "고정 해제" : "고정",
+        Button(L(s.pinned ? L10n.Session.unpin : L10n.Session.pin),
                systemImage: s.pinned ? "pin.slash" : "pin") { chat.togglePin(s.id) }
             .disabled(chat.streaming)
-        Button("이름 변경", systemImage: "pencil") { promptRename(s) }
+        Button(L(L10n.Session.rename), systemImage: "pencil") { promptRename(s) }
             .disabled(chat.streaming)
         Divider()
-        Button("삭제", systemImage: "trash", role: .destructive) { confirmDelete(s) }
+        Button(L(L10n.Common.delete), systemImage: "trash", role: .destructive) { confirmDelete(s) }
             .disabled(chat.streaming)
     }
 
@@ -149,10 +149,10 @@ struct SessionListView: View {
         lastDeletedID = s.id
         lastDeletedAt = now
         let alert = NSAlert()
-        alert.messageText = "채팅 삭제"
-        alert.informativeText = "이 채팅의 기록이 모두 지워집니다."
-        alert.addButton(withTitle: "삭제")
-        alert.addButton(withTitle: "취소")
+        alert.messageText = L(L10n.Session.deleteTitle)
+        alert.informativeText = L(L10n.Session.deleteMessage)
+        alert.addButton(withTitle: L(L10n.Common.delete))
+        alert.addButton(withTitle: L(L10n.Common.cancel))
         alert.buttons.first?.hasDestructiveAction = true
         if alert.runModal() == .alertFirstButtonReturn {
             chat.deleteSession(s.id)
@@ -168,14 +168,14 @@ struct SessionListView: View {
         lastRenameID = s.id
         lastRenameAt = now
         let field = NSTextField(string: s.displayTitle)
-        field.placeholderString = "채팅 이름"
+        field.placeholderString = L(L10n.Session.namePlaceholder)
         field.frame = NSRect(x: 0, y: 0, width: 280, height: 24)
         let alert = NSAlert()
-        alert.messageText = "이름 변경"
-        alert.informativeText = "비우면 자동 제목으로 돌아갑니다."
+        alert.messageText = L(L10n.Session.renameTitle)
+        alert.informativeText = L(L10n.Session.renameMessage)
         alert.accessoryView = field
-        alert.addButton(withTitle: "저장")
-        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: L(L10n.Common.save))
+        alert.addButton(withTitle: L(L10n.Common.cancel))
         alert.buttons[0].keyEquivalent = "\r"
         alert.buttons[1].keyEquivalent = "\u{1b}"
         alert.window.initialFirstResponder = field

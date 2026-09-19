@@ -57,7 +57,7 @@ struct MenuBarPopover: View {
             parts.append(ModelAlias.display(id: chat.model))
         }
         if chat.route == .native, daemon.status == .running {
-            parts.append("서버 실행 중")
+            parts.append(L(L10n.StatusMenu.running))
         }
         return parts.joined(separator: " · ")
     }
@@ -67,15 +67,15 @@ struct MenuBarPopover: View {
     private var actions: some View {
         VStack(spacing: 6) {
             engineButton
-            actionButton("새 채팅", icon: "square.and.pencil") { deliver(.newChat) }
+            actionButton(L(L10n.StatusMenu.newChat), icon: "square.and.pencil") { deliver(.newChat) }
             recents
-            actionButton("메인 창 열기", icon: "macwindow") { openMainWindow() }
-            actionButton("모델 관리", icon: "shippingbox") { deliver(.openModelManager) }
+            actionButton(L(L10n.StatusMenu.openMain), icon: "macwindow") { openMainWindow() }
+            actionButton(L(L10n.StatusMenu.modelManager), icon: "shippingbox") { deliver(.openModelManager) }
             Divider()
             HStack {
-                SettingsLink { Text("설정…") }
+                SettingsLink { Text(L(L10n.StatusMenu.settings)) }
                 Spacer()
-                Button("종료") { services.quit() }
+                Button(L(L10n.StatusMenu.quit)) { services.quit() }
             }
         }
     }
@@ -121,7 +121,7 @@ struct MenuBarPopover: View {
         let items = MenuBarRecents.recent(chat.sessions, limit: Self.recentLimit)
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
-                Text("최근 채팅방")
+                Text(L(L10n.StatusMenu.recentChats))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)

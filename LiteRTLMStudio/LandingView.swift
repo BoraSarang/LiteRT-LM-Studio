@@ -7,7 +7,7 @@ struct LandingView: View {
     @StateObject private var uv = UvManager()
 
     private var uvOK: Bool { uv.uvAvailable }
-    private var litertOK: Bool { uv.litertVersion != "없음" && uv.litertVersion != "확인 중…" }
+    private var litertOK: Bool { !UvManager.isMissing(uv.litertVersion) && !UvManager.isChecking(uv.litertVersion) }
     private var canStart: Bool { uvOK && litertOK }
     private var versionLow: Bool {
         litertOK && !OnboardingGate.meetsMinimum(uv.litertVersion)
@@ -21,12 +21,12 @@ struct LandingView: View {
                 .foregroundStyle(.secondary)
             Text("LiteRT-LM Studio")
                 .font(.system(size: 24, weight: .bold))
-            Text("시작 전에 실행 환경을 확인합니다.")
+            Text(L(L10n.Landing.checking))
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
             VStack(spacing: 8) {
-                checkRow(title: "uv", detail: uv.uvVersion, ok: uvOK)
-                checkRow(title: "litert-lm", detail: uv.litertVersion, ok: litertOK)
+                checkRow(title: "uv", detail: UvManager.display(uv.uvVersion), ok: uvOK)
+                checkRow(title: "litert-lm", detail: UvManager.display(uv.litertVersion), ok: litertOK)
             }
             .frame(width: 420)
             if !litertOK, uvOK {
@@ -34,17 +34,17 @@ struct LandingView: View {
                     .frame(width: 420)
             }
             if !uvOK {
-                Text("uv가 없습니다. https://docs.astral.sh/uv/ 에서 설치 후 재확인해 주세요.")
+                Text(L(L10n.Landing.uvMissing))
                     .font(DS.captionFont).foregroundStyle(.secondary)
                     .frame(width: 420)
             }
             if versionLow {
-                Text("litert-lm 버전이 낮습니다. `uv tool upgrade litert-lm` 권장 (시작은 가능).")
+                Text(L(L10n.Landing.litertOld))
                     .font(DS.captionFont).foregroundStyle(.orange)
             }
             HStack(spacing: 8) {
-                Button("재확인") { Task { await uv.refresh() } }
-                Button("시작하기") {
+                Button(L(L10n.Landing.recheck)) { Task { await uv.refresh() } }
+                Button(L(L10n.Landing.start)) {
                     done = true
                     DebugLogger.shared.info(feature: "온보딩", "게이트 통과, 메인 진입")
                 }
@@ -76,7 +76,7 @@ struct LandingView: View {
 
     private var installGuide: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("litert-lm 설치가 필요합니다.")
+            Text(L(L10n.Landing.litertMissing))
                 .font(.system(size: 13, weight: .semibold))
             HStack(spacing: 8) {
                 Text("uv tool install litert-lm")
@@ -86,7 +86,7 @@ struct LandingView: View {
                     .background {
                         RoundedRectangle(cornerRadius: 8).fill(Color(.textBackgroundColor))
                     }
-                Button("복사") {
+                Button(L(L10n.Landing.copy)) {
                     PasteboardUtil.copy("uv tool install litert-lm")
                 }
             }
