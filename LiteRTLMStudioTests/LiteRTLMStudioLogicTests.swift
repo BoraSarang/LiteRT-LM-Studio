@@ -760,6 +760,40 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertEqual(String(text[range!]), "리테일")
     }
 
+    /// 공백 건너뛰기 매칭 구간 (T-326): ㅅㅊㅌ → 새 채팅.
+    func testMatchRangesSkipSpace() {
+        let ranges = KoreanMatch.matchRanges(in: "새 채팅", query: "ㅅㅊㅌ")
+        XCTAssertNotNil(ranges)
+        XCTAssertEqual(ranges?.map { String("새 채팅"[$0]) }.joined(), "새채팅")
+        XCTAssertNil(KoreanMatch.matchRanges(in: "새 채팅", query: "ㅅㅊㄱ"))
+        XCTAssertNil(KoreanMatch.matchRanges(in: "새 채팅", query: "  "))
+        XCTAssertNotNil(KoreanMatch.matchRanges(in: "서버 시작", query: "서버"))
+    }
+
+    /// 최근 사용 명령 (T-326): 기록·순서·상한·기본값.
+    func testPaletteRecents() {
+        let defaults = UserDefaults(suiteName: "test-palette")!
+        defaults.removePersistentDomain(forName: "test-palette")
+        let all = [
+            PaletteCommand(id: "newChat", title: "새 채팅", hint: "⌘N"),
+            PaletteCommand(id: "modelManager", title: "모델 관리 열기", hint: ""),
+            PaletteCommand(id: "logPanel", title: "하단 패널 토글", hint: "⌘J"),
+            PaletteCommand(id: "server", title: "서버 시작", hint: "⌘R"),
+            PaletteCommand(id: "debug", title: "디버그 패널", hint: "⇧⌘D"),
+            PaletteCommand(id: "refreshModels", title: "모델 새로고침", hint: "")
+        ]
+        XCTAssertEqual(PaletteRecents.recentCommands(all: all, defaults: defaults).count, 5)
+        PaletteRecents.record("server", to: defaults)
+        PaletteRecents.record("newChat", to: defaults)
+        PaletteRecents.record("server", to: defaults)
+        let recent = PaletteRecents.recentCommands(all: all, defaults: defaults)
+        XCTAssertEqual(recent.map(\.id), ["server", "newChat"])
+        for i in 0 ..< 12 { PaletteRecents.record("id\(i)", to: defaults) }
+        XCTAssertLessThanOrEqual(PaletteRecents.load(from: defaults).count,
+                                 PaletteRecents.maxStored)
+        defaults.removePersistentDomain(forName: "test-palette")
+    }
+
     /// 초성 검색 end-to-end (T-264): search까지 도달.
     func testChatSearchChoseong() {
         let session = ChatStore.Session(title: "방")

@@ -86,6 +86,55 @@ enum KoreanMatch {
         }
         return nil
     }
+
+    /// 매칭 글자 범위들 (T-326, 순수): 공백 건너뛰기 순차 스캔.
+    /// "ㅅㅊㅌ" → "새 채팅"의 새·채·팅 3구간. 없으면 nil.
+    nonisolated static func matchRanges(in text: String, query: String) -> [Range<String.Index>]? {
+        let qc = Array(query.filter { !$0.isWhitespace })
+        guard !qc.isEmpty else { return nil }
+        // 1) 일반 contains (대소문자 무시).
+        let lower = text.lowercased()
+        if let r = lower.range(of: String(qc).lowercased()),
+           let lo = indexIn(text, offsetOf: lower, index: r.lowerBound),
+           let hi = indexIn(text, offsetOf: lower, index: r.upperBound) {
+            return [lo ..< hi]
+        }
+        // 2) 시작점별 순차 스캔 (텍스트 공백 무시, 질의 순서 유지).
+        let tChars = Array(text)
+        for start in tChars.indices {
+            if let hit = scanRanges(tChars: tChars, text: text, start: start, qc: qc) {
+                return hit
+            }
+        }
+        return nil
+    }
+
+    /// 단일 시작점 스캔 (순수): 순서대로 소진되면 구간 반환.
+    nonisolated static func scanRanges(tChars: [Character], text: String,
+                                       start: Int, qc: [Character]) -> [Range<String.Index>]? {
+        var ranges: [Range<String.Index>] = []
+        var qi = 0
+        var ti = start
+        while ti < tChars.count, qi < qc.count {
+            if tChars[ti].isWhitespace {
+                ti += 1
+                continue
+            }
+            guard charsEqual(textCh: tChars[ti], queryCh: qc[qi]) else { return nil }
+            let lo = text.index(text.startIndex, offsetBy: ti)
+            ranges.append(lo ..< text.index(after: lo))
+            qi += 1
+            ti += 1
+        }
+        return qi == qc.count && !ranges.isEmpty ? ranges : nil
+    }
+
+    /// lowercased 문자열 인덱스를 원문 인덱스로 환산 (순수, 길이 불일치 시 nil).
+    nonisolated static func indexIn(_ text: String, offsetOf lower: String,
+                                    index: String.Index) -> String.Index? {
+        let offset = lower.distance(from: lower.startIndex, to: index)
+        return text.index(text.startIndex, offsetBy: offset, limitedBy: text.endIndex)
+    }
 }
 
 /// 전체 세션 채팅 검색 (T-263, 순수·테스트 가능).

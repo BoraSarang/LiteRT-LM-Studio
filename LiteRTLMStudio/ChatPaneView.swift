@@ -55,6 +55,7 @@ extension ContentView {
     // MARK: - 팔레트
     var palette: some View {
         PaletteView(chat: chat, daemon: daemon, models: models,
+                    bench: bench, history: benchHistory,
                     showPalette: $showPalette) {
             toggleLogPanel()
         } onJumpMessage: { sessionID, messageID in
