@@ -131,14 +131,8 @@ extension ChatStore {
                 logTurnRequest(turn: turn, extraHistory: extraHistory, toolTurn: turn > 0)
                 let req = try chatRequest(prompt: prompt, image: image,
                                           extraHistory: extraHistory, toolTurn: turn > 0)
-                let (bytes, resp) = try await URLSession.shared.bytes(for: req)
-                guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
-                    throw URLError(.badServerResponse)
-                }
-                for try await line in bytes.lines {
-                    gate.tic()
-                    if applySSELine(line, state: &state, idx: idx, started: started) { break }
-                }
+                try await streamServerTurn(req, gate: gate, state: &state,
+                                           idx: idx, started: started)
                 flushTurn(state: state, idx: idx)
                 // T-343 최종 답변 TTFT: guard보다 먼저 (텍스트 턴은 guard에서 break).
                 if turn > 0, !hadFirstToken, let first = state.firstTokenAt {
@@ -170,6 +164,20 @@ extension ChatStore {
         }
         // T-278: 전체 종료 시 미닫힘 꼬리 답변 분리.
         flushText(idx: idx, acc: state.acc, thinkingAcc: state.thinkingAcc, final: true)
+    }
+
+    /// 한 턴의 SSE 응답 수신 (T-360 분리): 200 확인 후 라인별 상태 반영.
+    private func streamServerTurn(_ req: URLRequest, gate: StreamProgressGate,
+                                  state: inout SSEStreamState, idx: Int,
+                                  started: Date) async throws {
+        let (bytes, resp) = try await URLSession.shared.bytes(for: req)
+        guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+        for try await line in bytes.lines {
+            gate.tic()
+            if applySSELine(line, state: &state, idx: idx, started: started) { break }
+        }
     }
 
     /// 서버 무수신 워치독 시작 (T-344 분리): 20초마다 대기 로그, 60초에 전송 취소.

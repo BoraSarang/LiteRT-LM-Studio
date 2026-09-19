@@ -40,13 +40,16 @@ struct ScrollViewFinder: NSViewRepresentable {
     func makeCoordinator() -> Coord { Coord() }
 
     /// 조상 체인에서 NSScrollView 탐색 (순수 조회, 테스트 불가-AppKit).
+    /// T-360: `superview`가 MainActor 격리라 호출 스레드가 메인임을 단정한다.
     nonisolated static func find(from host: NSView) -> NSScrollView? {
-        var current: NSView? = host
-        while let candidate = current {
-            if let scrollView = candidate as? NSScrollView { return scrollView }
-            current = candidate.superview
+        MainActor.assumeIsolated {
+            var current: NSView? = host
+            while let candidate = current {
+                if let scrollView = candidate as? NSScrollView { return scrollView }
+                current = candidate.superview
+            }
+            return nil
         }
-        return nil
     }
 
     func makeNSView(context: Context) -> NSView {

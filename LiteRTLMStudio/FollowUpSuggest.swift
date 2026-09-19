@@ -195,47 +195,71 @@ final class FollowUpStore: ObservableObject {
         let kind = "LLM 요청"
         logger.info(feature: "후속질문", "\(kind) (\(chat.route.title)) idle=\(Int(idleDelay))s")
         let snapshotUserID = chat.messages.last(where: { $0.role == "user" })?.id
+        let pending = PendingRequest(messageID: messageID, prompt: prompt, chat: chat,
+                                     idleDelay: idleDelay, snapshotUserID: snapshotUserID,
+                                     started: started)
         task = Task { [weak self] in
-            guard let self else { return }
-            // T-347: idle 지연 — 응답 완료 후 새 전송이 없이 idleDelay 지나면 실행.
-            let waitStart = Date()
-            while Date().timeIntervalSince(waitStart) < idleDelay {
-                try? await Task.sleep(for: .milliseconds(200))
-                guard !Task.isCancelled, self.messageID == messageID else { return }
-                let currentUserID = chat.messages.last(where: { $0.role == "user" })?.id
-                guard !FollowUpSuggest.hasNewUserMessage(before: snapshotUserID, now: currentUserID)
-                else {
-                    self.loading = false // 새 전송 → 후속 LLM 기각 (안내 칩은 그대로)
-                    self.logger.info(feature: "후속질문", "새 전송 감지 — 후속 LLM 기각")
-                    return
-                }
-            }
-            let result: String?
-            if chat.route == .native, let engine = chat.inferenceEngine {
-                result = await Self.fetchNative(engine: engine, modelID: chat.model,
-                                                prompt: prompt)
-            } else {
-                result = await Self.fetchServer(baseURL: chat.baseURL, model: chat.model,
-                                                prompt: prompt)
-            }
+            await self?.performRequest(pending)
+        }
+    }
+
+    /// 실행 1회분 입력 묶음 (T-360): 파라미터 수 린트 회피.
+    private struct PendingRequest {
+        let messageID: UUID
+        let prompt: String
+        let chat: ChatStore
+        let idleDelay: TimeInterval
+        let snapshotUserID: UUID?
+        let started: Date
+    }
+
+    /// 후속질문 1회 실행 (T-360 분리): idle 지연 → 경로별 호출 → 파싱·로그.
+    private func performRequest(_ pending: PendingRequest) async {
+        let messageID = pending.messageID
+        let chat = pending.chat
+        let idleDelay = pending.idleDelay
+        let snapshotUserID = pending.snapshotUserID
+        let prompt = pending.prompt
+        let started = pending.started
+        guard !Task.isCancelled, self.messageID == messageID else { return }
+        // T-347: idle 지연 — 응답 완료 후 새 전송이 없이 idleDelay 지나면 실행.
+        let waitStart = Date()
+        while Date().timeIntervalSince(waitStart) < idleDelay {
+            try? await Task.sleep(for: .milliseconds(200))
             guard !Task.isCancelled, self.messageID == messageID else { return }
-            let elapsed = Date().timeIntervalSince(started)
-            // T-313: 스켈레톤 최소 노출 — 초고속 응답 시 깜빡임 방지.
-            let remainder = FollowUpSuggest.minDisplayRemainder(elapsed: elapsed)
-            if remainder > 0 {
-                try? await Task.sleep(nanoseconds: UInt64(remainder * 1_000_000_000))
+            let currentUserID = chat.messages.last(where: { $0.role == "user" })?.id
+            guard !FollowUpSuggest.hasNewUserMessage(before: snapshotUserID, now: currentUserID)
+            else {
+                self.loading = false // 새 전송 → 후속 LLM 기각 (안내 칩은 그대로)
+                self.logger.info(feature: "후속질문", "새 전송 감지 — 후속 LLM 기각")
+                return
             }
-            guard !Task.isCancelled, self.messageID == messageID else { return }
-            let parsed = result.map { FollowUpSuggest.parseFollowUps(from: $0) } ?? []
-            self.loading = false
-            if parsed.isEmpty {
-                self.logger.info(feature: "후속질문",
-                                 "실패·휴리스틱 폴백 (\(String(format: "%.1f", elapsed))s)")
-            } else {
-                self.chips = parsed
-                self.logger.info(feature: "후속질문",
-                                 "완료 \(parsed.count)개 (\(String(format: "%.1f", elapsed))s)")
-            }
+        }
+        let result: String?
+        if chat.route == .native, let engine = chat.inferenceEngine {
+            result = await Self.fetchNative(engine: engine, modelID: chat.model,
+                                            prompt: prompt)
+        } else {
+            result = await Self.fetchServer(baseURL: chat.baseURL, model: chat.model,
+                                            prompt: prompt)
+        }
+        guard !Task.isCancelled, self.messageID == messageID else { return }
+        let elapsed = Date().timeIntervalSince(started)
+        // T-313: 스켈레톤 최소 노출 — 초고속 응답 시 깜빡임 방지.
+        let remainder = FollowUpSuggest.minDisplayRemainder(elapsed: elapsed)
+        if remainder > 0 {
+            try? await Task.sleep(nanoseconds: UInt64(remainder * 1_000_000_000))
+        }
+        guard !Task.isCancelled, self.messageID == messageID else { return }
+        let parsed = result.map { FollowUpSuggest.parseFollowUps(from: $0) } ?? []
+        self.loading = false
+        if parsed.isEmpty {
+            self.logger.info(feature: "후속질문",
+                             "실패·휴리스틱 폴백 (\(String(format: "%.1f", elapsed))s)")
+        } else {
+            self.chips = parsed
+            self.logger.info(feature: "후속질문",
+                             "완료 \(parsed.count)개 (\(String(format: "%.1f", elapsed))s)")
         }
     }
 
@@ -322,82 +346,5 @@ final class FollowUpStore: ObservableObject {
             }
         } catch { return nil }
         return acc.isEmpty ? nil : acc
-    }
-}
-
-/// 후속질문 칩 행 (T-261): 어시스턴트 버블 직하·우측 정렬, 클릭 즉시 전송.
-struct FollowUpChipsView: View {
-    let chips: [String]
-    var disabled = false
-    var onTap: (String) -> Void = { _ in }
-
-    var body: some View {
-        HStack {
-            Spacer(minLength: 60)
-            VStack(alignment: .trailing, spacing: 6) {
-                ForEach(chips, id: \.self) { chip in
-                    Button { onTap(chip) } label: {
-                        Text(chip)
-                            .font(.system(size: 12))
-                            .lineLimit(1)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(DSColor.primary.opacity(0.12))
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .help("클릭하면 바로 전송")
-                    .disabled(disabled)
-                }
-            }
-        }
-        .transition(.opacity) // T-313: 스켈레톤→칩 크로스페이드
-    }
-}
-
-/// 후속질문 로딩 자리 (T-291/T-313): 칩과 동일 배치(Capsule·높이 28)의 스켈레톤 3개.
-/// 심머가 좌→우로 흐르고, 완료 시 칩으로 크로스페이드된다. 동작 줄이기 시 정적.
-struct FollowUpSkeletonView: View {
-    /// 칩 폭과 비슷한 길이 변주 (단조로움 완화).
-    private static let barWidths: [CGFloat] = [148, 120, 164]
-
-    var body: some View {
-        HStack {
-            Spacer(minLength: 60)
-            VStack(alignment: .trailing, spacing: 6) {
-                ForEach(Array(Self.barWidths.enumerated()), id: \.offset) { item in
-                    SkeletonBar(width: item.element)
-                }
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("후속 질문 생성 중")
-        .transition(.opacity) // T-313: 스켈레톤→칩 크로스페이드
-    }
-}
-
-/// 심머 스켈레톤 바 (T-313): 밝은 그라데이션이 좌→우로 지나간다.
-private struct SkeletonBar: View {
-    let width: CGFloat
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var phase: CGFloat = 0
-
-    var body: some View {
-        Capsule(style: .continuous)
-            .fill(Color.secondary.opacity(0.18))
-            .frame(width: width, height: 28)
-            .overlay {
-                if !reduceMotion {
-                    Capsule(style: .continuous)
-                        .fill(LinearGradient(
-                            colors: [.clear, Color.primary.opacity(0.14), .clear],
-                            startPoint: .leading, endPoint: .trailing))
-                        .offset(x: (phase * 2 - 1) * width)
-                        .animation(.linear(duration: 1.2).repeatForever(autoreverses: false),
-                                   value: phase)
-                }
-            }
-            .clipShape(Capsule(style: .continuous))
-            .onAppear { phase = 1 }
     }
 }

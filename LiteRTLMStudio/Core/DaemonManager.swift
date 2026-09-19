@@ -8,7 +8,7 @@ final class DaemonManager: ObservableObject {
     }
     static let host = "127.0.0.1"
 
-    static let port = 9379
+    nonisolated static let port = 9379
 
     /// 로그 시각 (T-094): HH:mm:ss.
     nonisolated static func logTimeString(_ date: Date) -> String {
