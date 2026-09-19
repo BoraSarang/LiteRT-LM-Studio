@@ -67,18 +67,24 @@ extension ChatStore {
                 messages[idx].toolCalls ?? [], with: state.toolAcc.finalized())
         }
         if state.toolAcc.finishReason == "tool_calls" {
-            logger.info(feature: "도구", "호출 감지 \(state.toolAcc.finalized().count)건")
+            let done = state.toolAcc.finalized()
+            let names = done.map(\.name).joined(separator: ", ")
+            logger.info(feature: "도구", "호출 감지 \(names) (\(done.count)건)")
         }
     }
 
     /// 서버 멀티턴 전송 (T-268 S-3): tool_calls 종료 시 로컬 실행 후 재전송, 최대 3턴.
     /// messages[]는 user/assistant만 유지, tool 턴은 요청 히스토리에만 포함.
+    /// T-343: 턴별 구간 타이밍+요청 크기 로그 (전체 TTFT와 분리 진단).
     func runServerTurns(prompt: String, image: ChatImage?, idx: Int, started: Date) async throws {
         var state = SSEStreamState(lastFlush: started)
         var extraHistory: [[String: Any]] = []
         var turn = 0
         while true {
             try Task.checkCancellation()
+            let legStart = Date()
+            let hadFirstToken = state.firstTokenAt != nil
+            logTurnRequest(turn: turn, extraHistory: extraHistory)
             let req = try chatRequest(prompt: prompt, image: image, extraHistory: extraHistory)
             let (bytes, resp) = try await URLSession.shared.bytes(for: req)
             guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
@@ -91,20 +97,54 @@ extension ChatStore {
             let calls = state.toolAcc.finalized()
             guard state.toolAcc.finishReason == "tool_calls",
                   !calls.isEmpty, turn < ServerToolHistory.maxTurns else { break }
-            turn += 1
-            let turnStart = Date()
-            extraHistory.append(ServerToolHistory.assistantMessage(calls: calls))
-            for call in calls {
-                extraHistory.append(ServerToolHistory.toolMessage(
-                    callID: call.callID, content: await executeServerTool(call)))
+            let names = calls.map(\.name).joined(separator: ", ")
+            logger.perf(feature: "도구",
+                        "\(turn + 1)턴 판단 \(Self.elapsed(from: legStart))s (\(names))")
+            if turn > 0, !hadFirstToken, let first = state.firstTokenAt {
+                logger.perf(feature: "채팅전송",
+                            "최종 답변 TTFT=\(Self.elapsed(from: legStart, to: first))s (재전송 후)")
             }
-            let outcomes = await ToolLedger.shared.drain(since: turnStart)
+            turn += 1
+            let execStart = Date()
+            extraHistory.append(ServerToolHistory.assistantMessage(calls: calls))
+            var toolChars = 0
+            for call in calls {
+                let content = await executeServerTool(call)
+                toolChars += content.count
+                extraHistory.append(ServerToolHistory.toolMessage(
+                    callID: call.callID, content: content))
+            }
+            logger.perf(feature: "도구",
+                        "\(turn)턴 실행 \(Self.elapsed(from: execStart))s 결과 \(toolChars)자")
+            let outcomes = await ToolLedger.shared.drain(since: execStart)
             mergeToolOutcomes(idx: idx, calls: calls, outcomes: outcomes)
             state.toolAcc = ToolCallAccumulator()
-            logger.info(feature: "도구", "서버 \(turn)턴 재전송 (\(calls.count)건 실행)")
+            logger.info(feature: "도구", "서버 \(turn)턴 재전송 (\(names), \(calls.count)건 실행)")
         }
         // T-278: 전체 종료 시 미닫힘 꼬리 답변 분리.
         flushText(idx: idx, acc: state.acc, thinkingAcc: state.thinkingAcc, final: true)
+    }
+
+    /// 턴 요청 크기 로그 (순수 조회+기록, T-343): 히스토리·도구결과·도구 수.
+    func logTurnRequest(turn: Int, extraHistory: [[String: Any]]) {
+        let historyChars = pastTurns().reduce(0) { $0 + $1.text.count }
+        let extraBytes = Self.jsonBytes(extraHistory)
+        let toolCount = LocalTools.registered().count
+        logger.info(feature: "채팅전송",
+                    "\(turn + 1)턴 요청 히스토리 \(historyChars)자 "
+                        + "도구결과 \(extraBytes)B 도구 \(toolCount)종")
+    }
+
+    /// 경과 초 포맷 (순수, T-343).
+    nonisolated static func elapsed(from: Date, to: Date = Date()) -> String {
+        String(format: "%.1f", to.timeIntervalSince(from))
+    }
+
+    /// JSON 바이트 수 (순수, T-343): 최상위 배열·객체가 아니면 0
+    /// (NSJSONSerialization은 그 외에 NSException을 던져 try?로 못 잡음).
+    nonisolated static func jsonBytes(_ value: Any) -> Int {
+        guard value is [Any] || value is [String: Any] else { return 0 }
+        return (try? JSONSerialization.data(withJSONObject: value))?.count ?? 0
     }
 
     /// 턴 종료 반영 (T-268): 본문·생각·칩 확정.
@@ -117,7 +157,8 @@ extension ChatStore {
         }
     }
 
-    /// 서버 도구 1건 실행 (T-268): 승인 게이트+원장 기록은 runTolled가 담당.
+    /// 서버 도구 1건 실행 (T-268): 승인 게이트+원장 기록은 각 도구 run() 내부
+    /// runTolled가 1회 담당. 여기서 또 감싸면 팝업·원장이 2번 발생한다 (T-343).
     func executeServerTool(_ call: ToolCallRecord) async -> String {
         guard let data = call.argumentsJSON.data(using: .utf8),
               let args = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -125,12 +166,17 @@ extension ChatStore {
                                            result: "인자 파싱 실패", denied: false, failed: true)
             return "인자 파싱 실패"
         }
-        let result = await LocalTools.runTolled(toolName: call.name, detail: call.argumentsJSON) {
-            try await ToolManager(tools: LocalTools.registered(permission: .allowAll))
+        do {
+            let result = try await ToolManager(tools: LocalTools.registered(permission: .allowAll))
                 .execute(name: call.name, arguments: args)
+            if let text = result as? String { return text }
+            return NativeEngine.jsonString(result)
+        } catch {
+            await ToolLedger.shared.record(toolName: call.name, detail: call.argumentsJSON,
+                                           result: "도구 실행 실패: \(error.localizedDescription)",
+                                           denied: false, failed: true)
+            return "도구 실행 실패: \(error.localizedDescription)"
         }
-        if let text = result as? String { return text }
-        return NativeEngine.jsonString(result)
     }
 
     /// 실행 결과 칩 반영 (T-268): 순서 매칭으로 상태·결과 부여.

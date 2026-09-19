@@ -1454,6 +1454,16 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         XCTAssertTrue(empty.isEmpty)
     }
 
+    /// 턴 진단 헬퍼 (T-343): 경과 포맷·JSON 바이트 수.
+    func testTurnDiagnostics() {
+        let from = Date()
+        let to = from.addingTimeInterval(2.34)
+        XCTAssertEqual(ChatStore.elapsed(from: from, to: to), "2.3")
+        XCTAssertEqual(ChatStore.jsonBytes([] as [String]), 2)
+        XCTAssertGreaterThan(ChatStore.jsonBytes(["a": 1]), 2)
+        XCTAssertEqual(ChatStore.jsonBytes("not-json"), 0)
+    }
+
     /// 서버 히스토리 조립 (T-268 S-3): assistant/tool 메시지 형상.
     func testServerToolHistory() {
         let calls = [ToolCallRecord(callID: "c1", name: "get_time", argumentsJSON: "{}")]
