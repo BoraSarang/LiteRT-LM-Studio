@@ -1985,6 +1985,166 @@
         }
       }
     },
+    "exa.checking": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인 중…"
+          }
+        }
+      }
+    },
+    "exa.key.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The key is stored only on this Mac. Web tools are offered to the model only when a key is present. Get one at https://dashboard.exa.ai"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "키는 이 Mac에만 저장됩니다. 웹 도구는 키가 있을 때만 모델에게 전달됩니다. 발급: https://dashboard.exa.ai"
+          }
+        }
+      }
+    },
+    "exa.key.get": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get a key"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "키 발급"
+          }
+        }
+      }
+    },
+    "exa.key.missing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Exa API key"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exa API 키 없음"
+          }
+        }
+      }
+    },
+    "exa.key.placeholder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exa API key (x-api-key)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exa API 키 (x-api-key)"
+          }
+        }
+      }
+    },
+    "exa.key.set": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exa API key is set"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exa API 키 설정됨"
+          }
+        }
+      }
+    },
+    "exa.test.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A response arrived but the results were empty."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "응답은 왔으나 결과가 비었습니다."
+          }
+        }
+      }
+    },
+    "exa.test.failure": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed · %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실패 · %@"
+          }
+        }
+      }
+    },
+    "exa.test.success": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Success · %@ — %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "성공 · %@ — %@"
+          }
+        }
+      }
+    },
+    "exa.test.successPrefix": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Success"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "성공"
+          }
+        }
+      }
+    },
     "followUp.example": {
       "localizations": {
         "en": {
@@ -3741,6 +3901,278 @@
           "stringUnit": {
             "state": "translated",
             "value": "시스템"
+          }
+        }
+      }
+    },
+    "mcp.add": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Server"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 추가"
+          }
+        }
+      }
+    },
+    "mcp.add.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "External tool calls raise a confirmation dialog under the Ask every time permission. Only stdio commands you entered yourself are executed."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "외부 도구 호출은 매번 묻기 권한에서 확인 팝업이 뜹니다. stdio 명령은 직접 입력한 것만 실행됩니다."
+          }
+        }
+      }
+    },
+    "mcp.connected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected (%d tools)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결 성공 (도구 %d건)"
+          }
+        }
+      }
+    },
+    "mcp.delete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "삭제"
+          }
+        }
+      }
+    },
+    "mcp.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No MCP servers registered. Use the Add button to connect a stdio or SSE server."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록된 MCP 서버 없음. 추가 버튼으로 stdio·SSE 서버를 연결하세요."
+          }
+        }
+      }
+    },
+    "mcp.failed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection failed: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결 실패: %@"
+          }
+        }
+      }
+    },
+    "mcp.test": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "테스트"
+          }
+        }
+      }
+    },
+    "mcpAdd.args": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arguments (space separated, e.g. -y exa)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "인자 (공백 구분, 예: -y exa)"
+          }
+        }
+      }
+    },
+    "mcpAdd.cancel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "취소"
+          }
+        }
+      }
+    },
+    "mcpAdd.command": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command (e.g. npx)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "명령 (예: npx)"
+          }
+        }
+      }
+    },
+    "mcpAdd.name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name (e.g. exa)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름 (예: exa)"
+          }
+        }
+      }
+    },
+    "mcpAdd.save": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장"
+          }
+        }
+      }
+    },
+    "mcpAdd.sse": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSE (remote URL)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSE (원격 URL)"
+          }
+        }
+      }
+    },
+    "mcpAdd.stdio": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "stdio (local command)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "stdio (로컬 명령)"
+          }
+        }
+      }
+    },
+    "mcpAdd.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add MCP Server"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP 서버 추가"
+          }
+        }
+      }
+    },
+    "mcpAdd.transport": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transport"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전송"
+          }
+        }
+      }
+    },
+    "mcpAdd.url": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL (http(s) only, e.g. http://127.0.0.1:3333/mcp)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL (http(s)만, 예: http://127.0.0.1:3333/mcp)"
           }
         }
       }
@@ -7249,6 +7681,134 @@
         }
       }
     },
+    "skill.addFolder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Folder"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "폴더 추가"
+          }
+        }
+      }
+    },
+    "skill.externalRoots": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "External Skill Folders"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "외부 스킬 폴더"
+          }
+        }
+      }
+    },
+    "skill.import": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가져오기"
+          }
+        }
+      }
+    },
+    "skill.noSkillMD": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No SKILL.md. Add one via Open Folder, or copy an external skill with Import."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SKILL.md 없음. 폴더 열기로 직접 넣거나, 가져오기로 외부 스킬을 복사하세요."
+          }
+        }
+      }
+    },
+    "skill.openFolder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Folder"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "폴더 열기"
+          }
+        }
+      }
+    },
+    "skill.prefixNote": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enabled skill bodies are prepended to the system prompt (8KB total cap). Applied from the next send."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "켜진 스킬 본문이 시스템 프롬프트 앞에 들어갑니다 (합계 8KB cap). 다음 전송부터 적용."
+          }
+        }
+      }
+    },
+    "skill.refresh": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새로고침"
+          }
+        }
+      }
+    },
+    "skill.remove": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제거"
+          }
+        }
+      }
+    },
     "skill.source.other": {
       "localizations": {
         "en": {
@@ -7261,6 +7821,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "기타"
+          }
+        }
+      }
+    },
+    "skill.tab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skills"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "스킬"
           }
         }
       }
@@ -7437,6 +8013,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "스킬 가져오기"
+          }
+        }
+      }
+    },
+    "skillRoots.add": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가"
+          }
+        }
+      }
+    },
+    "skillRoots.pickMessage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a skill (SKILL.md) folder."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "스킬(SKILL.md) 폴더를 선택하세요."
           }
         }
       }
