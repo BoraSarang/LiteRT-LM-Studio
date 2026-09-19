@@ -22,7 +22,7 @@ struct FollowUpChipsView: View {
                             .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
-                    .help("클릭하면 바로 전송")
+                    .help(L(L10n.FollowUp.sendHelp))
                     .disabled(disabled)
                 }
             }
@@ -47,7 +47,7 @@ struct FollowUpSkeletonView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("후속 질문 생성 중")
+        .accessibilityLabel(L(L10n.FollowUp.generating))
         .transition(.opacity) // T-313: 스켈레톤→칩 크로스페이드
     }
 }

@@ -62,6 +62,8 @@ extension L10n {
         static let fallbackExample = L10nKey("followUp.fallback.example")
         static let fallbackSummary = L10nKey("followUp.fallback.summary")
         static let fallbackRelated = L10nKey("followUp.fallback.related")
+        static let sendHelp = L10nKey("followUp.sendHelp")
+        static let generating = L10nKey("followUp.generating")
     }
 
     // MARK: 설정

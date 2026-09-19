@@ -4145,6 +4145,22 @@
         }
       }
     },
+    "followUp.generating": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generating follow-up questions"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "후속 질문 생성 중"
+          }
+        }
+      }
+    },
     "followUp.more": {
       "localizations": {
         "en": {
@@ -4173,6 +4189,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "다음에 뭘 물어보면 좋을까?"
+          }
+        }
+      }
+    },
+    "followUp.sendHelp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to send right away"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "클릭하면 바로 전송"
           }
         }
       }
