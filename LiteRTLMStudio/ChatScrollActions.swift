@@ -66,7 +66,8 @@ extension ContentView {
         followGate.lastWheel = .distantPast
         followGate.wheelAccum = 0
         followGate.lastContent = 0 // T-048 이전 세션 문서 높이 잔재 제거
-        followGate.maxTextLen = chat.messages.last?.text.count ?? 0 // T-106 텍스트 기준 초기화
+        followGate.maxTextLen = Self.streamedLength(text: chat.messages.last?.text,
+                                                    thinking: chat.messages.last?.thinking) // T-289 합산 기준 통일
         pauseNotified = false
         logger.info(feature: "스크롤", "채팅 전환 — 하단 이동")
         // T-153 진입 즉시 점프: 폴링(min 1.2초) 전 빈 화면·상단 노출 방지. finder 부착 전이면 no-op.
@@ -288,7 +289,8 @@ extension ContentView {
         followGate.lastWheel = .distantPast
         followGate.wheelAccum = 0
         followGate.lastContent = 0 // 다음 토큰 증가 감지 보장
-        followGate.maxTextLen = chat.messages.last?.text.count ?? 0 // T-106 텍스트 기준 초기화
+        followGate.maxTextLen = Self.streamedLength(text: chat.messages.last?.text,
+                                                    thinking: chat.messages.last?.thinking) // T-289 합산 기준 통일
         pauseNotified = false
         guard let promptID = chat.messages.dropLast().last(where: { $0.role == "user" })?.id else {
             logger.info(feature: "스크롤", "전송 — 질문행 없음, 하단 이동")

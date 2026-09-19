@@ -1,5 +1,10 @@
 import Foundation
 
+/// 세션 코딩 키 (T-289: 타입 중첩 깊이 해소 — `Session` 밖 파일 스코프).
+private enum SessionCodingKeys: String, CodingKey {
+    case id, title, updatedAt, createdAt, pinned, customTitle
+}
+
 /// OpenAI 호환 /v1/chat/completions 스트리밍 채팅 (PLAN_v3 T-032 세션/영속).
 @MainActor
 final class ChatStore: ObservableObject {
@@ -35,10 +40,6 @@ final class ChatStore: ObservableObject {
             return title
         }
 
-        enum CodingKeys: String, CodingKey {
-            case id, title, updatedAt, createdAt, pinned, customTitle
-        }
-
         init(id: UUID = UUID(), title: String, updatedAt: Date = Date(),
              createdAt: Date = Date(), pinned: Bool = false, customTitle: String? = nil) {
             self.id = id
@@ -51,7 +52,7 @@ final class ChatStore: ObservableObject {
 
         /// 구 JSON 호환 디코딩 (T-058): 신필드 없으면 기본값.
         init(from decoder: Decoder) throws {
-            let c = try decoder.container(keyedBy: CodingKeys.self)
+            let c = try decoder.container(keyedBy: SessionCodingKeys.self)
             id = try c.decode(UUID.self, forKey: .id)
             title = try c.decode(String.self, forKey: .title)
             updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()

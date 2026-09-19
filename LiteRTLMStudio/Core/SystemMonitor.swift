@@ -227,10 +227,16 @@ final class SystemMonitor: ObservableObject {
         (sys, sys + user)
     }
 
+    /// RAM 누적 스택 값 (T-289: large_tuple 해소).
+    struct RAMStack {
+        let app: Double
+        let appWired: Double
+        let total: Double
+    }
+
     /// RAM 누적 스택: 아래=App, 중간=App+Wired, 위=App+Wired+압축. 교차 없음.
-    nonisolated static func ramStacked(app: Double, wired: Double, comp: Double)
-        -> (app: Double, appWired: Double, total: Double) {
-        (app, app + wired, app + wired + comp)
+    nonisolated static func ramStacked(app: Double, wired: Double, comp: Double) -> RAMStack {
+        RAMStack(app: app, appWired: app + wired, total: app + wired + comp)
     }
 
     /// 절대 틱 기준 X 도메인 (최근 60틱 고정, 데이터 적으면 오른쪽부터 채워짐).

@@ -87,23 +87,30 @@ final class DaemonManager: ObservableObject {
         muted && healthy
     }
 
+    /// 상태 전이 결과 (T-289: large_tuple 해소).
+    struct Transition: Equatable {
+        let status: Status
+        let external: Bool
+        let streak: Int
+    }
+
     /// 상태 전이표 (순수, 테스트 가능).
     nonisolated static func transition(status: Status, external: Bool, muted: Bool,
-                                       healthy: Bool, streak: Int) -> (status: Status, external: Bool, streak: Int) {
+                                       healthy: Bool, streak: Int) -> Transition {
         if healthy {
             // 시작 중(start 루프 담당)은 폴러가 건드리지 않는다.
-            if status == .starting { return (status, external, 0) }
-            if status == .running { return (.running, external, 0) }
-            if muted { return (.stopped, false, 0) } // 명시적 해제까지 재연결 억제
-            return (.running, true, 0) // 외부 기동 감지·연결
+            if status == .starting { return Transition(status: status, external: external, streak: 0) }
+            if status == .running { return Transition(status: .running, external: external, streak: 0) }
+            if muted { return Transition(status: .stopped, external: false, streak: 0) } // 재연결 억제
+            return Transition(status: .running, external: true, streak: 0) // 외부 기동 감지·연결
         }
         // unhealthy
         if status == .running {
             let next = streak + 1
-            if next >= 3 { return (.failed, false, 0) } // 3회 연속 (≈9s) → 죽음 확정
-            return (.running, external, next)
+            if next >= 3 { return Transition(status: .failed, external: false, streak: 0) } // 죽음 확정
+            return Transition(status: .running, external: external, streak: next)
         }
-        return (status, external, 0)
+        return Transition(status: status, external: external, streak: 0)
     }
 
     func start() async {
