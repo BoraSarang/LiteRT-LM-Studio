@@ -106,7 +106,7 @@ enum EngineError: Error, Equatable {
     case inferenceFailed(String)
     case timeout(String) // T-311: 응답 스톨 워치독 발화
 
-    /// error_message_ko.json 키.
+    /// ErrorCatalog 키 (T-366: 카탈로그 `error.<코드>`).
     var code: String {
         switch self {
         case .notReady, .initFailed: "E-MAC-ENG-0001"

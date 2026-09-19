@@ -3889,6 +3889,470 @@
         }
       }
     },
+    "error.E-MAC-ENG-0001": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not initialize the in-app engine. Check the model file and available memory."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 내 엔진 초기화에 실패했습니다. 모델 파일과 메모리를 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-ENG-0002": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In-app engine inference failed. Switch to another engine mode and try again."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 내 엔진 추론에 실패했습니다. 다른 엔진 모드로 바꿔 다시 시도해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-ENG-0003": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The litert-lm update failed. Run `uv tool upgrade litert-lm` in the terminal."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "litert-lm 업데이트가 실패했습니다. 터미널에서 `uv tool upgrade litert-lm`을 직접 실행해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-ENG-0004": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tool execution failed. Check the tool chip status in the conversation."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "도구 실행이 실패했습니다. 대화의 도구 칩 상태를 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-ENG-0005": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopped because generation stalled. Please try again."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "응답 생성이 멈춰 중지했습니다. 다시 시도해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-ENG-0006": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The in-app engine stream ended with an error. Check the detail lines in the debug panel."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 내 엔진 스트림이 오류로 종료되었습니다. 디버그 패널의 상세 줄을 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-EXEC-0001": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to install or run wigolo. Check the status in Settings and the terminal log."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "wigolo 설치·실행에 실패했습니다. 설정의 상태와 터미널 로그를 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-EXEC-0002": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "npm not found. Install Node.js and try again."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "npm을 찾을 수 없습니다. Node.js 설치 후 다시 시도해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-NET-0002": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port 9379 is already in use. Stop the existing server and try again."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "포트 9379가 이미 사용 중입니다. 기존 서버를 중지한 뒤 다시 시도해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-NET-0004": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server exited unexpectedly. Check the log."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버가 비정상 종료되었습니다. 로그를 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-NET-0005": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The chat request failed. Check the server status."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "채팅 요청이 실패했습니다. 서버 상태를 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-NET-0006": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopped because the server did not respond for 60 seconds. Check the daemon and try again."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 응답이 60초간 없어 중단했습니다. 데몬 상태를 확인한 뒤 다시 시도해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-NET-0010": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The daemon is running but no benchmark target was found. Copy the detail lines from the debug panel and share them."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "데몬이 실행 중인데 측정 대상을 찾지 못했습니다. 디버그 패널의 상세 줄을 복사해 알려주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-NET-0013": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not fetch the model list. Check the network connection and try again."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모델 목록 조회가 실패했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-NET-0014": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not fetch the release notes. Showing saved notes."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새소식 조회가 실패했습니다. 저장된 소식을 보여줍니다."
+          }
+        }
+      }
+    },
+    "error.E-MAC-NET-0015": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Web search failed. Check the network connection and the wigolo daemon."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "웹 검색이 실패했습니다. 네트워크 연결과 wigolo 데몬을 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-NET-0016": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not connect to or call the MCP server. Check the connection in Settings > MCP."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP 서버 연결·호출에 실패했습니다. 설정 MCP 탭에서 연결을 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-PERM-0011": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot run because permission is off. Change the permission in Settings."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "권한이 꺼져 있어 실행할 수 없습니다. 설정에서 권한을 바꿔 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-PERM-0016": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System permission is required. Allow Calendar and Reminders access in System Settings > Privacy & Security."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시스템 권한이 필요합니다. 시스템 설정 > 개인정보 보호 및 보안에서 캘린더·미리 알림 접근을 허용해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-STOR-0003": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No registered model. Import a model and try again."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록된 모델이 없습니다. 모델을 가져온 뒤 다시 시도해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-STOR-0006": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model import failed. Check storage space and the network."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모델 가져오기가 실패했습니다. 저장 공간과 네트워크를 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-STOR-0009": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not write the settings file. Check write permission for ~/.litert-lm/."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정 파일 쓰기가 실패했습니다. ~/.litert-lm/ 쓰기 권한을 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-STOR-0012": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not rename the model. Check whether the ID is duplicated."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모델 이름 변경이 실패했습니다. 중복된 ID인지 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-STOR-0013": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some files failed to move into the app data folder. It will retry on the next launch."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 데이터 폴더로 옮기는 중 일부 파일이 실패했습니다. 다음 실행에 다시 시도합니다."
+          }
+        }
+      }
+    },
+    "error.E-MAC-STOR-0014": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skill import failed. Check permission on the source folder."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "스킬 가져오기가 실패했습니다. 원본 폴더 권한을 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-VALID-0001": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "uv not found. Check the /opt/homebrew/bin/uv path."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "uv를 찾을 수 없습니다. /opt/homebrew/bin/uv 경로를 확인해 주세요."
+          }
+        }
+      }
+    },
+    "error.E-MAC-VALID-0007": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This model does not support reasoning."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 모델은 추론을 지원하지 않습니다."
+          }
+        }
+      }
+    },
+    "error.E-MAC-VALID-0008": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This model does not support function calling."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 모델은 함수 호출을 지원하지 않습니다."
+          }
+        }
+      }
+    },
+    "error.E-MAC-VALID-0017": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not understand the date. Try again in the form 'tomorrow at 3 PM'."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "날짜를 이해하지 못했습니다. '내일 오후 3시'처럼 다시 말해 주세요."
+          }
+        }
+      }
+    },
     "exa.checking": {
       "localizations": {
         "en": {

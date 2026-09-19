@@ -37,7 +37,6 @@
 				100000000000000000000003,
 				100000000000000000000005,
 				100000000000000000000006,
-				500000000000000000000026,
 			);
 			sourceTree = "<group>";
 		};
@@ -113,6 +112,7 @@
 				500000000000000000000166,
 				500000000000000000000167,
 				500000000000000000000168,
+				500000000000000000000169,
 				500000000000000000000164,
 				500000000000000000000024,
 				500000000000000000000027,
@@ -339,6 +339,7 @@
 				400000000000000000000166,
 				400000000000000000000167,
 				400000000000000000000164,
+				400000000000000000000169,
 				400000000000000000000012,
 				400000000000000000000013,
 				400000000000000000000052,
@@ -404,7 +405,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				400000000000000000000016,
 				400000000000000000000018,
 				400000000000000000000094,
 				400000000000000000000095,
@@ -442,7 +442,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				400000000000000000000017,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -543,14 +542,13 @@
 		400000000000000000000166 = { isa = PBXBuildFile; fileRef = 500000000000000000000166; };
 		400000000000000000000167 = { isa = PBXBuildFile; fileRef = 500000000000000000000167; };
 		400000000000000000000168 = { isa = PBXBuildFile; fileRef = 500000000000000000000168; };
+		400000000000000000000169 = { isa = PBXBuildFile; fileRef = 500000000000000000000169; };
 		400000000000000000000164 = { isa = PBXBuildFile; fileRef = 500000000000000000000164; };
 		400000000000000000000012 = { isa = PBXBuildFile; fileRef = 500000000000000000000022; };
 		400000000000000000000013 = { isa = PBXBuildFile; fileRef = 500000000000000000000023; };
 		400000000000000000000052 = { isa = PBXBuildFile; fileRef = 500000000000000000000064; };
 		400000000000000000000014 = { isa = PBXBuildFile; fileRef = 500000000000000000000024; };
 		400000000000000000000015 = { isa = PBXBuildFile; fileRef = 500000000000000000000025; };
-		400000000000000000000016 = { isa = PBXBuildFile; fileRef = 500000000000000000000026; };
-		400000000000000000000017 = { isa = PBXBuildFile; fileRef = 500000000000000000000026; };
 		400000000000000000000018 = { isa = PBXBuildFile; fileRef = 500000000000000000000027; };
 		400000000000000000000019 = { isa = PBXBuildFile; fileRef = 500000000000000000000028; };
 		400000000000000000000088 = { isa = PBXBuildFile; fileRef = 500000000000000000000088; };
@@ -705,6 +703,7 @@
 		500000000000000000000164 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeysScreens.swift"; sourceTree = "<group>"; };
 		500000000000000000000167 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeysCore.swift"; sourceTree = "<group>"; };
 		500000000000000000000168 = { isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = "InfoPlist.xcstrings"; sourceTree = "<group>"; };
+		500000000000000000000169 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/ErrorCatalog.swift"; sourceTree = "<group>"; };
 		500000000000000000000166 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeysViews.swift"; sourceTree = "<group>"; };
 		500000000000000000000165 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeysModels.swift"; sourceTree = "<group>"; };
 		500000000000000000000163 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeyIndex.swift"; sourceTree = "<group>"; };
@@ -714,7 +713,6 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = EngineVendor;
 		};
-		500000000000000000000026 = { isa = PBXFileReference; lastKnownFileType = text.json; path = "error_message_ko.json"; sourceTree = SOURCE_ROOT; };
 		500000000000000000000027 = { isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets.xcassets"; sourceTree = "<group>"; };
 		500000000000000000000028 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownView.swift"; sourceTree = "<group>"; };
 		500000000000000000000088 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/CodeHighlight.swift"; sourceTree = "<group>"; };

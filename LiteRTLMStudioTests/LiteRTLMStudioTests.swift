@@ -4,21 +4,20 @@ import XCTest
 
 /// smoke: 에러 메시지 매핑 무결성 (한국어 분리 파일 로드).
 final class LiteRTLMStudioTests: LiteRTLMStudioTestCase {
-    func testErrorMessagesKorean() throws {
-        // 번들 리소스에서 로드: 문서 폴더 TCC 접근 회피 (프로젝트가 ~/Documents 하위).
-        // error_message_ko.json은 테스트 타깃 Copy Bundle Resources에 포함.
-        let bundle = Bundle(for: LiteRTLMStudioTests.self)
-        guard let jsonURL = bundle.url(forResource: "error_message_ko", withExtension: "json") else {
-            XCTFail("error_message_ko.json이 테스트 번들에 없음 (Copy Bundle Resources 확인)")
-            return
+    /// 오류 코드 대조표 (T-366): 코드 전수가 카탈로그에 ko·en으로 존재한다.
+    /// 기존 `error_message_ko.json`(한국어 단일 파일)을 카탈로그로 이관한 뒤의 안전망.
+    func testErrorCatalogCoversAllCodes() {
+        XCTAssertEqual(ErrorCatalog.codes.count, 29)
+        XCTAssertEqual(Set(ErrorCatalog.codes).count, 29, "중복 코드")
+        for language in [AppLanguage.ko, .en] {
+            setAppLanguageForTesting(language)
+            for code in ErrorCatalog.codes {
+                let message = ErrorCatalog.message(code)
+                XCTAssertNotEqual(message, ErrorCatalog.key(code).raw,
+                                  "\(language.rawValue) 미해석: \(code)")
+                XCTAssertGreaterThan(message.count, 5, "\(language.rawValue) 문구 없음: \(code)")
+            }
         }
-        let data = try Data(contentsOf: jsonURL)
-        let dict = try JSONSerialization.jsonObject(with: data) as? [String: String]
-        XCTAssertNotNil(dict?["E-MAC-VALID-0001"])
-        XCTAssertNotNil(dict?["E-MAC-NET-0002"])
-        XCTAssertNotNil(dict?["E-MAC-NET-0006"])
-        XCTAssertNotNil(dict?["E-MAC-ENG-0001"])
-        XCTAssertNotNil(dict?["E-MAC-ENG-0002"])
     }
 
     func testDaemonDefaults() {
