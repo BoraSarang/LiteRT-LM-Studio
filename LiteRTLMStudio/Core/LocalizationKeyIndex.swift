@@ -200,7 +200,27 @@ private let l10nKeyIndex: [L10nKey] = [
     "palette.section.commands", "palette.section.chats", "palette.section.benchmarks",
     "palette.empty", "palette.busy", "palette.rename.title",
     "palette.rename.note", "palette.rename.placeholder", "palette.cancel",
-    "palette.save"
+    "palette.save", "catalog.searchPlaceholder", "catalog.toRecommended",
+    "catalog.recommended", "catalog.seeAll", "catalog.installed",
+    "catalog.notInstalled", "catalog.count", "catalog.noResults",
+    "catalog.noResultsDetail", "catalog.loading", "catalog.loadMore",
+    "catalog.updatedToday", "catalog.updatedDaysAgo", "catalog.installedSummary",
+    "catalog.open", "catalog.pickModel", "catalog.pickModelDetail",
+    "catalog.copyRepoID", "catalog.updatedTodayFull", "catalog.updatedDaysAgoFull",
+    "catalog.params", "catalog.numbersNote", "catalog.downloadOptions",
+    "catalog.noLiteFile", "catalog.fileSelect", "catalog.localModelID",
+    "catalog.download", "catalog.hfToken", "catalog.hfTokenHelp",
+    "catalog.manualDownload", "catalog.manualDownloadHelp", "catalog.permissionOff",
+    "catalog.duplicateDownload", "catalog.downloadRequested", "catalog.downloadFailed",
+    "catalog.unknownCause", "catalog.supportNote", "catalog.modelDescription",
+    "catalog.noDescription", "import.title", "import.fetchNew",
+    "import.close", "import.startDownload", "import.stepModel",
+    "import.stepFile", "import.stepSave", "import.stepProgress",
+    "import.recommended", "import.manualEntry", "import.repoPlaceholder",
+    "import.repoPage", "import.checkFileHelp", "import.pickFile",
+    "import.filePlaceholder", "import.localIDPlaceholder", "import.tokenPlaceholder",
+    "import.duplicate", "import.pending", "import.badRepo",
+    "import.noLiteFile", "import.fetchFailed"
 ]
 
 extension L10n {

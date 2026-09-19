@@ -47,7 +47,7 @@ struct ImportSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("새 모델 가져오기").font(.system(size: 13, weight: .semibold))
+            Text(L(L10n.Import.title)).font(.system(size: 13, weight: .semibold))
             modelSection
             fileSection
             storeSection
@@ -55,15 +55,15 @@ struct ImportSheet: View {
             HStack {
                 Spacer()
                 if locked {
-                    Button("새로 받기") {
+                    Button(L(L10n.Import.fetchNew)) {
                         activeItem = nil
                         locked = false
                     }
                     .disabled(activeItem?.downloader.isDownloading == true)
-                    Button("닫기") { dismiss() }
+                    Button(L(L10n.Import.close)) { dismiss() }
                 } else {
-                    Button("닫기") { dismiss() }
-                    Button("다운로드 시작") { startDownload() }
+                    Button(L(L10n.Import.close)) { dismiss() }
+                    Button(L(L10n.Import.startDownload)) { startDownload() }
                         .buttonStyle(.borderedProminent)
                         .disabled(!canStart)
                 }
@@ -82,10 +82,10 @@ struct ImportSheet: View {
 
     private var modelSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("1 · 모델").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+            Text(L(L10n.Import.stepModel)).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
             Picker("", selection: $usePreset) {
-                Text("추천 목록").tag(true)
-                Text("직접 입력").tag(false)
+                Text(L(L10n.Import.recommended)).tag(true)
+                Text(L(L10n.Import.manualEntry)).tag(false)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -103,7 +103,7 @@ struct ImportSheet: View {
                     scheduleFetch()
                 }
             } else {
-                TextField("저장소 (org/repo)", text: $repo)
+                TextField(L(L10n.Import.repoPlaceholder), text: $repo)
                     .textFieldStyle(.roundedBorder)
                     .disabled(locked)
             }
@@ -115,18 +115,18 @@ struct ImportSheet: View {
     private var fileSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Text("2 · 파일").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                Text(L(L10n.Import.stepFile)).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
                 if fetching {
                     ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
                 }
                 Spacer()
-                Button("저장소 페이지") {
+                Button(L(L10n.Import.repoPage)) {
                     if let url = ModelDownload.repoPageURL(repo: effectiveRepo) {
                         NSWorkspace.shared.open(url)
                     }
                 }
                 .buttonStyle(.link).font(DS.captionFont)
-                .help("파일명을 Files 탭에서 확인")
+                .help(L(L10n.Import.checkFileHelp))
             }
             if !siblings.isEmpty {
                 Picker("", selection: $fileIndex) {
@@ -137,9 +137,9 @@ struct ImportSheet: View {
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .disabled(locked)
-                .help(siblings.indices.contains(fileIndex) ? siblings[fileIndex] : "파일 선택")
+                .help(siblings.indices.contains(fileIndex) ? siblings[fileIndex] : L(L10n.Import.pickFile))
             } else {
-                TextField("파일명 (예: gemma-4-E2B-it.litertlm)", text: $customFile)
+                TextField(L(L10n.Import.filePlaceholder), text: $customFile)
                     .textFieldStyle(.roundedBorder)
                     .disabled(locked)
             }
@@ -154,15 +154,15 @@ struct ImportSheet: View {
 
     private var storeSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("3 · 저장").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
-            TextField("로컬 모델 ID (예: gemma4-e2b)", text: $localID)
+            Text(L(L10n.Import.stepSave)).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+            TextField(L(L10n.Import.localIDPlaceholder), text: $localID)
                 .textFieldStyle(.roundedBorder)
                 .disabled(locked)
-            SecureField("Hugging Face 토큰 (비공개 저장소만)", text: $token)
+            SecureField(L(L10n.Import.tokenPlaceholder), text: $token)
                 .textFieldStyle(.roundedBorder)
                 .disabled(locked)
             if duplicateActive {
-                Text("같은 파일을 이미 받는 중입니다.")
+                Text(L(L10n.Import.duplicate))
                     .font(DS.captionFont).foregroundStyle(DSColor.warning)
             }
         }
@@ -172,11 +172,11 @@ struct ImportSheet: View {
 
     private var progressSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("4 · 진행").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+            Text(L(L10n.Import.stepProgress)).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
             if let item = activeItem {
                 DownloadRow(item: item, center: center, models: models)
             } else {
-                Text("대기 중 — 다운로드 시작을 누르면 여기에 표시됩니다.")
+                Text(L(L10n.Import.pending))
                     .font(DS.captionFont).foregroundStyle(.secondary)
             }
         }
@@ -199,7 +199,7 @@ struct ImportSheet: View {
         fetchError = nil
         defer { fetching = false }
         guard let url = ModelDownload.siblingsURL(repo: effectiveRepo) else {
-            fetchError = "저장소 주소가 올바르지 않습니다."
+            fetchError = L(L10n.Import.badRepo)
             return
         }
         var req = URLRequest(url: url)
@@ -212,10 +212,10 @@ struct ImportSheet: View {
             siblings = files
             fileIndex = 0
             if files.isEmpty {
-                fetchError = "`.litertlm` 없음 — 저장소·토큰 확인 또는 파일명 직접 입력."
+                fetchError = L(L10n.Import.noLiteFile)
             }
         } catch {
-            fetchError = "목록 조회 실패: \(error.localizedDescription)"
+            fetchError = L(L10n.Import.fetchFailed, error.localizedDescription)
         }
     }
 
