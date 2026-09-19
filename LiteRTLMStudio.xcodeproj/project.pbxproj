@@ -98,6 +98,10 @@
 				500000000000000000000147,
 				500000000000000000000148,
 				500000000000000000000149,
+				500000000000000000000150,
+				500000000000000000000151,
+				500000000000000000000152,
+				500000000000000000000153,
 				500000000000000000000024,
 				500000000000000000000027,
 				500000000000000000000028,
@@ -359,6 +363,10 @@
 				400000000000000000000147,
 				400000000000000000000148,
 				400000000000000000000149,
+				400000000000000000000150,
+				400000000000000000000151,
+				400000000000000000000152,
+				400000000000000000000153,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -493,6 +501,10 @@
 		400000000000000000000147 = { isa = PBXBuildFile; fileRef = 500000000000000000000147; };
 		400000000000000000000148 = { isa = PBXBuildFile; fileRef = 500000000000000000000148; };
 		400000000000000000000149 = { isa = PBXBuildFile; fileRef = 500000000000000000000149; };
+		400000000000000000000150 = { isa = PBXBuildFile; fileRef = 500000000000000000000150; };
+		400000000000000000000151 = { isa = PBXBuildFile; fileRef = 500000000000000000000151; };
+		400000000000000000000152 = { isa = PBXBuildFile; fileRef = 500000000000000000000152; };
+		400000000000000000000153 = { isa = PBXBuildFile; fileRef = 500000000000000000000153; };
 		400000000000000000000012 = { isa = PBXBuildFile; fileRef = 500000000000000000000022; };
 		400000000000000000000013 = { isa = PBXBuildFile; fileRef = 500000000000000000000023; };
 		400000000000000000000052 = { isa = PBXBuildFile; fileRef = 500000000000000000000064; };
@@ -614,6 +626,10 @@
 		500000000000000000000134 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/WigoloManager.swift"; sourceTree = "<group>"; };
 		500000000000000000000135 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/ToolCatalog.swift"; sourceTree = "<group>"; };
 		500000000000000000000136 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/ShellTools.swift"; sourceTree = "<group>"; };
+		500000000000000000000150 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/KoreanDateParser.swift"; sourceTree = "<group>"; };
+		500000000000000000000151 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/SystemTools.swift"; sourceTree = "<group>"; };
+		500000000000000000000152 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/EventKitTools.swift"; sourceTree = "<group>"; };
+		500000000000000000000153 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsShortcutsSection.swift"; sourceTree = "<group>"; };
 		500000000000000000000137 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/NativeEngine+Backends.swift"; sourceTree = "<group>"; };
 		500000000000000000000138 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/MCPClient.swift"; sourceTree = "<group>"; };
 		500000000000000000000139 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/MCPStore.swift"; sourceTree = "<group>"; };

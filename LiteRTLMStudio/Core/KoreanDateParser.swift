@@ -95,7 +95,7 @@ enum KoreanDateParser {
             minute = firstMatch(#"(\d{1,2})\s*분"#, in: text).flatMap { Int($0[0]) } ?? 0
         }
         guard minute < 60 else { return nil }
-        let head = String(text.prefix(text.range(of: "\(raw)시")?.lowerBound ?? text.endIndex))
+        let head = String(text.prefix(upTo: text.range(of: "\(raw)시")?.lowerBound ?? text.endIndex))
         if head.contains("오후") || head.contains("저녁") || head.contains("밤") {
             if hour < 12 { hour += 12 }
         } else if head.contains("오전") || head.contains("아침") || head.contains("새벽") {

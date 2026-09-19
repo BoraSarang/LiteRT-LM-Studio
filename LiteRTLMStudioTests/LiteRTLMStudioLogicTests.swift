@@ -945,10 +945,10 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         }
         UserDefaults.standard.set("/tmp/fake-wigolo-bin", forKey: WigoloManager.binOverrideKey)
         XCTAssertTrue(LocalTools.registered(permission: .off).isEmpty)
-        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 9)
-        XCTAssertEqual(LocalTools.registered(permission: .ask).count, 9)
+        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 18)
+        XCTAssertEqual(LocalTools.registered(permission: .ask).count, 18)
         ToolCatalog.setEnabled("calculate", false)
-        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 8)
+        XCTAssertEqual(LocalTools.registered(permission: .allowAll).count, 17)
     }
 
     /// wigolo 응답 파싱 (T-269): url 없는 항목 제외.
@@ -1313,11 +1313,14 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
         try? FileManager.default.removeItem(at: url2)
     }
 
-    /// 도구 카탈로그 (T-271, T-272 3종 추가): 등록 타입과 1:1 대응.
+    /// 도구 카탈로그 (T-271, T-272 3종 추가, T-270 시스템 9종 추가): 등록 타입과 1:1 대응.
     func testToolCatalog() {
         let names = Set(ToolCatalog.all.map(\.name))
         XCTAssertEqual(names, ["get_time", "calculate", "web_search", "web_fetch",
                                "run_shell", "save_code", "read_file",
+                               "get_system_info", "read_clipboard", "write_clipboard",
+                               "open_url", "run_shortcut", "list_calendar_events",
+                               "list_reminders", "add_reminder", "add_calendar_event",
                                "mcp_list_tools", "mcp_call"])
         XCTAssertEqual(ToolInfo.Category.allCases.count, 4)
     }
@@ -1464,5 +1467,79 @@ final class LiteRTLMStudioLogicTests: XCTestCase {
             with: store.chatRequest(prompt: "hi").httpBody!) as? [String: Any]
         XCTAssertNil(offBody?["tools"])
         try? FileManager.default.removeItem(at: url)
+    }
+
+    /// T-270 한국어 상대 날짜 파서: 시계 주입 + 서울 시간대 고정으로 결정적 검증.
+    func testKoreanDateParser() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul")!
+        let base = calendar.date(from: DateComponents(year: 2026, month: 9, day: 19,
+                                                      hour: 10, minute: 0))!
+        func expect(_ text: String, _ y: Int, _ mo: Int, _ d: Int, _ h: Int, _ mi: Int) {
+            let want = calendar.date(from: DateComponents(year: y, month: mo, day: d,
+                                                          hour: h, minute: mi))!
+            XCTAssertEqual(KoreanDateParser.parse(text, now: base, calendar: calendar), want, text)
+        }
+        expect("내일 오후 3시", 2026, 9, 20, 15, 0)
+        expect("오늘 오후 3시", 2026, 9, 19, 15, 0)
+        expect("오늘 오전 9시", 2026, 9, 20, 9, 0) // 경과 → +1일
+        expect("모레 아침 8시", 2026, 9, 21, 8, 0)
+        expect("글피", 2026, 9, 22, 9, 0)
+        expect("3일 후", 2026, 9, 22, 9, 0)
+        expect("월요일", 2026, 9, 21, 9, 0)
+        expect("15시", 2026, 9, 19, 15, 0)
+        expect("오후 3시 반", 2026, 9, 19, 15, 30)
+        expect("내일 13:30", 2026, 9, 20, 13, 30)
+        expect("다음 달", 2026, 10, 19, 9, 0)
+        XCTAssertNil(KoreanDateParser.parse("25시", now: base, calendar: calendar))
+        XCTAssertNil(KoreanDateParser.parse("내일 99시", now: base, calendar: calendar))
+    }
+
+    /// T-270 단축어 허용 목록: 정규화·중복 제거·대소문자 무시.
+    func testShortcutsAllowlist() {
+        let suiteName = "shortcuts-\(UUID().uuidString)"
+        let suite = UserDefaults(suiteName: suiteName)!
+        defer { suite.removePersistentDomain(forName: suiteName) }
+        XCTAssertTrue(ShortcutsAllowlist.names(defaults: suite).isEmpty)
+        ShortcutsAllowlist.add("  정리하기 ", defaults: suite)
+        ShortcutsAllowlist.add("정리하기", defaults: suite) // 중복 무시
+        ShortcutsAllowlist.add("메일 보내기", defaults: suite)
+        XCTAssertEqual(ShortcutsAllowlist.names(defaults: suite), ["정리하기", "메일 보내기"])
+        XCTAssertTrue(ShortcutsAllowlist.isAllowed("정리하기", defaults: suite))
+        XCTAssertTrue(ShortcutsAllowlist.isAllowed(" 메일 보내기 ", defaults: suite))
+        XCTAssertFalse(ShortcutsAllowlist.isAllowed("삭제하기", defaults: suite))
+        XCTAssertFalse(ShortcutsAllowlist.isAllowed("", defaults: suite))
+        ShortcutsAllowlist.remove("정리하기", defaults: suite)
+        XCTAssertEqual(ShortcutsAllowlist.names(defaults: suite), ["메일 보내기"])
+    }
+
+    /// T-270 URL 열기 정책: http·https만, 그 외 차단.
+    func testOpenURLPolicy() {
+        XCTAssertEqual(OpenURLPolicy.allowed("https://example.com/a")?.host, "example.com")
+        XCTAssertNotNil(OpenURLPolicy.allowed("http://example.com"))
+        XCTAssertNil(OpenURLPolicy.allowed("file:///etc/passwd"))
+        XCTAssertNil(OpenURLPolicy.allowed("javascript:alert(1)"))
+        XCTAssertNil(OpenURLPolicy.allowed("example.com"))
+        XCTAssertNil(OpenURLPolicy.allowed(""))
+    }
+
+    /// T-270 시스템 정보 요약: 필수 항목 포함.
+    func testSystemInfoReport() {
+        let text = SystemInfoReport.text()
+        XCTAssertTrue(text.contains("macOS"))
+        XCTAssertTrue(text.contains("CPU 코어"))
+        XCTAssertTrue(SystemInfoReport.bytes(1_048_576).contains("MB"))
+    }
+
+    /// T-270 도구 스키마: 파라미터가 모델에게 노출되는지.
+    func testSystemToolSchema() {
+        let schema = AddReminderTool().getSchema()
+        let function = schema["function"] as? [String: Any]
+        XCTAssertEqual(function?["name"] as? String, "add_reminder")
+        let params = function?["parameters"] as? [String: Any]
+        let props = params?["properties"] as? [String: Any]
+        XCTAssertNotNil(props?["title"])
+        XCTAssertNotNil(props?["when"])
+        XCTAssertNotNil(props?["notes"])
     }
 }

@@ -22,6 +22,9 @@ enum LocalTools {
         }
         tools += [RunShellTool(), SaveCodeTool(), ReadFileTool()]
         tools += [MCPListToolsTool(), MCPCallTool()] // T-285 게이트웨이 (개별 토글 적용)
+        tools += [GetSystemInfoTool(), ReadClipboardTool(), ListCalendarEventsTool(),
+                  ListRemindersTool(), WriteClipboardTool(), OpenURLTool(),
+                  RunShortcutTool(), AddReminderTool(), AddCalendarEventTool()] // T-270 시스템 도구
         return tools.filter { ToolCatalog.isEnabled(type(of: $0).name) }
     }
 

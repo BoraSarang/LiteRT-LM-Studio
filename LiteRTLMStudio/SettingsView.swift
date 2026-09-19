@@ -176,6 +176,7 @@ if let err = loginError {
                         }
                     }
                 }
+                ShortcutsAllowlistSection() // T-270
                 Text("꺼진 도구는 모델에게 전달되지 않습니다. 실행 여부는 일반 탭의 권한(사용 안 함·매번 묻기·모두 허용)이 정합니다.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack(spacing: 8) {
