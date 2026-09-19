@@ -108,7 +108,10 @@ struct LiteRTLMStudioApp: App {
             }
         }
         // T-355: MenuBarExtra 대신 AppDelegate가 수동 NSStatusItem+NSPopover를 소유 (StatusItemController).
-        Settings { SettingsView(config: services.config) }
+        // T-358: 설정 창은 내용 폭(600)에 맞춰 고정 — 넓은 기본 폭에서 그룹 폼이 가운데 정렬돼
+        // 좌우 여백이 상하보다 커 보이던 문제 제거.
+        Settings { SettingsView() }
+            .windowResizability(.contentSize)
     }
 }
 

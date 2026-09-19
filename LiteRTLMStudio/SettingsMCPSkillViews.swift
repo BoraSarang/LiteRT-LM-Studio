@@ -37,7 +37,7 @@ extension SettingsView {
             }
             Text("외부 도구 호출은 매번 묻기 권한에서 확인 팝업이 뜹니다. stdio 명령은 직접 입력한 것만 실행됩니다.")
                 .font(.caption).foregroundStyle(.secondary)
-        }.formStyle(.grouped).padding()
+        }.dsSettingsForm()
             .tabItem { Label("MCP", systemImage: "server.rack") }
     }
 
@@ -93,7 +93,7 @@ extension SettingsView {
             }
             Text("켜진 스킬 본문이 시스템 프롬프트 앞에 들어갑니다 (합계 8KB cap). 다음 전송부터 적용.")
                 .font(.caption).foregroundStyle(.secondary)
-        }.formStyle(.grouped).padding()
+        }.dsSettingsForm()
             .tabItem { Label("스킬", systemImage: "sparkles") }
             .sheet(isPresented: $showSkillsImport) {
                 SkillsImportSheet(
