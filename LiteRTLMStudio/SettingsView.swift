@@ -32,12 +32,14 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
+            ScrollView {
             Form {
-                Picker("외관", selection: $appearanceRaw) {
+                DSSection("외관") {
+                DSSegmented("외관", selection: $appearanceRaw) {
                     ForEach(AppearanceMode.allCases, id: \.rawValue) { mode in
                         Text(mode.title).tag(mode.rawValue)
                     }
-                }.pickerStyle(.segmented)
+                }
                     .onChange(of: appearanceRaw) { _, raw in
                         AppearanceMode.apply(AppearanceMode(rawValue: raw) ?? .system)
                     }
@@ -49,21 +51,12 @@ struct SettingsView: View {
                     }
                 Toggle("로그인 시 자동 실행", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, on in setLoginItem(on) }
+                }
+                DSSection("시스템") {
                 Toggle("앱 종료 시 데몬도 함께 종료", isOn: $quitStopsDaemon)
                     .help("끄면 앱을 닫아도 데몬이 남아 다음 실행 때 바로 씁니다. 터미널 데몬은 항상 유지됩니다.")
                 Text("전송 경로(서버·앱 내 엔진)는 채팅 입력창의 피커에서 매번 선택합니다.")
                     .font(.caption).foregroundStyle(.secondary)
-                Picker("대화 기록 전송", selection: $historyTurns) {
-                    ForEach(HistoryWindow.allCases, id: \.rawValue) { w in
-                        Text(w.title).tag(w.rawValue)
-                    }
-                }.pickerStyle(.segmented)
-                    .help("매 전송에 포함할 과거 대화 범위. 짧을수록 빠르지만 앞부분 맥락이 잘립니다. 제한 없음은 기존 그대로 전부 전송합니다.")
-                    .onChange(of: historyTurns) { _, raw in
-                        DebugLogger.shared.info(
-                            feature: "히스토리범위",
-                            "전환: \((HistoryWindow(rawValue: raw) ?? .unlimited).title)")
-                    }
                 Toggle("MTP(추측적 디코딩) 활성화", isOn: Binding(
                         get: { config.draftMTP },
                         set: { config.draftMTP = $0 }
@@ -72,28 +65,44 @@ struct SettingsView: View {
                     .onChange(of: config.draftMTP) { _, on in
                         DebugLogger.shared.info(feature: "MTP", on ? "활성화" : "비활성화")
                     }
-                Picker("벤치마크 기록 보관", selection: $benchmarkRetention) {
+                }
+                DSSection("대화") {
+                DSSegmented("대화 기록 전송", selection: $historyTurns) {
+                    ForEach(HistoryWindow.allCases, id: \.rawValue) { w in
+                        Text(w.title).tag(w.rawValue)
+                    }
+                }
+                    .help("매 전송에 포함할 과거 대화 범위. 짧을수록 빠르지만 앞부분 맥락이 잘립니다. 제한 없음은 기존 그대로 전부 전송합니다.")
+                    .onChange(of: historyTurns) { _, raw in
+                        DebugLogger.shared.info(
+                            feature: "히스토리범위",
+                            "전환: \((HistoryWindow(rawValue: raw) ?? .unlimited).title)")
+                    }
+                DSSegmented("벤치마크 기록 보관", selection: $benchmarkRetention) {
                     ForEach(BenchmarkRetention.allCases, id: \.rawValue) { r in
                         Text(r.title).tag(r.rawValue)
                     }
-                }.pickerStyle(.segmented)
+                }
                     .help("벤치마크 히스토리 최대 보관 수. 초과분은 오래된 것부터 삭제됩니다.")
                     .onChange(of: benchmarkRetention) { _, raw in
                         DebugLogger.shared.info(
                             feature: "벤치마크",
                             "보관 전환: \((BenchmarkRetention(rawValue: raw) ?? .ten).title)")
                     }
-                Picker("권한", selection: $permissionRaw) {
+                }
+                DSSection("권한") {
+                DSSegmented("권한", selection: $permissionRaw) {
                     ForEach(GlobalPermission.allCases, id: \.rawValue) { p in
                         Text(p.title).tag(p.rawValue)
                     }
-                }.pickerStyle(.segmented)
+                }
                     .help("모델 삭제·가져오기·설치에 적용되는 전역 권한. 사용 안 함=차단, 매번 묻기=확인 후 실행, 모두 허용=바로 실행. 채팅 전송은 항상 허용.")
                     .onChange(of: permissionRaw) { _, raw in
                         DebugLogger.shared.info(
                             feature: "권한",
                             "전환: \((GlobalPermission(rawValue: raw) ?? .ask).title)")
                     }
+                }
 if let err = loginError {
                 Text(err).font(.caption).foregroundStyle(.red)
             }
@@ -116,10 +125,12 @@ if let err = loginError {
                     }
                     .keyboardShortcut("s", modifiers: .command)
                     .buttonStyle(.borderedProminent)
+                    .tint(DSColor.primary)
                     .disabled(!config.hasChanges)
                 }
             }
         }.formStyle(.grouped).padding()
+            }
             .tabItem { Label("일반", systemImage: "gear") }
             Form {
                 Toggle("대화 목차 사용", isOn: $outlineEnabled)

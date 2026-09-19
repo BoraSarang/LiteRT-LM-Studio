@@ -65,7 +65,7 @@ extension CatalogBrowserView {
             .font(DS.captionFont).foregroundStyle(.secondary)
             HStack(spacing: 6) {
                 if let params = ModelCatalog.paramsHint(repo: detail.repo) {
-                    DetailChip(text: "PARAMS \(params)")
+                    DetailChip(text: "매개변수 \(params)")
                 }
                 ForEach(ModelCatalog.badges(pipelineTag: detail.pipelineTag), id: \.rawValue) { badge in
                     DetailChip(text: badge.title)
@@ -75,22 +75,24 @@ extension CatalogBrowserView {
         }
     }
 
-    // MARK: - Download Options
+    // MARK: - 다운로드 옵션
 
     private func downloadOptions(_ detail: CatalogEntry) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Download Options").font(.system(size: 13, weight: .semibold))
+            Text("다운로드 옵션").font(.system(size: 13, weight: .semibold))
             if detail.siblings.isEmpty {
                 Text("`.litertlm` 파일을 찾지 못했습니다.")
                     .font(DS.captionFont).foregroundStyle(.secondary)
             } else {
                 Picker("", selection: $detailFileIndex) {
                     ForEach(detail.siblings.indices, id: \.self) { i in
-                        Text(detail.siblings[i]).tag(i)
+                        Text(ModelDownload.fileStem(detail.siblings[i])).tag(i)
                     }
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
+                .help(detail.siblings.indices.contains(detailFileIndex)
+                    ? detail.siblings[detailFileIndex] : "파일 선택")
                 .onChange(of: detailFileIndex) { _, _ in refreshDetailSize(detail) }
                 HStack(spacing: 8) {
                     TextField("로컬 모델 ID", text: $detailLocalID)
@@ -99,6 +101,7 @@ extension CatalogBrowserView {
                     downloadActionTrailing(detail)
                     Button("다운로드") { startDetailDownload(detail) }
                         .buttonStyle(.borderedProminent)
+                        .tint(DSColor.primary)
                         .disabled(detailFile(detail).isEmpty
                             || detailLocalID.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
@@ -183,19 +186,19 @@ extension CatalogBrowserView {
     }
 
     private func capabilitiesNote(_ detail: CatalogEntry) -> some View {
-        Text("Thinking·Function Calling 지원은 설치 후 실측으로 확정됩니다 (인스펙터 표시).")
+        Text("추론·함수 호출 지원은 설치 후 실측으로 확정됩니다 (실행 설정 표시).")
             .font(DS.captionFont).foregroundStyle(.secondary)
     }
 
-    // MARK: - README
+    // MARK: - 모델 설명
 
     private var readmeSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("README").font(.system(size: 13, weight: .semibold))
+            Text("모델 설명").font(.system(size: 13, weight: .semibold))
             if let readme = catalog.readme, !readme.isEmpty {
                 MarkdownView(text: String(readme.prefix(60_000)))
             } else {
-                Text("README가 없습니다.").font(DS.captionFont).foregroundStyle(.secondary)
+                Text("모델 설명이 없습니다.").font(DS.captionFont).foregroundStyle(.secondary)
             }
         }
     }

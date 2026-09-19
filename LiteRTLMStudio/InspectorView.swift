@@ -22,17 +22,17 @@ extension ContentView {
             if showGenerate {
                 Section(InspectorTitle.generate) {
                     HStack {
-                        Text("Temperature"); Slider(value: $chat.temperature, in: 0...1.5, step: 0.05)
+                        Text("온도"); Slider(value: $chat.temperature, in: 0...1.5, step: 0.05)
                         Text(String(format: "%.2f", chat.temperature)).monospacedDigit()
                     }
                     HStack {
-                        Text("TopK")
+                        Text("상위 K")
                         Spacer()
                         Text("\(chat.topK)").monospacedDigit()
                         Stepper("", value: $chat.topK, in: 1...256).labelsHidden()
                     }
                     HStack {
-                        Text("TopP"); Slider(value: $chat.topP, in: 0...1, step: 0.05)
+                        Text("상위 P"); Slider(value: $chat.topP, in: 0...1, step: 0.05)
                         Text(String(format: "%.2f", chat.topP)).monospacedDigit()
                     }
                     HStack {
@@ -45,7 +45,7 @@ extension ContentView {
                     }
                     .help("응답 길이 상한. 빈칸이면 무제한.")
                     HStack {
-                        Text("Seed")
+                        Text("시드")
                         Spacer()
                         TextField("예: 7", text: Binding(
                             get: { chat.seed.map(String.init) ?? "" },
@@ -59,9 +59,9 @@ extension ContentView {
                     }
                     .help("앱 내 엔진 대화에만 전달됩니다. 서버 경로는 미지원.")
                     if selectedModel?.thinking == true {
-                        Toggle("Thinking", isOn: $chat.thinkingEnabled)
+                        Toggle("추론", isOn: $chat.thinkingEnabled)
                         HStack {
-                            Text("Thinking 예산")
+                            Text("추론 예산")
                             Spacer()
                             TextField("무제한", text: Binding(
                                 get: { chat.thinkingBudget == -1 ? "" : "\(chat.thinkingBudget)" },
@@ -71,14 +71,14 @@ extension ContentView {
                     } else {
                         // 미지원 → 비활성화 + 사유 캡션 (describe 실측 반영)
                         VStack(alignment: .leading, spacing: 2) {
-                            Toggle("Thinking", isOn: .constant(false)).disabled(true)
-                                .help("이 모델은 Thinking 미지원 (E-MAC-VALID-0007)")
-                            Text("현 모델 미지원 — thinking 지원 모델(E2B/E4B 등)이 필요해요.")
+                            Toggle("추론", isOn: .constant(false)).disabled(true)
+                                .help("이 모델은 추론 미지원 (E-MAC-VALID-0007)")
+                            Text("현 모델 미지원 — 추론 지원 모델(E2B/E4B 등)이 필요해요.")
                                 .font(DS.captionFont).foregroundStyle(.secondary)
                         }
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Toggle("Function Calling", isOn: .constant(false)).disabled(true)
+                        Toggle("함수 호출", isOn: .constant(false)).disabled(true)
                             .help(functionCallHelp(selectedModel?.functionCall == true))
                         if selectedModel?.functionCall != true {
                             Text("현 모델 미지원 — FunctionGemma 계열이 필요해요.")
@@ -98,7 +98,7 @@ extension ContentView {
 
 /// 미지원 툴팁 문구 (T-122 줄길이 정리용 순수 헬퍼).
 nonisolated func functionCallHelp(_ supported: Bool) -> String {
-    supported ? "" : "이 모델은 Function Calling 미지원 (E-MAC-VALID-0008)"
+    supported ? "" : "이 모델은 함수 호출 미지원 (E-MAC-VALID-0008)"
 }
 
 /// 인스펙터 3섹션 on/off 분할 컨트롤 (툴바 상시 표시).
@@ -134,7 +134,7 @@ struct SectionSegments: View {
                 .frame(width: 32, height: 24)
                 .background {
                     if on.wrappedValue {
-                        RoundedRectangle(cornerRadius: 6).fill(Color.accentColor)
+                        RoundedRectangle(cornerRadius: 6).fill(DSColor.primary)
                     }
                 }
         }
@@ -154,16 +154,16 @@ struct BackendSectionView: View {
     @AppStorage("visualTokenBudget") private var visualBudget = 1120 // T-177 describe 상한
 
     var body: some View {
-        Picker("LLM 실행", selection: $config.draftBackend) {
+        DSSegmented("LLM 실행", selection: $config.draftBackend) {
             Text("GPU (Metal)").tag("gpu"); Text("CPU").tag("cpu")
-        }.pickerStyle(.segmented)
-        Picker("Vision 실행", selection: $config.draftVision) {
+        }
+        DSSegmented("Vision 실행", selection: $config.draftVision) {
             Text("GPU").tag("gpu"); Text("CPU").tag("cpu")
-        }.pickerStyle(.segmented)
+        }
         if model?.modalities.contains("Audio") == true {
-            Picker("Audio 실행", selection: $config.draftAudio) {
+            DSSegmented("Audio 실행", selection: $config.draftAudio) {
                 Text("CPU").tag("cpu"); Text("GPU").tag("gpu")
-            }.pickerStyle(.segmented)
+            }
         }
         if config.draftBackend == "cpu" {
             HStack {
@@ -174,9 +174,9 @@ struct BackendSectionView: View {
                     .help("빈칸이면 자동. 1 이상 숫자.")
             }
         }
-        Picker("캐시", selection: $config.draftCache) {
-            Text("disk").tag("disk"); Text("memory").tag("memory"); Text("no").tag("no")
-        }.pickerStyle(.segmented)
+        DSSegmented("캐시", selection: $config.draftCache) {
+            Text("디스크").tag("disk"); Text("메모리").tag("memory"); Text("사용 안 함").tag("no")
+        }
         VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Text("KV 토큰")
@@ -189,16 +189,16 @@ struct BackendSectionView: View {
                 .font(DS.captionFont).foregroundStyle(.secondary)
         }
         if model?.thinking == true {
-            Toggle("Thinking 기본값", isOn: $config.draftThinking)
+            Toggle("추론 기본값", isOn: $config.draftThinking)
             HStack {
-                Text("Thinking 예산")
+                Text("추론 예산")
                 Spacer()
                 TextField("무제한", text: $config.draftBudget)
                     .multilineTextAlignment(.trailing).frame(width: 100)
                     .help("빈칸이면 무제한(-1).")
             }
         }
-        Toggle("MTP (Speculative Decoding)", isOn: $config.draftMTP)
+        Toggle("MTP (추측적 디코딩)", isOn: $config.draftMTP)
             .help("GPU 백엔드 권장. 모델이 drafter 포함 시 가속.")
             .disabled(model?.speculative == false)
         if let mdl = model {

@@ -49,12 +49,19 @@ extension BenchmarkWindowView {
                         HStack(spacing: 6) {
                             Circle().fill(statusColor(rec.status)).frame(width: 7, height: 7)
                             Text(ModelAlias.display(id: rec.modelID))
-                                .font(.system(size: 12, weight: .medium)).lineLimit(1)
+                                .font(.system(size: 12, weight: .medium))
+                                .lineLimit(1).truncationMode(.tail)
                             Spacer()
                             Text(shortDate(rec.date)).font(DS.captionFont).foregroundStyle(.secondary)
                         }
                         Text("\(rec.route.title) · \(rec.status.title) · \(speedText(rec))")
                             .font(DS.captionFont).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.tail)
+                        if rec.status == .failed {
+                            Text(failureReason(rec))
+                                .font(DS.captionFont).foregroundStyle(.red)
+                                .lineLimit(2).truncationMode(.tail)
+                        }
                     }
                     .tag(rec.id)
                     .contextMenu {
@@ -184,9 +191,11 @@ extension BenchmarkWindowView {
             if powerStatus.warn {
                 Label(powerStatus.text, systemImage: "exclamationmark.triangle")
                     .font(DS.captionFont).foregroundStyle(.orange)
+                    .help("MTP(추측적 디코딩)가 켜져 있거나 배터리가 20% 이하로 방전 중이면 측정값이 흔들릴 수 있어요.")
             } else {
                 Text(powerStatus.text)
                     .font(DS.captionFont).foregroundStyle(.secondary)
+                    .help("MTP는 기본 꺼짐. 켜면 가속되지만 측정값이 달라질 수 있어요.")
             }
             if selectedRoute == .cli {
                 Label(cliWarningText, systemImage: "exclamationmark.triangle")
@@ -258,6 +267,14 @@ extension BenchmarkWindowView {
             ? "사용자 중단으로 결과가 없어요." : "실패로 결과가 없어요. 로그를 확인해 주세요."
     }
 
+    /// 실패 사유 1줄 (T-320): 로그 꼬리 첫 줄, 없으면 상태 문구.
+    private func failureReason(_ rec: BenchmarkRecord) -> String {
+        if let line = rec.logTail.last(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) {
+            return String(line.prefix(120))
+        }
+        return emptyRecordText(rec)
+    }
+
     /// T-224: 기록별 원문 로그 (없으면 안내).
     private func recordLogView(_ logs: [String]) -> some View {
         Group {
@@ -288,8 +305,16 @@ extension BenchmarkWindowView {
 
     private func miniChart(_ met: BenchmarkStore.Metrics) -> some View {
         Chart {
-            BarMark(x: .value("구간", "입력 처리"), y: .value("tok/s", met.prefillSpeed))
-            BarMark(x: .value("구간", "답 생성"), y: .value("tok/s", met.decodeSpeed))
+            BarMark(x: .value("구간", "입력 처리"), y: .value("초당 토큰", met.prefillSpeed))
+                .annotation(position: .top) {
+                    Text(String(format: "%.1f", met.prefillSpeed))
+                        .font(DS.captionFont).foregroundStyle(.secondary)
+                }
+            BarMark(x: .value("구간", "답 생성"), y: .value("초당 토큰", met.decodeSpeed))
+                .annotation(position: .top) {
+                    Text(String(format: "%.1f", met.decodeSpeed))
+                        .font(DS.captionFont).foregroundStyle(.secondary)
+                }
         }
         .chartYAxisLabel("초당 토큰")
         .frame(height: 140)
@@ -312,15 +337,15 @@ extension BenchmarkWindowView {
 
     private func statusColor(_ status: BenchmarkStatus) -> Color {
         switch status {
-        case .done: .green
-        case .cancelled: .orange
-        case .failed: .red
+        case .done: DSColor.success
+        case .cancelled: DSColor.warning
+        case .failed: DSColor.error
         }
     }
 
     private func speedText(_ rec: BenchmarkRecord) -> String {
         guard let met = rec.metrics else { return "기록 없음" }
-        return String(format: "%.1f tok/s", met.decodeSpeed)
+        return String(format: "%.1f 토큰/초", met.decodeSpeed)
     }
 
     private func shortDate(_ date: Date) -> String {

@@ -58,9 +58,11 @@ struct BenchmarkListView: View {
             Circle().fill(statusColor(rec.status)).frame(width: 7, height: 7)
             VStack(alignment: .leading, spacing: 1) {
                 Text(ModelAlias.display(id: rec.modelID))
-                    .font(.system(size: 13, weight: .medium)).lineLimit(1)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1).truncationMode(.tail)
                 Text("\(rec.route.title) · \(rec.status.title) · \(speedText(rec))")
-                    .font(DS.captionFont).foregroundStyle(.secondary).lineLimit(1)
+                    .font(DS.captionFont).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.tail)
             }
             Spacer(minLength: 4)
             if hoverID == rec.id || selected {
@@ -84,7 +86,7 @@ struct BenchmarkListView: View {
         .padding(.horizontal, 8).padding(.vertical, 6)
         .background {
             if selected {
-                RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15))
+                RoundedRectangle(cornerRadius: 8).fill(DSColor.primary.opacity(0.15))
             }
         }
         .contentShape(Rectangle())
@@ -104,14 +106,14 @@ struct BenchmarkListView: View {
 
     private func statusColor(_ status: BenchmarkStatus) -> Color {
         switch status {
-        case .done: .green
-        case .cancelled: .orange
-        case .failed: .red
+        case .done: DSColor.success
+        case .cancelled: DSColor.warning
+        case .failed: DSColor.error
         }
     }
 
     private func speedText(_ rec: BenchmarkRecord) -> String {
         guard let met = rec.metrics else { return "기록 없음" }
-        return String(format: "%.1f tok/s", met.decodeSpeed)
+        return String(format: "%.1f 토큰/초", met.decodeSpeed)
     }
 }

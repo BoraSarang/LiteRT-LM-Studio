@@ -311,3 +311,8 @@
 * [x] T-315 스킬 외부 루트+임포트: 설정 폴더 추가+Claude/opencode/agents SKILL.md 가져오기 (PLAN_v93) — skillRoots 멀티 루트+자동 탐색 3곳+우선순위 병합, `SkillsImportSheet` 검색·출처 뱃지·일괄 선택·새로고침, skillsTab 출처 뱃지 표시.
 * [x] T-316 web_search 1위 본문 자동 첨부: `combinedForModel`+autoFetchCap 2000, 실패 시 검색만 (PLAN_v94, 274/274+lint 신규 0+build OK)
 * [x] T-317 웹 도구 칩 표시 개편: 한글 명칭+대표 인자+기본 접힘+가져오기 외부열기 (PLAN_v95, 눈확인 대기)
+* [x] T-318 디자인 토큰 4파일: Colors/Typography/Spacing/Components 신규+DS 별칭 유지 (PLAN_v96 P0)
+* [x] T-319 Browse 중복 제거+한글화: 추천 가로카드만+Download Options/PARAMS 한글화 (PLAN_v96 P0)
+* [x] T-320 Benchmark·Settings 잘림: 2줄 셀+실패사유+Section 4개+ScrollView+DSSegmented (PLAN_v96 P0)
+* [x] T-321 My Models P1: WarningBanner+원본 삭제+Badge+litertlm 숨김+버튼 위계 (PLAN_v96 P1)
+* [x] T-322 차트·툴팁 P2: 바 수치라벨+GPU/MTP/환경 hover+EmptyState (PLAN_v96 P2)

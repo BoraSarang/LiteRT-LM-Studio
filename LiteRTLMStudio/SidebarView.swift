@@ -326,5 +326,6 @@ struct LabeledRow: View {    let icon, title, value: String
             Spacer()
             Text(value).font(DS.captionFont).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
         }
+        .help("\(title): \(value)")
     }
 }

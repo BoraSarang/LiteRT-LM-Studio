@@ -18,15 +18,18 @@ struct CatalogBrowserView: View {
         VStack(alignment: .leading, spacing: 10) {
             searchBar
             if catalog.mode == .recommended {
+                // T-319: 추천은 상단 가로 카드로만 표시, 좌 리스트 중복 제거.
                 recommendedPane
+                detailPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 filterBar
-            }
-            HSplitView {
-                listPane
-                    .frame(width: 264)
-                detailPane
-                    .frame(maxWidth: .infinity)
+                HSplitView {
+                    listPane
+                        .frame(width: 264)
+                    detailPane
+                        .frame(maxWidth: .infinity)
+                }
             }
             footerBar
         }
@@ -77,6 +80,7 @@ struct CatalogBrowserView: View {
 
     private func pickCard(_ pick: RecommendedModel) -> some View {
         let selected = catalog.selectedRepo == pick.repo
+        let installed = models.models.contains(where: { $0.id == pick.suggestedID })
         return Button {
             detailLocalID = pick.suggestedID
             detailFileIndex = 0
@@ -86,20 +90,25 @@ struct CatalogBrowserView: View {
                 CatalogAvatar(repo: pick.repo)
                     .frame(width: 28, height: 28)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(pick.label).font(.system(size: 13, weight: .semibold))
+                    HStack(spacing: 6) {
+                        Text(pick.label).font(.system(size: 13, weight: .semibold))
+                        DSBadge(text: installed ? "설치됨" : "미설치",
+                                kind: installed ? .success : .neutral)
+                    }
                     Text(pick.blurb).font(DS.captionFont).foregroundStyle(.secondary)
                         .lineLimit(1).truncationMode(.tail)
                 }
             }
             .padding(10)
-            .frame(width: 220, alignment: .leading)
+            .frame(width: 240, alignment: .leading)
             .background {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(selected ? Color.accentColor.opacity(0.15) : Color(.textBackgroundColor))
+                    .fill(selected ? DSColor.primary.opacity(0.15) : Color(.textBackgroundColor))
             }
             .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
+        .help("\(pick.label) — \(pick.blurb)")
     }
 
     // MARK: - 전체 모드 필터
@@ -118,7 +127,7 @@ struct CatalogBrowserView: View {
                             .background {
                                 if catalog.family == f {
                                     RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.accentColor.opacity(0.15))
+                                        .fill(DSColor.primary.opacity(0.15))
                                 }
                             }
                             .contentShape(Rectangle())
@@ -146,23 +155,7 @@ struct CatalogBrowserView: View {
 
     private var listPane: some View {
         Group {
-            if catalog.mode == .recommended {
-                List(catalog.recommended, id: \.repo,
-                     selection: Binding(get: { catalog.selectedRepo },
-                                        set: { v in
-                                            if let v {
-                                                detailFileIndex = 0
-                                                if let pick = catalog.recommended.first(where: { $0.repo == v }) {
-                                                    detailLocalID = pick.suggestedID
-                                                }
-                                                Task { await catalog.select(repo: v) }
-                                            }
-                                        })) { pick in
-                    entryRow(repo: pick.repo, title: pick.label, subtitle: pick.blurb, stat: "")
-                        .tag(pick.repo)
-                }
-                .listStyle(.sidebar)
-            } else if catalog.filtered.isEmpty, !catalog.isLoading {
+            if catalog.filtered.isEmpty, !catalog.isLoading {
                 ContentUnavailableView("검색 결과 없음", systemImage: "magnifyingglass",
                                        description: Text("검색어·필터를 바꿔 보세요."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
