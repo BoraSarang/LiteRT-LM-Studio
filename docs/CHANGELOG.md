@@ -2,6 +2,16 @@
 
 ## [Unreleased] (macos)
 
+* macOS 시스템 도구팩 (T-270, PLAN_v63): 읽기 `get_system_info`·`read_clipboard`·
+  `list_calendar_events`·`list_reminders`, 쓰기 `write_clipboard`·`open_url`(http/https만)·
+  `run_shortcut`(허용 목록만)·`add_reminder`·`add_calendar_event`. 한국어 상대 시간
+  파서(`KoreanDateParser`, 실패 시 E-MAC-VALID-0017)+EventKit 권한(E-MAC-PERM-0016)+
+  설정 도구 탭 단축어 허용 목록 UI. [macos]
+
+* 리팩터 감사 잔여 처방 (T-289, PLAN_v78): `maxTextLen`을 본문+추론 합산 기준으로
+  통일(단일 소스 `streamedLength`), 대형 튜플 2건(`DaemonManager.Transition`·
+  `SystemMonitor.RAMStack`) 구조체화, 중첩 `CodingKeys` 파일 스코프 이동. [macos]
+
 * README 인라인 SVG 실제 이미지 렌더 (T-341): `[<svg…></svg>](url)`·맨 태그를
   `NativeMarkdown.inlineSegments`로 분리해 `NSImage`(SVG 디코드) 배지로 표시.
   `currentColor` 도형은 템플릿 렌더로 다크모드 대응, 코드 스팬은 평문 유지. [macos]
