@@ -236,7 +236,14 @@ private let l10nKeyIndex: [L10nKey] = [
     "menubar.newChat", "menubar.openMain", "menubar.modelManager",
     "menubar.settings", "menubar.quit", "menubar.recentChats",
     "shortcuts.section", "shortcuts.remove", "shortcuts.namePlaceholder",
-    "shortcuts.add", "shortcuts.note"
+    "shortcuts.add", "shortcuts.note", "app.window.debugPanel",
+    "app.window.benchmark", "app.window.modelManager", "app.window.about",
+    "app.menu.aboutItem", "app.menu.newChat", "app.menu.server",
+    "app.menu.serverStart", "app.menu.serverStop", "app.menu.view",
+    "app.menu.zoomIn", "app.menu.zoomOut", "app.menu.zoomReset",
+    "app.menu.toggleInspector", "app.menu.toggleLogPanel", "app.menu.quit",
+    "markdown.image", "markdown.copied", "markdown.copy",
+    "markdown.copyCode"
 ]
 
 extension L10n {

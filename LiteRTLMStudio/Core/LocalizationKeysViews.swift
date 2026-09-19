@@ -200,4 +200,30 @@ extension L10n {
         static let add = L10nKey("shortcuts.add")
         static let note = L10nKey("shortcuts.note")
     }
+
+    enum App {
+        static let debugPanel = L10nKey("app.window.debugPanel")
+        static let benchmark = L10nKey("app.window.benchmark")
+        static let modelManager = L10nKey("app.window.modelManager")
+        static let about = L10nKey("app.window.about")
+        static let aboutItem = L10nKey("app.menu.aboutItem")
+        static let newChat = L10nKey("app.menu.newChat")
+        static let serverMenu = L10nKey("app.menu.server")
+        static let serverStart = L10nKey("app.menu.serverStart")
+        static let serverStop = L10nKey("app.menu.serverStop")
+        static let viewMenu = L10nKey("app.menu.view")
+        static let zoomIn = L10nKey("app.menu.zoomIn")
+        static let zoomOut = L10nKey("app.menu.zoomOut")
+        static let zoomReset = L10nKey("app.menu.zoomReset")
+        static let toggleInspector = L10nKey("app.menu.toggleInspector")
+        static let toggleLogPanel = L10nKey("app.menu.toggleLogPanel")
+        static let quit = L10nKey("app.menu.quit")
+    }
+
+    enum Markdown {
+        static let image = L10nKey("markdown.image")
+        static let copied = L10nKey("markdown.copied")
+        static let copy = L10nKey("markdown.copy")
+        static let copyCode = L10nKey("markdown.copyCode")
+    }
 }

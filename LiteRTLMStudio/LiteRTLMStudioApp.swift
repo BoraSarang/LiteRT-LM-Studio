@@ -49,63 +49,67 @@ struct LiteRTLMStudioApp: App {
         .defaultSize(width: 1340, height: 800) // T-092 계산치: 사이드바 220+열 768+여백 32+인스펙터 320
         .windowToolbarStyle(.unified)
         // 디버그 별도 윈도우 (T-053): 시트 대신 독립 창.
-        Window("디버그 패널", id: "debug") {
+        Window(L(L10n.App.debugPanel), id: "debug") {
             DebugPanelView()
                 .frame(minWidth: 680, minHeight: 420)
         }
         .defaultSize(width: 760, height: 500)
         // 벤치마크 별도 윈도우 (T-216): 시트 대신 독립 창 (모델·모드 선택+히스토리).
-        Window("벤치마크", id: "benchmark") {
+        Window(L(L10n.App.benchmark), id: "benchmark") {
             BenchmarkWindowView(store: services.bench, history: services.benchHistory,
                                 models: services.models, chat: services.chat)
                 .frame(minWidth: 860, minHeight: 600)
         }
         .defaultSize(width: 960, height: 640)
         // 모델 관리 별도창 (T-232): 가져오기·목록·설치·삭제·이름변경.
-        Window("모델 관리", id: "modelManager") {
+        Window(L(L10n.App.modelManager), id: "modelManager") {
             ModelManagerView(models: services.models, center: services.downloads)
                 .frame(minWidth: 900, minHeight: 600)
         }
         .defaultSize(width: 1080, height: 700)
         // 정보 창 (T-068, TubeKeep AboutView 구조).
-        Window("정보", id: "about") {
+        Window(L(L10n.App.about), id: "about") {
             AboutView()
         }
         .defaultSize(width: 560, height: 460)
         .commands {
             CommandGroup(replacing: .appInfo) {
-                Button("LiteRT-LM Studio 정보") {
+                Button(L(L10n.App.aboutItem)) {
                     NotificationCenter.default.post(name: .openAbout, object: nil)
                 }
             }
             CommandGroup(replacing: .newItem) {
-                Button("새 채팅") { NotificationCenter.default.post(name: .newChat, object: nil) }
+                Button(L(L10n.App.newChat)) { NotificationCenter.default.post(name: .newChat, object: nil) }
                     .keyboardShortcut("n", modifiers: .command)
             }
-            CommandMenu("서버") {
-                Button("서버 시작") { NotificationCenter.default.post(name: .serverStart, object: nil) }
+            CommandMenu(L(L10n.App.serverMenu)) {
+                Button(L(L10n.App.serverStart)) { NotificationCenter.default.post(name: .serverStart, object: nil) }
                     .keyboardShortcut("r", modifiers: .command)
-                Button("서버 중지") { NotificationCenter.default.post(name: .serverStop, object: nil) }
+                Button(L(L10n.App.serverStop)) { NotificationCenter.default.post(name: .serverStop, object: nil) }
                     .keyboardShortcut(".", modifiers: .command)
             }
-            CommandMenu("보기") {
-                Button("확대") { NotificationCenter.default.post(name: .chatZoomIn, object: nil) }
+            CommandMenu(L(L10n.App.viewMenu)) {
+                Button(L(L10n.App.zoomIn)) { NotificationCenter.default.post(name: .chatZoomIn, object: nil) }
                     .keyboardShortcut("+", modifiers: .command)
-                Button("축소") { NotificationCenter.default.post(name: .chatZoomOut, object: nil) }
+                Button(L(L10n.App.zoomOut)) { NotificationCenter.default.post(name: .chatZoomOut, object: nil) }
                     .keyboardShortcut("-", modifiers: .command)
-                Button("실제 크기") { NotificationCenter.default.post(name: .chatZoomReset, object: nil) }
+                Button(L(L10n.App.zoomReset)) { NotificationCenter.default.post(name: .chatZoomReset, object: nil) }
                     .keyboardShortcut("0", modifiers: .command)
             }
             CommandGroup(after: .sidebar) {
-                Button("인스펙터 토글") { NotificationCenter.default.post(name: .toggleInspector, object: nil) }
-                    .keyboardShortcut("i", modifiers: [.command, .option])
-                Button("하단 패널 토글") { NotificationCenter.default.post(name: .toggleLogPanel, object: nil) }
-                    .keyboardShortcut("j", modifiers: .command)
-                Button("디버그 패널") { NotificationCenter.default.post(name: .toggleDebug, object: nil) }
+                Button(L(L10n.App.toggleInspector)) {
+                    NotificationCenter.default.post(name: .toggleInspector, object: nil)
+                }
+                .keyboardShortcut("i", modifiers: [.command, .option])
+                Button(L(L10n.App.toggleLogPanel)) {
+                    NotificationCenter.default.post(name: .toggleLogPanel, object: nil)
+                }
+                .keyboardShortcut("j", modifiers: .command)
+                Button(L(L10n.App.debugPanel)) { NotificationCenter.default.post(name: .toggleDebug, object: nil) }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
             }
             CommandGroup(replacing: .appTermination) {
-                Button("LiteRT-LM Studio 종료") { services.quit() }
+                Button(L(L10n.App.quit)) { services.quit() }
                     .keyboardShortcut("q", modifiers: .command)
             }
         }

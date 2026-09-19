@@ -197,7 +197,7 @@ struct SVGBadgeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(height: min(22, max(12, size * 1.2)))
-                .accessibilityLabel("이미지")
+                .accessibilityLabel(L(L10n.Markdown.image))
             if let link, let url = URL(string: link) {
                 Link(destination: url) { badge }
             } else {
@@ -242,13 +242,13 @@ struct CodeBlockView: View {
                 Text(lang?.isEmpty == false ? lang! : "code")
                     .font(DS.captionFont).foregroundStyle(.secondary)
                 Spacer()
-                Button(copyFlag.copied ? "복사됨" : "복사") {
+                Button(copyFlag.copied ? L(L10n.Markdown.copied) : L(L10n.Markdown.copy)) {
                     PasteboardUtil.copy(code)
                     copyFlag.mark()
                 }
                 .buttonStyle(.plain)
                 .font(DS.captionFont).foregroundStyle(.secondary)
-                .help("코드 복사").hoverTip("코드 복사")
+                .help(L(L10n.Markdown.copyCode)).hoverTip(L(L10n.Markdown.copyCode))
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
