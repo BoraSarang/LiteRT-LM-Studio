@@ -55,6 +55,7 @@ final class StatusItemController: NSObject {
             .environmentObject(services.daemon)
             .environmentObject(services.chat)
             .environmentObject(services.nativeEngine)
+            .environmentObject(services.releases)
         let controller = NSHostingController(rootView: content)
         controller.sizingOptions = [.preferredContentSize]
         popover.contentViewController = controller

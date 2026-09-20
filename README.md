@@ -47,7 +47,7 @@ The server runs at `127.0.0.1:9379` (fixed port).
 
 The settings window has five tabs:
 
-- **일반 (General)** — theme, Dock icon, launch at login, daemon shutdown, first-touch prefill, benchmark retention, app permissions, and language
+- **일반 (General)** — theme, Dock icon, launch at login, daemon shutdown, first-touch prefill, benchmark retention, app permissions, language, and update-check frequency
 - **채팅 (Chat)** — table of contents, follow-up suggestions, font size, session sorting, and history sharing
 - **도구 (Tools)** — individual tool toggles, web search (Exa API key), and the working folder
 - **MCP** — registered MCP servers
@@ -55,6 +55,10 @@ The settings window has five tabs:
 
 The app UI is available in Korean and English. Switch languages under **Settings > General > Appearance**;
 it applies without restarting, while text drawn by macOS itself (permission dialogs) follows on the next launch.
+
+Check for app updates from the **app menu > Check for Updates**. When a new version is available you'll see
+the release notes with DMG download instructions, and you can change the check frequency
+(at launch/daily/weekly/never) under Settings > General.
 
 Engine-level options (backend, MTP, and similar) live in the main window's **inspector → 실행 설정 (Run settings)** tab.
 

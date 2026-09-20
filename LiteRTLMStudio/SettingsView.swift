@@ -17,6 +17,8 @@ struct SettingsView: View {
     @AppStorage("prefillWarmup") private var prefillWarmup = false // T-302 첫터치 프리필
     @AppStorage("workspaceRoot") private var workspaceRoot = "" // T-272 작업폴더 (빈값=기본값)
     @AppStorage("chatFontScale") private var chatFontScale = 1.0 // T-359 채팅 글자 크기
+    @AppStorage("updateFrequency") private var updateFrequencyRaw =
+        UpdateCheckFrequency.weekly.rawValue // 앱 업데이트 확인 주기
     @AppStorage("sessionSort") private var sessionSortRaw = ChatStore.SessionSort.recent.rawValue // T-359 세션 정렬
     @State private var toolFlags: [String: Bool] = [:] // T-271 도구 개별 ON/OFF
     @ObservedObject var mcp = MCPStore.shared // T-285 MCP 서버 목록
@@ -64,6 +66,11 @@ struct SettingsView: View {
                 DSSection(L(L10n.Settings.systemSection)) {
                 Toggle(L(L10n.Settings.quitStopsDaemon), isOn: $quitStopsDaemon)
                     .help(L(L10n.Settings.quitStopsDaemonHelp))
+                DSSegmented(L(L10n.Update.frequency), selection: $updateFrequencyRaw) {
+                    ForEach(UpdateCheckFrequency.allCases, id: \.rawValue) { f in
+                        Text(f.title).tag(f.rawValue)
+                    }
+                }
                 Toggle(L(L10n.Settings.prefillWarmup), isOn: $prefillWarmup)
                     .help(L(L10n.Settings.prefillWarmupHelp))
                     .onChange(of: prefillWarmup) { _, on in

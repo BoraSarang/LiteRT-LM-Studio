@@ -767,6 +767,91 @@ final class LiteRTLMStudioLogicTests: LiteRTLMStudioTestCase {
             installed: "0.14.0"))
     }
 
+    /// 앱 자체 업데이트 판정: 앱 출처만, 프리릴리즈 제외, 최신 선택.
+    func testAppUpdateNewer() {
+        let rels = [
+            AppRelease(tag: "v9.9.9", name: "", body: "", url: "", source: .engine),
+            AppRelease(tag: "v0.7.152-rc1", name: "", body: "", url: "",
+                       prerelease: true, source: .app),
+            AppRelease(tag: "v0.7.150", name: "", body: "", url: "", source: .app),
+            AppRelease(tag: "v0.7.152", name: "", body: "", url: "", source: .app),
+        ]
+        XCTAssertEqual(ReleaseNotesParser.newerApp(rels, installed: "0.7.151")?.tag, "v0.7.152")
+        XCTAssertNil(ReleaseNotesParser.newerApp(rels, installed: "0.7.152"))
+        XCTAssertNil(ReleaseNotesParser.newerApp(rels, installed: nil))
+        XCTAssertNil(ReleaseNotesParser.newerApp(
+            [AppRelease(tag: "v9.9.9", name: "", body: "", url: "", source: .engine)],
+            installed: "0.7.151"))
+    }
+
+    /// 업데이트 확인 주기: never 차단·atLaunch 당일 1회·daily/weekly 경계.
+    func testUpdateCheckFrequency() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let launch = now.addingTimeInterval(-60)
+        XCTAssertFalse(UpdateCheckFrequency.shouldCheck(
+            frequency: .never, lastChecked: nil, now: now, launchDate: launch))
+        XCTAssertTrue(UpdateCheckFrequency.shouldCheck(
+            frequency: .atLaunch, lastChecked: nil, now: now, launchDate: launch))
+        XCTAssertTrue(UpdateCheckFrequency.shouldCheck(
+            frequency: .atLaunch, lastChecked: launch.addingTimeInterval(-10),
+            now: now, launchDate: launch))
+        XCTAssertFalse(UpdateCheckFrequency.shouldCheck(
+            frequency: .atLaunch, lastChecked: launch.addingTimeInterval(10),
+            now: now, launchDate: launch))
+        XCTAssertTrue(UpdateCheckFrequency.shouldCheck(
+            frequency: .daily, lastChecked: now.addingTimeInterval(-86_400),
+            now: now, launchDate: launch))
+        XCTAssertFalse(UpdateCheckFrequency.shouldCheck(
+            frequency: .daily, lastChecked: now.addingTimeInterval(-3_600),
+            now: now, launchDate: launch))
+        XCTAssertTrue(UpdateCheckFrequency.shouldCheck(
+            frequency: .weekly, lastChecked: now.addingTimeInterval(-604_800),
+            now: now, launchDate: launch))
+        XCTAssertFalse(UpdateCheckFrequency.shouldCheck(
+            frequency: .weekly, lastChecked: now.addingTimeInterval(-86_400),
+            now: now, launchDate: launch))
+    }
+    /// 병합 출처별 cap: 엔진 20건이 앱을 밀어내지 않는다.
+    @MainActor
+    func testReleaseMergeKeepsApp() {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("releases-appsplit-\(UUID().uuidString).json")
+        let store = ReleaseNotes(storageURL: tmp)
+        let engine = (0 ..< 25).map {
+            AppRelease(tag: "v0.\($0).0", name: "", body: "", url: "", source: .engine)
+        }
+        let app = (0 ..< 3).map {
+            AppRelease(tag: "v0.7.15\($0)", name: "", body: "", url: "", source: .app)
+        }
+        store.merge(engine + app)
+        XCTAssertEqual(store.releases.filter { $0.source == .engine }.count, 20)
+        XCTAssertEqual(store.releases.filter { $0.source == .app }.count, 3)
+        XCTAssertNotNil(store.appUpdate(installed: "0.7.150"))
+        try? FileManager.default.removeItem(at: tmp)
+    }
+
+    /// 새소식 featured: 게시일 내림차순 혼합, 최대 3건.
+    @MainActor
+    func testReleaseFeaturedMixedByDate() {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("releases-featured-\(UUID().uuidString).json")
+        let store = ReleaseNotes(storageURL: tmp)
+        let day: TimeInterval = 86_400
+        let base = Date(timeIntervalSince1970: 1_800_000_000)
+        store.merge([
+            AppRelease(tag: "v0.16.0", name: "", body: "", url: "",
+                       publishedAt: base.addingTimeInterval(-3 * day), source: .engine),
+            AppRelease(tag: "v0.7.151", name: "", body: "", url: "",
+                       publishedAt: base.addingTimeInterval(-1 * day), source: .app),
+            AppRelease(tag: "v0.17.0", name: "", body: "", url: "",
+                       publishedAt: base.addingTimeInterval(-2 * day), source: .engine),
+            AppRelease(tag: "v0.15.0", name: "", body: "", url: "",
+                       publishedAt: base.addingTimeInterval(-4 * day), source: .engine),
+        ])
+        XCTAssertEqual(store.featured.map(\.tag), ["v0.7.151", "v0.17.0", "v0.16.0"])
+        try? FileManager.default.removeItem(at: tmp)
+    }
+
     /// 채팅 검색 일치 (T-263): 질문·응답 모두 대상.
     func testChatSearchMatch() {
         let session = ChatStore.Session(title: "방")
@@ -868,7 +953,7 @@ final class LiteRTLMStudioLogicTests: LiteRTLMStudioTestCase {
         XCTAssertNotNil(KoreanMatch.matchRanges(in: "서버 시작", query: "서버"))
     }
 
-    /// 최근 사용 명령 (T-326): 기록·순서·상한·기본값.
+    /// 최근 사용 명령 (T-326): 기록·순서·상한·빈 기본값·지우기.
     func testPaletteRecents() {
         let defaults = UserDefaults(suiteName: "test-palette")!
         defaults.removePersistentDomain(forName: "test-palette")
@@ -880,12 +965,14 @@ final class LiteRTLMStudioLogicTests: LiteRTLMStudioTestCase {
             PaletteCommand(id: "debug", title: "디버그 패널", hint: "⇧⌘D"),
             PaletteCommand(id: "refreshModels", title: "모델 새로고침", hint: "")
         ]
-        XCTAssertEqual(PaletteRecents.recentCommands(all: all, defaults: defaults).count, 5)
+        XCTAssertTrue(PaletteRecents.recentCommands(all: all, defaults: defaults).isEmpty)
         PaletteRecents.record("server", to: defaults)
         PaletteRecents.record("newChat", to: defaults)
         PaletteRecents.record("server", to: defaults)
         let recent = PaletteRecents.recentCommands(all: all, defaults: defaults)
         XCTAssertEqual(recent.map(\.id), ["server", "newChat"])
+        PaletteRecents.clear(from: defaults)
+        XCTAssertTrue(PaletteRecents.recentCommands(all: all, defaults: defaults).isEmpty)
         for i in 0 ..< 12 { PaletteRecents.record("id\(i)", to: defaults) }
         XCTAssertLessThanOrEqual(PaletteRecents.load(from: defaults).count,
                                  PaletteRecents.maxStored)

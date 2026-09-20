@@ -138,6 +138,7 @@ struct ContentView: View {
             }
             .task {
                 await restoreState()
+                await releases.autoCheckAppUpdate()
             }
             .onChange(of: selectedModelID) { _, v in
                 if let v {

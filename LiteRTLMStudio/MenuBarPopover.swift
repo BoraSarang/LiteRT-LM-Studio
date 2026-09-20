@@ -10,6 +10,7 @@ struct MenuBarPopover: View {
     @EnvironmentObject var daemon: DaemonManager
     @EnvironmentObject var chat: ChatStore
     @EnvironmentObject var nativeEngine: NativeEngine
+    @EnvironmentObject var releases: ReleaseNotes
 
     private static let recentLimit = 3
 
@@ -75,6 +76,21 @@ struct MenuBarPopover: View {
             HStack {
                 SettingsLink { Text(L(L10n.StatusMenu.settings)) }
                 Spacer()
+                if let update = releases.appUpdate(installed: AboutView.appVersion) {
+                    Button {
+                        deliver(.openAbout)
+                    } label: {
+                        Text(L(L10n.Update.available,
+                                ReleaseNotesParser.displayVersion(update.tag)))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text("v\(AboutView.appVersion)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Button(L(L10n.StatusMenu.quit)) { services.quit() }
             }
         }
@@ -172,7 +188,6 @@ struct MenuBarPopover: View {
     }
 
     // MARK: - 창 열기 (씬 밖이라 노티 경유)
-
     private func openMainWindow() {
         NotificationCenter.default.post(name: .openMainWindow, object: nil)
         NSApp.activate(ignoringOtherApps: true)

@@ -44,6 +44,24 @@ extension L10n {
         static let tagline = L10nKey("about.tagline")
         static let libraries = L10nKey("about.libraries")
     }
+
+    enum Update {
+        static let check = L10nKey("update.check")
+        static let checking = L10nKey("update.checking")
+        static let latest = L10nKey("update.latest")
+        static let failed = L10nKey("update.failed")
+        static let noRelease = L10nKey("update.noRelease")
+        static let available = L10nKey("update.available")
+        static let sheetTitle = L10nKey("update.sheet.title")
+        static let sheetHowto = L10nKey("update.sheet.howto")
+        static let sheetDownload = L10nKey("update.sheet.download")
+        static let sheetClose = L10nKey("update.sheet.close")
+        static let frequency = L10nKey("update.frequency")
+        static let frequencyAtLaunch = L10nKey("update.frequency.atLaunch")
+        static let frequencyDaily = L10nKey("update.frequency.daily")
+        static let frequencyWeekly = L10nKey("update.frequency.weekly")
+        static let frequencyNever = L10nKey("update.frequency.never")
+    }
     enum Palette {
         static let newChat = L10nKey("palette.cmd.newChat")
         static let serverStop = L10nKey("palette.cmd.serverStop")

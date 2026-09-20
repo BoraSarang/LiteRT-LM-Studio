@@ -69,13 +69,23 @@ struct LiteRTLMStudioApp: App {
         .defaultSize(width: 1080, height: 700)
         // 정보 창 (T-068, TubeKeep AboutView 구조).
         Window(L(L10n.App.about), id: "about") {
-            AboutView()
+            AboutView(releases: services.releases)
         }
-        .defaultSize(width: 560, height: 460)
+        .defaultSize(width: 560, height: 360)
+        .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button(L(L10n.App.aboutItem)) {
                     NotificationCenter.default.post(name: .openAbout, object: nil)
+                }
+                Divider()
+                Button(L(L10n.Update.check)) {
+                    // 정보 창을 열고 뜰 시간을 준 뒤 자동 확인 (팝오버 deliver 패턴과 동일).
+                    NotificationCenter.default.post(name: .openAbout, object: nil)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(400))
+                        NotificationCenter.default.post(name: .checkAppUpdate, object: nil)
+                    }
                 }
             }
             CommandGroup(replacing: .newItem) {

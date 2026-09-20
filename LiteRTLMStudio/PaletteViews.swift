@@ -16,7 +16,6 @@ enum PaletteRecents {
     static let key = "paletteRecents"
     static let maxStored = 10
     static let maxShown = 5
-    static let fallback = ["newChat", "modelManager", "logPanel", "server", "debug"]
 
     nonisolated static func load(from defaults: UserDefaults = .standard) -> [String] {
         defaults.stringArray(forKey: key) ?? []
@@ -28,13 +27,17 @@ enum PaletteRecents {
         defaults.set(Array(ids.prefix(maxStored)), forKey: key)
     }
 
-    /// 최근 명령 최대 5건 (없으면 기본 5종, 사라진 id 제외).
+    nonisolated static func clear(from defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: key)
+    }
+
+    /// 최근 명령 최대 5건 (기록 없으면 빈 배열, 사라진 id 제외).
     nonisolated static func recentCommands(all: [PaletteCommand],
                                            defaults: UserDefaults = .standard) -> [PaletteCommand] {
         let ids = load(from: defaults)
-        let order = ids.isEmpty ? fallback : ids
+        guard !ids.isEmpty else { return [] }
         let byID = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
-        return order.compactMap { byID[$0] }.prefix(maxShown).map { $0 }
+        return ids.compactMap { byID[$0] }.prefix(maxShown).map { $0 }
     }
 }
 
@@ -66,6 +69,7 @@ struct PaletteView: View {
     @State private var query = ""
     @State private var selection = 0
     @State private var hits: [ChatSearchHit] = []
+    @State private var recentsToken = 0
     @FocusState private var searchFocused: Bool
     private let logger = DebugLogger.shared
 
@@ -120,17 +124,47 @@ struct PaletteView: View {
         }
     }
 
-    /// 최근 사용 최대 5건 (빈 질의 전용).
-    var recentRows: [PaletteCommand] {
-        guard isEmptyQuery else { return [] }
-        return PaletteRecents.recentCommands(all: commands)
+    /// 전체 명령 (최근 포함 판정용: 기본 6종 + 벤치 2종).
+    var allCommands: [PaletteCommand] {
+        commands + benchCommands
     }
 
-    /// 단일 선택 공간 (표시 순서: 명령/최근+채팅+벤치).
+    /// 최근 사용 최대 5건 (빈 질의 전용, 기록 없으면 빈 배열).
+    var recentRows: [PaletteCommand] {
+        guard isEmptyQuery else { return [] }
+        _ = recentsToken
+        return PaletteRecents.recentCommands(all: allCommands)
+    }
+
+    /// 빈 질의용 나머지 명령 (최근 중복 제외, 원래 순서 유지).
+    var emptyCommands: [PaletteCommand] {
+        guard isEmptyQuery else { return [] }
+        let recentIDs = Set(recentRows.map(\.id))
+        return commands.filter { !recentIDs.contains($0.id) }
+    }
+
+    /// 빈 질의용 나머지 벤치 (최근 중복 제외).
+    var emptyBench: [PaletteCommand] {
+        guard isEmptyQuery else { return [] }
+        let recentIDs = Set(recentRows.map(\.id))
+        return benchCommands.filter { !recentIDs.contains($0.id) }
+    }
+
+    /// 섹션 표시용 명령 (빈 질의=최근 제외 나머지, 검색 중=필터 결과).
+    var displayCommands: [PaletteCommand] {
+        isEmptyQuery ? emptyCommands : filteredCommands
+    }
+
+    /// 섹션 표시용 벤치 (빈 질의=최근 제외 나머지, 검색 중=필터 결과).
+    var displayBench: [PaletteCommand] {
+        isEmptyQuery ? emptyBench : filteredBench
+    }
+
+    /// 단일 선택 공간 (표시 순서: 최근+나머지 명령+채팅+나머지 벤치).
     var rows: [PaletteRow] {
-        (recentRows + filteredCommands).map(PaletteRow.command)
+        (recentRows + emptyCommands + filteredCommands).map(PaletteRow.command)
             + hits.map(PaletteRow.hit)
-            + filteredBench.map(PaletteRow.command)
+            + (emptyBench + filteredBench).map(PaletteRow.command)
     }
 
     /// 현재 선택 행 id (범위 밖이면 nil).
@@ -159,14 +193,25 @@ struct PaletteView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     if !recentRows.isEmpty {
-                        sectionLabel(L(L10n.Palette.sectionRecent))
+                        HStack {
+                            sectionLabel(L(L10n.Palette.sectionRecent))
+                            Spacer()
+                            Button(L(L10n.Palette.clear)) {
+                                PaletteRecents.clear()
+                                recentsToken += 1
+                            }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .padding(.trailing, 12)
+                        }
                         ForEach(recentRows) { cmd in
                             commandRow(cmd)
                         }
                     }
-                    if !filteredCommands.isEmpty {
+                    if !displayCommands.isEmpty {
                         sectionLabel(L(L10n.Palette.sectionCommands))
-                        ForEach(filteredCommands) { cmd in
+                        ForEach(displayCommands) { cmd in
                             commandRow(cmd)
                         }
                     }
@@ -176,9 +221,9 @@ struct PaletteView: View {
                             hitRow(hit)
                         }
                     }
-                    if !filteredBench.isEmpty {
+                    if !displayBench.isEmpty {
                         sectionLabel(L(L10n.Palette.sectionBenchmarks))
-                        ForEach(filteredBench) { cmd in
+                        ForEach(displayBench) { cmd in
                             commandRow(cmd)
                         }
                     }

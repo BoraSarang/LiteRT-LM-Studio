@@ -113,12 +113,68 @@ enum ReleaseNotesParser {
             .first
     }
 
+    /// 설치된 앱 버전보다 새 앱 정식 릴리즈가 있는지 (순수, 앱 자체 업데이트용).
+    /// 엔진 판정(newerStable)과 대칭: 앱 출처만 판정.
+    nonisolated static func newerApp(_ releases: [AppRelease], installed: String?) -> AppRelease? {
+        guard let installed, !installed.isEmpty else { return nil }
+        return releases
+            .filter { $0.source == .app }
+            .filter { !$0.prerelease }
+            .filter { compare($0.tag, installed) == .orderedDescending }
+            .sorted { compare($0.tag, $1.tag) == .orderedDescending }
+            .first
+    }
+
     /// 버전 문자열에서 숫자 구간 추출 (순수).
     nonisolated static func numericParts(_ tag: String) -> [Int] {
         var s = tag.trimmingCharacters(in: .whitespaces)
         if s.hasPrefix("v") || s.hasPrefix("V") { s = String(s.dropFirst()) }
         if let dash = s.firstIndex(of: "-") { s = String(s[..<dash]) }
         return s.split(separator: ".").compactMap { Int($0) }
+    }
+}
+
+/// 앱 자체 업데이트 확인 주기 (설정 영속, 기본 weekly).
+enum UpdateCheckFrequency: String, CaseIterable, Identifiable, Sendable {
+    case atLaunch
+    case daily
+    case weekly
+    case never
+
+    var id: String { rawValue }
+
+    var titleKey: L10nKey {
+        switch self {
+        case .atLaunch: L10n.Update.frequencyAtLaunch
+        case .daily: L10n.Update.frequencyDaily
+        case .weekly: L10n.Update.frequencyWeekly
+        case .never: L10n.Update.frequencyNever
+        }
+    }
+
+    var title: String { L(titleKey) }
+
+    /// 확인 주기가 됐는지 (순수, 테스트 가능).
+    /// atLaunch는 이번 실행에서 아직 확인 안 했으면 true.
+    nonisolated static func shouldCheck(
+        frequency: Self,
+        lastChecked: Date?,
+        now: Date,
+        launchDate: Date
+    ) -> Bool {
+        switch frequency {
+        case .never:
+            return false
+        case .atLaunch:
+            guard let last = lastChecked else { return true }
+            return last < launchDate
+        case .daily:
+            guard let last = lastChecked else { return true }
+            return now.timeIntervalSince(last) >= 86_400
+        case .weekly:
+            guard let last = lastChecked else { return true }
+            return now.timeIntervalSince(last) >= 604_800
+        }
     }
 }
 
@@ -137,6 +193,12 @@ final class ReleaseNotes: ObservableObject {
     nonisolated static var fetchedAtKey: String { "releaseNotesFetchedAt" }
     nonisolated static var freshness: TimeInterval { 6 * 3600 } // 6시간
     nonisolated static var maxKept: Int { 20 }
+    /// 출처별 보관 상한 (엔진 20건이 앱을 밀어내지 않도록 분리).
+    nonisolated static var maxKeptEngine: Int { 20 }
+    nonisolated static var maxKeptApp: Int { 10 }
+    /// 앱 업데이트 확인 시각 키·주기 키 (UserDefaults 영속).
+    nonisolated static var appUpdateCheckedAtKey: String { "appUpdateCheckedAt" }
+    nonisolated static var appUpdateFrequencyKey: String { "appUpdateFrequency" }
 
     @Published var releases: [AppRelease] = []
     @Published var isLoading = false
@@ -175,11 +237,22 @@ final class ReleaseNotes: ObservableObject {
             .first
     }
 
-    /// 화면 표시분 (정식 우선, 최대 3건).
+    /// 화면 표시분 (게시일 내림차순, 엔진·앱 혼합 최대 3건, 날짜 없음은 뒤로).
     var featured: [AppRelease] {
-        let stable = releases.filter { !$0.prerelease }
-        let rest = releases.filter { $0.prerelease }
-        return Array((stable + rest).prefix(3))
+        let all = releases.sorted {
+            switch ($0.publishedAt, $1.publishedAt) {
+            case let (a?, b?): a > b
+            case (_?, nil): true
+            case (nil, _?): false
+            default: $0.tag > $1.tag
+            }
+        }
+        return Array(all.prefix(3))
+    }
+
+    /// 설치된 앱 버전보다 새 앱 정식 릴리즈 (없으면 nil=최신).
+    func appUpdate(installed: String?) -> AppRelease? {
+        ReleaseNotesParser.newerApp(releases, installed: installed)
     }
 
     /// 필요 시 조회 (6시간 이내 성공분 있으면 캐시 유지).
@@ -189,6 +262,22 @@ final class ReleaseNotes: ObservableObject {
             return
         }
         await refresh()
+    }
+
+    /// 주기에 따라 필요하면 앱 업데이트를 확인한다 (앱 시작 시 호출).
+    /// 확인했으면 시각을 기록한다 (성공 여부 무관 — 실패 시 다음 주기에 재시도).
+    func autoCheckAppUpdate(now: Date = Date(), launchDate: Date = Date()) async {
+        let raw = UserDefaults.standard.string(forKey: Self.appUpdateFrequencyKey)
+        let frequency = UpdateCheckFrequency(rawValue: raw ?? "") ?? .weekly
+        guard frequency != .never else { return }
+        let last: Date? = {
+            let t = UserDefaults.standard.double(forKey: Self.appUpdateCheckedAtKey)
+            return t > 0 ? Date(timeIntervalSince1970: t) : nil
+        }()
+        guard UpdateCheckFrequency.shouldCheck(frequency: frequency, lastChecked: last,
+                                              now: now, launchDate: launchDate) else { return }
+        await refresh()
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: Self.appUpdateCheckedAtKey)
     }
 
     /// Releases 조회+누적 저장 (T-294 엔진+앱 2원). 한쪽 실패·빈 결과는 조용히
@@ -240,14 +329,20 @@ final class ReleaseNotes: ObservableObject {
         return tagged.isEmpty ? nil : tagged
     }
 
-    /// 새 분합 + 출처+태그 중복 제거 + 20건 cap + 원자 저장.
+    /// 새 분합 + 출처별 cap (엔진 20·앱 10) + 출처+태그 중복 제거 + 원자 저장.
+    /// 엔진이 앞에 와도 앱이 잘리지 않는다 (합산 cap 시절 버그 수정).
     func merge(_ fresh: [AppRelease]) {
         var seen = Set<String>()
-        var merged: [AppRelease] = []
+        var engine: [AppRelease] = []
+        var app: [AppRelease] = []
         for rel in fresh + releases where seen.insert(rel.id).inserted {
-            merged.append(rel)
+            if rel.source == .app {
+                app.append(rel)
+            } else {
+                engine.append(rel)
+            }
         }
-        releases = Array(merged.prefix(Self.maxKept))
+        releases = Array(engine.prefix(Self.maxKeptEngine)) + Array(app.prefix(Self.maxKeptApp))
         save()
     }
 

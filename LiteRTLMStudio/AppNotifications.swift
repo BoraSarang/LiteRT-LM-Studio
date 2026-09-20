@@ -20,4 +20,5 @@ extension Notification.Name {
     static let requestAlias = Notification.Name("requestAlias") // T-232 관리 창에서 표시 이름 바꾸기 요청
     static let requestPinCheck = Notification.Name("requestPinCheck") // T-260 휠 스탬프 시 핀 실측 요청
     static let openMainWindow = Notification.Name("openMainWindow") // T-355 메뉴바 팝오버에서 메인 창 열기
+    static let checkAppUpdate = Notification.Name("checkAppUpdate") // 메뉴 업데이트 확인 → 정보 창에서 자동 확인
 }

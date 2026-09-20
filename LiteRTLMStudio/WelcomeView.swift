@@ -42,6 +42,9 @@ struct WelcomeView: View {
     /// 설치 버전보다 새 정식 릴리즈 (없으면 nil=최신).
     var update: AppRelease? { ReleaseNotesParser.newerStable(notes.releases, installed: installed) }
 
+    /// 설치된 Studio 버전보다 새 앱 정식 릴리즈 (없으면 nil=최신).
+    var appUpdate: AppRelease? { notes.appUpdate(installed: AboutView.appVersion) }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
@@ -97,6 +100,18 @@ struct WelcomeView: View {
                 Text(L(L10n.Welcome.updateAvailable))
                     .font(DS.captionFont.weight(.semibold)).foregroundStyle(.orange)
             }
+            Text("· Studio \(AboutView.appVersion)")
+                .font(DS.captionFont).foregroundStyle(.secondary)
+            if let appTag = appUpdate?.tag {
+                Button {
+                    NotificationCenter.default.post(name: .openAbout, object: nil)
+                } label: {
+                    Text(L(L10n.Update.available,
+                            ReleaseNotesParser.displayVersion(appTag)))
+                        .font(DS.captionFont.weight(.semibold)).foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -133,10 +148,16 @@ struct WelcomeView: View {
         }.cardBox()
     }
 
-    /// 새소식 1행: 버전+날짜+요약 3줄+자세히 링크.
+    /// 새소식 1행: 출처 뱃지+버전+날짜+요약 3줄+자세히 링크.
     func newsRow(_ rel: AppRelease) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
+                Text(rel.source == .app ? "Studio" : "litert-lm")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 5).padding(.vertical, 1)
+                    .background(Color.secondary.opacity(0.15))
+                    .clipShape(Capsule())
                 Text(ReleaseNotesParser.displayVersion(rel.tag))
                     .font(.system(size: 13, weight: .semibold))
                 if rel.prerelease {
