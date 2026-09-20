@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LiteRT-LM Studio — Native macOS client for on-device LLM chat</title>
+<meta name="description" content="LiteRT-LM Studio is a native macOS app for chatting with local LiteRT-LM models. Streaming chat, tools, benchmarks, and model management — everything on your machine.">
+<style>
+  :root {
+    --ink: #0b0e14;
+    --panel: #121724;
+    --panel-2: #161c2b;
+    --hairline: #232b3d;
+    --text: #e8ecf4;
+    --muted: #9aa4b8;
+    --faint: #6b7488;
+    --accent: #0a84ff;
+    --accent-soft: rgba(10, 132, 255, 0.14);
+    --green: #30d158;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+  }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- nav ---------- */
+  nav {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .mark {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, #0a84ff, #5e5ce6);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px; color: #fff;
+  }
+  nav .name { font-weight: 650; letter-spacing: -0.01em; }
+  nav .spacer { flex: 1; }
+  nav .links { display: flex; gap: 20px; font-size: 14px; }
+  nav .links a { color: var(--muted); text-decoration: none; }
+  nav .links a:hover { color: var(--text); }
+
+  /* ---------- hero ---------- */
+  .hero {
+    display: grid; grid-template-columns: 1fr 1.15fr;
+    gap: 48px; align-items: center;
+    padding: 72px 0 56px;
+  }
+  .eyebrow {
+    font-size: 13px; color: var(--muted);
+    margin: 0 0 18px;
+  }
+  .eyebrow .dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green); margin-right: 8px; vertical-align: 1px;
+  }
+  h1 {
+    font-size: clamp(40px, 5.4vw, 64px);
+    line-height: 1.04; letter-spacing: -0.03em;
+    margin: 0 0 20px; font-weight: 750;
+  }
+  h1 .dim { color: var(--muted); }
+  .lede { color: var(--muted); font-size: 17px; max-width: 46ch; margin: 0 0 30px; }
+  .cta-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .btn-download {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--accent); color: #fff;
+    font-size: 16px; font-weight: 650;
+    padding: 13px 26px; border-radius: 12px;
+    text-decoration: none; border: 0;
+    transition: transform 0.12s ease, filter 0.12s ease;
+  }
+  .btn-download:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--text); font-size: 15px; font-weight: 550;
+    padding: 13px 20px; border-radius: 12px;
+    border: 1px solid var(--hairline); text-decoration: none;
+    background: var(--panel);
+  }
+  .btn-ghost:hover { border-color: var(--faint); }
+  .fineprint { color: var(--faint); font-size: 13px; margin: 14px 0 0; }
+
+  /* macOS window mock */
+  .window {
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.02) inset,
+      0 0 120px rgba(10, 132, 255, 0.07);
+  }
+  .titlebar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--hairline);
+    background: var(--panel-2);
+  }
+  .light { width: 12px; height: 12px; border-radius: 50%; }
+  .light.r { background: #ff5f57; } .light.y { background: #febc2e; } .light.g { background: #28c840; }
+  .titlebar .t { flex: 1; text-align: center; font-size: 13px; color: var(--muted); }
+  .window img { display: block; width: 100%; height: auto; }
+  .stream {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--hairline);
+    font-size: 14px; color: var(--muted);
+    min-height: 48px;
+  }
+  .stream .caret {
+    display: inline-block; width: 8px; height: 18px;
+    background: var(--accent); border-radius: 2px;
+    animation: blink 1.05s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---------- sections ---------- */
+  section.block { padding: 56px 0; border-top: 1px solid var(--hairline); }
+  .kicker {
+    font-size: 13px; color: var(--faint);
+    margin: 0 0 10px; letter-spacing: 0.02em;
+  }
+  h2 {
+    font-size: clamp(26px, 3.2vw, 36px);
+    letter-spacing: -0.02em; font-weight: 700;
+    margin: 0 0 12px;
+  }
+  .sub { color: var(--muted); margin: 0 0 32px; max-width: 62ch; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 22px;
+  }
+  .card .glyph {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: var(--accent-soft); color: var(--accent);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 700; margin-bottom: 14px;
+  }
+  .card h3 { margin: 0 0 8px; font-size: 16px; letter-spacing: -0.01em; }
+  .card p { margin: 0; font-size: 14px; color: var(--muted); }
+
+  .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .shots figure { margin: 0; }
+  .shots .tall { grid-row: span 2; }
+  .shots img {
+    width: 100%; height: auto; display: block;
+    border: 1px solid var(--hairline); border-radius: var(--radius);
+  }
+  .shots figcaption { color: var(--faint); font-size: 13px; margin-top: 10px; }
+
+  /* install */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 8px; }
+  .step {
+    background: var(--panel); border: 1px solid var(--hairline);
+    border-radius: var(--radius); padding: 22px;
+  }
+  .step .n {
+    font-size: 13px; color: var(--accent);
+    margin-bottom: 10px; display: block;
+  }
+  .step h3 { margin: 0 0 8px; font-size: 16px; }
+  .step p { margin: 0; font-size: 14px; color: var(--muted); }
+  pre {
+    background: #080b11; border: 1px solid var(--hairline);
+    border-radius: 10px; padding: 16px 18px;
+    font-size: 13.5px; line-height: 1.7;
+    overflow-x: auto; color: var(--text);
+    margin: 16px 0 0;
+  }
+  pre .c { color: var(--faint); }
+  pre .b { color: var(--accent); }
+
+  .req {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px;
+  }
+  .chip {
+    font-size: 13px; color: var(--muted);
+    border: 1px solid var(--hairline); border-radius: 999px;
+    padding: 7px 15px; background: var(--panel);
+  }
+
+  footer {
+    border-top: 1px solid var(--hairline);
+    padding: 32px 0 48px; color: var(--faint); font-size: 13px;
+    display: flex; gap: 24px; flex-wrap: wrap; align-items: baseline;
+  }
+  footer .spacer { flex: 1; }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+
+  @media (max-width: 880px) {
+    .hero { grid-template-columns: 1fr; gap: 36px; padding-top: 48px; }
+    .grid, .steps { grid-template-columns: 1fr; }
+    .shots { grid-template-columns: 1fr; }
+    nav .links { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .stream .caret { animation: none; }
+    .btn-download { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav>
+    <span class="mark">L</span>
+    <span class="name">LiteRT-LM Studio</span>
+    <span class="spacer"></span>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#screens">Screens</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/BoraSarang/LiteRT-LM-Studio">GitHub</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <p class="eyebrow mono"><span class="dot"></span>macOS 14+ &middot; Apple Silicon &middot; on-device</p>
+      <h1>Local models.<br><span class="dim">Native Mac chat.</span></h1>
+      <p class="lede">LiteRT-LM Studio is a native macOS client for LiteRT-LM — streaming chat with tools, benchmarks, and model management. Everything runs on your machine.</p>
+      <div class="cta-row">
+        <a class="btn-download" href="https://github.com/BoraSarang/LiteRT-LM-Studio/releases/latest">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg>
+          Download for Mac
+        </a>
+        <a class="btn-ghost" href="https://github.com/BoraSarang/LiteRT-LM-Studio">View source</a>
+      </div>
+      <p class="fineprint">Free &middot; DMG for Apple Silicon &middot; Self-updating via in-app release notes</p>
+    </div>
+    <div class="window" role="img" aria-label="LiteRT-LM Studio chat window screenshot">
+      <div class="titlebar">
+        <span class="light r"></span><span class="light y"></span><span class="light g"></span>
+        <span class="t">LiteRT-LM Studio</span>
+      </div>
+      <img src="images/chat_en.png" alt="Streaming chat with follow-up suggestions" width="920" height="640">
+      <div class="stream"><span class="mono" id="typed" aria-hidden="true"></span><span class="caret" aria-hidden="true"></span></div>
+    </div>
+  </header>
+
+  <section class="block" id="features">
+    <p class="kicker mono">// why native</p>
+    <h2>Built like a Mac app, not a web wrapper.</h2>
+    <p class="sub">SwiftUI throughout, menu-bar resident, and respectful of the platform — with a permission model that asks before any tool touches your system.</p>
+    <div class="grid">
+      <div class="card"><span class="glyph">&#9673;</span><h3>Streaming chat</h3><p>Sessions with a table of contents, Vision image attachments, follow-up suggestions, and Markdown rendering.</p></div>
+      <div class="card"><span class="glyph">&#8984;</span><h3>Tools, gated</h3><p>Web search, shell, calendar, clipboard, and Shortcuts — each off, ask-every-time, or allow-all.</p></div>
+      <div class="card"><span class="glyph">&#8646;</span><h3>MCP &amp; skills</h3><p>Connect stdio/SSE servers and local skills that join the system prompt.</p></div>
+      <div class="card"><span class="glyph">&#9698;</span><h3>Two engines</h3><p>Run through the <span class="mono">litert-lm serve</span> daemon or the in-app engine, picked per message.</p></div>
+      <div class="card"><span class="glyph">&#9733;</span><h3>Model catalog</h3><p>Browse Hugging Face, download with pause and resume, install, rename, delete.</p></div>
+      <div class="card"><span class="glyph">&#8776;</span><h3>Benchmarks</h3><p>A dedicated window with history and AI analysis of your runs.</p></div>
+    </div>
+  </section>
+
+  <section class="block" id="screens">
+    <p class="kicker mono">// look around</p>
+    <h2>Screens.</h2>
+    <p class="sub">Chat, catalog, and benchmarks — all bilingual (English shown, Korean one click away in Settings).</p>
+    <div class="shots">
+      <figure class="tall"><img src="images/chat_en.png" alt="Chat window" loading="lazy"><figcaption>Chat — streaming, outline, follow-ups</figcaption></figure>
+      <figure><img src="images/model-catalog_en.png" alt="Model catalog" loading="lazy"><figcaption>Model catalog</figcaption></figure>
+      <figure><img src="images/benchmark_en.png" alt="Benchmark window" loading="lazy"><figcaption>Benchmarks with history</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="block" id="install">
+    <p class="kicker mono">// get running</p>
+    <h2>Install in three steps.</h2>
+    <p class="sub">No Developer ID signature on these builds, so the first launch takes a right-click. After that it behaves like any Mac app — including in-app update checks.</p>
+    <div class="steps">
+      <div class="step"><span class="n mono">01</span><h3>Download the DMG</h3><p>Grab the latest <span class="mono">*-macos-arm64.dmg</span> from Releases and drag the app into Applications.</p></div>
+      <div class="step"><span class="n mono">02</span><h3>Right-click &rarr; Open</h3><p>Ad-hoc signed builds trigger Gatekeeper once. Open via right-click and it never asks again.</p></div>
+      <div class="step"><span class="n mono">03</span><h3>Install the engine</h3><p>The app drives the <span class="mono">litert-lm</span> CLI. One command, plus models in the standard folder.</p></div>
+    </div>
+<pre class="mono"><span class="c"># engine + a model home the app already knows</span>
+uv tool install litert-lm
+<span class="b">ls</span> ~/.litert-lm/models</pre>
+    <div class="req">
+      <span class="chip mono">macOS 14+</span>
+      <span class="chip mono">Apple Silicon recommended</span>
+      <span class="chip mono">uv at /opt/homebrew/bin/uv</span>
+      <span class="chip mono">127.0.0.1:9379 fixed port</span>
+    </div>
+  </section>
+
+  <footer>
+    <span>&copy; 2026 BoRaSaRang &middot; Apache-2.0</span>
+    <span>Independent client, not affiliated with Google.</span>
+    <span class="spacer"></span>
+    <a href="https://github.com/BoraSarang/LiteRT-LM-Studio/releases">Releases</a>
+    <a href="https://github.com/BoraSarang/LiteRT-LM-Studio/blob/main/docs/CHANGELOG.md">Changelog</a>
+    <a href="https://github.com/BoraSarang/LiteRT-LM-Studio/issues">Issues</a>
+  </footer>
+
+</div>
+<script>
+(function () {
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var el = document.getElementById('typed');
+  var lines = [
+    'Summarize this thread…',
+    'Benchmark Gemma 4 12B…',
+    'Search the web for MTP on Apple Silicon…'
+  ];
+  if (reduce || !el) { if (el) el.textContent = lines[0]; return; }
+  var li = 0, ci = 0, del = false;
+  function tick() {
+    var s = lines[li];
+    el.textContent = s.slice(0, ci);
+    var wait = del ? 28 : 55;
+    if (!del && ci === s.length) { wait = 1700; del = true; }
+    else if (del && ci === 0) { del = false; li = (li + 1) % lines.length; wait = 400; }
+    else { ci += del ? -1 : 1; }
+    setTimeout(tick, wait);
+  }
+  tick();
+})();
+</script>
+</body>
+</html>
