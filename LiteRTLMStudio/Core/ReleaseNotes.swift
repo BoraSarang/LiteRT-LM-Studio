@@ -220,8 +220,10 @@ final class ReleaseNotes: ObservableObject {
     nonisolated static func resolvedURL() -> URL {
         let dst = StudioPaths.releaseNotesURL
         // 마이그레이터 미실행·실패 대비 폴백: 구 경로가 남아 있으면 1회 복사.
-        let legacy = FileManager.default.urls(for: .applicationSupportDirectory,
-                                              in: .userDomainMask).first!
+        let legacy = (FileManager.default.urls(for: .applicationSupportDirectory,
+                                               in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Application Support"))
             .appendingPathComponent("LiteRTLMStudio/release-notes.json")
         if !FileManager.default.fileExists(atPath: dst.path),
            FileManager.default.fileExists(atPath: legacy.path) {

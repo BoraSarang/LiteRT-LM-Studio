@@ -96,15 +96,15 @@ struct ContentView: View {
     var body: some View {
         // 하단 로그는 chatPane 하단 (사이드바 제외, T-039).
         // 팔레트는 Spotlight식 오버레이 (T-263, 시트 교체).
-        rootEvents(rootDialogs(
+        rootEvents(rootChanges(rootDialogs(
             mainSplit
                 .background { WindowTitleSync(title: roomTitle) }
                 .toolbar { mainToolbar }
                 .overlay { paletteOverlay }
-        ))
+        )))
     }
 
-    /// 시트·다이얼로그·task·선택 동기 체인 (T-232: body 타입 추론 부하 분산용 분리).
+    /// 시트·다이얼로그 체인 (T-232: body 타입 추론 부하 분산용 분리).
     private func rootDialogs<T: View>(_ view: T) -> some View {
         view
             .sheet(isPresented: aliasBinding) {
@@ -136,6 +136,11 @@ struct ContentView: View {
                 Text(toolApproval.pending.map { "\(ToolCatalog.title(for: $0.toolName)) \($0.detail)" }
                     ?? L(L10n.Dialog.toolMessage))
             }
+    }
+
+    /// 시작·설정 변경 체인 (T-232: 루트 라우팅 body 길이 분산용 분리).
+    private func rootChanges<T: View>(_ view: T) -> some View {
+        view
             .task {
                 await restoreState()
                 await releases.autoCheckAppUpdate()
