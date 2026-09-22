@@ -66,11 +66,19 @@ final class DaemonManager: ObservableObject {
             return
         }
         let healthy = await isHealthy()
+        // T-374: 외부 전이 직전 소유 확인 — 타사면 전이 차단+코드 기록(조용한 오접 방지).
+        // 자사 프로세스 alive·이미 실행 중·시작 중·이미 외부는 대상 제외.
+        let foreign = healthy && process?.isRunning != true && status != .running
+            && status != .starting && !external && !isOwnListener()
+        if foreign, lastError != "E-MAC-NET-0002" {
+            lastError = "E-MAC-NET-0002"
+            logger.error(code: "E-MAC-NET-0002", feature: "데몬감시", "타사 서버가 :9379 점유 중 — 연결하지 않음")
+        }
         // mute여도 서버 실상은 표시 (T-179): 중지로 보이지만 떠 있으면 미연결로 안내.
         unlinkedRunning = Self.unlinkedRunning(muted: muted, healthy: healthy)
         let before = (status, external)
         let next = Self.transition(status: status, external: external, muted: muted,
-                                   healthy: healthy, streak: unhealthyStreak)
+                                   healthy: healthy && !foreign, streak: unhealthyStreak)
         status = next.status
         external = next.external
         unhealthyStreak = next.streak
@@ -119,12 +127,9 @@ final class DaemonManager: ObservableObject {
         unlinkedRunning = false
         guard process?.isRunning != true else { return }
         // 이미 떠 있는 데몬(터미널/이전 실행)이 있으면 바인드 실패 대신 연결한다.
-        if await isHealthy() {
-            status = .running
-            external = true
-            uptimeSince = Date()
-            logger.info(feature: "데몬시작", "기존 실행 중 데몬에 연결 (외부 프로세스)")
-            return
+        switch await adoptExternalIfPresent() {
+        case .adopted, .foreign: return
+        case .none: break
         }
         external = false
         status = .starting
@@ -158,10 +163,45 @@ final class DaemonManager: ObservableObject {
             logger.info(feature: "데몬시작", "헬스체크 통과, 실행 중")
             return
         }
-        status = .failed
-        lastError = "E-MAC-NET-0004"
-        logger.error(code: "E-MAC-NET-0004", feature: "데몬시작", "헬스체크 타임아웃")
+        // T-374: 타사 점유가 기동을 가로막으면 0002, 아니면 타임아웃 0004.
+        if await isHealthy() {
+            status = .failed
+            lastError = "E-MAC-NET-0002"
+            logger.error(code: "E-MAC-NET-0002", feature: "데몬시작", "타사 서버가 :9379 점유 중 — 기동 실패")
+        } else {
+            status = .failed
+            lastError = "E-MAC-NET-0004"
+            logger.error(code: "E-MAC-NET-0004", feature: "데몬시작", "헬스체크 타임아웃")
+        }
         stop()
+    }
+
+    /// 기존 데몬 선확인 결과 (T-374).
+    private enum Precheck { case none, adopted, foreign }
+
+    /// 기존 데몬 선확인 (T-374): 자사면 연결·타사면 0002 후 종료·없으면 기동 계속.
+    private func adoptExternalIfPresent() async -> Precheck {
+        guard await isHealthy() else { return .none }
+        // T-374: 타사 점유면 연결 금지 (조용한 오접 방지, E-MAC-NET-0002 안내).
+        guard isOwnListener() else {
+            status = .stopped
+            lastError = "E-MAC-NET-0002"
+            logger.error(code: "E-MAC-NET-0002", feature: "데몬시작", "타사 서버가 :9379 점유 중 — 연결하지 않음")
+            return .foreign
+        }
+        status = .running
+        external = true
+        uptimeSince = Date()
+        logger.info(feature: "데몬시작", "기존 실행 중 데몬에 연결 (외부 프로세스)")
+        return .adopted
+    }
+
+    /// 자사 리스너 여부 (T-374): :9379 리스너 중 litert-lm 인자가 하나라도 있으면 참.
+    func isOwnListener() -> Bool {
+        let listeners = SystemMonitor.listenerPIDs()
+        guard !listeners.isEmpty else { return false }
+        return listeners.compactMap({ SystemMonitor.processArgs($0) })
+            .contains(where: { SystemMonitor.isLitertArgs($0) })
     }
 
     /// 헬스체크 통과 대기 (T-371, 상태 폴링): 통과 true·타임아웃/중단 false.
@@ -170,7 +210,11 @@ final class DaemonManager: ObservableObject {
         // /v1/models 폴링 (임의 sleep 금지 → 상태 폴링)
         for _ in 0..<24 {
             if Task.isCancelled || status == .stopped { return false }
-            if await isHealthy() { return true }
+            if await isHealthy() {
+                // T-374: 타사 점유가 자사 기동을 가로막으면 대기 없이 실패 확정.
+                guard isOwnListener() else { return false }
+                return true
+            }
             try? await Task.sleep(for: .seconds(2))
         }
         return false
