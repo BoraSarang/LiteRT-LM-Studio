@@ -136,10 +136,11 @@ struct MarkdownView: View, Equatable {
 
     /// 실제 표 렌더 (T-152/T-161/T-163): 테두리 상자 + 행/열 1px 실선 + 셀 패딩.
     /// Divider 축 의존 제거 (Grid 셀 안에서 가로로 눕는 버그) — 열 구분선은 명시 폭 Rectangle.
+    /// UI-P0: 넓은 표는 가로 스크롤 (열 폭 초과 시 잘림 방지).
     func tableBody(rows: [[String]], header: Bool) -> some View {
         let cols = max(1, rows.map(\.count).max() ?? 1)
         let padded = rows.map { r in r + Array(repeating: "", count: max(0, cols - r.count)) }
-        return Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+        let grid = Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
             ForEach(Array(padded.enumerated()), id: \.offset) { ri, row in
                 GridRow {
                     ForEach(Array(row.enumerated()), id: \.offset) { ci, cell in
@@ -165,8 +166,11 @@ struct MarkdownView: View, Equatable {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: true, vertical: false)
         .background(Color(.textBackgroundColor))
+        return ScrollView(.horizontal, showsIndicators: true) {
+            grid
+        }
         .clipShape(.rect(cornerRadius: 8))
         .overlay { RoundedRectangle(cornerRadius: 8).stroke(.separator) }
     }

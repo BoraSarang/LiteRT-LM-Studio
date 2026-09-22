@@ -98,7 +98,7 @@ struct UserBubbleView: View {
                     .font(DS.captionFont).foregroundStyle(.tertiary)
                     .frame(height: 20) // T-165 공간 예약 (숨김 때도 자리 유지)
                     .opacity(hovering ? 1 : 0)
-                    .accessibilityHidden(!hovering)
+                    // VoiceOver: accessibilityHidden 제거 — 호버 없이도 복사·수정 접근 가능 (UI-P0).
                 }
             }
         }
@@ -229,7 +229,7 @@ struct AssistantBubbleView: View {    let message: ChatStore.Message
                     .font(DS.captionFont).foregroundStyle(.tertiary)
                     .frame(height: 20) // T-162 공간 예약 (숨김 때도 자리 유지)
                     .opacity(hovering ? 1 : 0)
-                    .accessibilityHidden(!hovering)
+                    // VoiceOver: accessibilityHidden 제거 — 호버 없이도 복사·재시도 접근 가능 (UI-P0).
                 }
         }
         .onHover { inside in // T-105 해제 지연 (바 경계 깜빡임 방지, 재진입 시 취소)
