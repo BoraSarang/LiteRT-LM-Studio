@@ -122,7 +122,8 @@ struct BottomPanelView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity) // T-100 콘텐츠 영역 통일
         }
         .cardBox()
-        .frame(height: DS.bottomBoxHeight) // T-095 입력창 접힘 높이와 동일
+        // T-095 최소 높이 유지 + 상한 내 성장 (헤더·시스템 3셀 클리핑 해소, UI-P0).
+        .frame(minHeight: DS.bottomBoxHeight, maxHeight: DS.bottomBoxHeight * 1.5)
     }
 
     private var showLogActions: Bool {

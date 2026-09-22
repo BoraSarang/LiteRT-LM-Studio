@@ -111,6 +111,7 @@ extension ContentView {
         guard attempt < maxAttempts else {
             pendingSessionJump = false
             self.followGate.entryDone = true // T-213 종료 후 보정 허용
+            self.followGate.entryCorrections = 0 // UI-P0: 종료 후 고착·붕괴 보정용 1회 재지급
             self.settleToBottom() // T-209 상한 종료도 동일 (동결 해제+확정)
             // T-204 상한 종료도 기준 기록 (이후 붕괴·고착 판정용).
             if let sv = self.chatScrollView, let doc = sv.documentView {
@@ -181,6 +182,7 @@ extension ContentView {
         case .finish(let reason):
             // T-209 프록시 우선 착지 (동결 해제+확정 한 묶음).
             gate.entryDone = true // T-213 종료 후 보정 허용
+            gate.entryCorrections = 0 // UI-P0: 종료 후 고착·붕괴 보정용 1회 재지급
             self.settleToBottom()
             self.pendingSessionJump = false
             // T-204 종료 기준 기록 (이후 붕괴·고착 판정용).

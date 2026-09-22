@@ -148,6 +148,8 @@ extension ContentView {
     /// 보정 예산 차감 (T-211): 진입당 최대 2회. 초과분은 영구 조용 (진동자 차단).
     /// settleToBottom(진입 확정)은 예산 외. T-214 최종 슬롯은 전량 우회
     /// (이후 works 없어 진동 불가, 각 함수가 점프 후 상태로 재평가).
+    /// UI-P0: entryDone 시점에 ChatScrollActions가 예산을 1회 재지급해
+    /// 진입 중 소진으로 종료 후 고착·붕괴 보정이 영구 꺼지던 문제를 해소.
     func claimCorrectionBudget() -> Bool {
         if followGate.finalPass { return true }
         guard followGate.entryCorrections < 2 else { return false }

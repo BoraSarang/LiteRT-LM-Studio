@@ -34,7 +34,7 @@ struct LiteRTLMStudioApp: App {
                                 bench: services.bench, benchHistory: services.benchHistory,
                                 releases: services.releases,
                                 config: services.config)
-                        .frame(minWidth: 1000, minHeight: 640)
+                        .frame(minWidth: 900, minHeight: 640) // UI-P0: 분할·소형 화면 축소 허용
                 } else {
                     LandingView(done: $onboardingDone)
                 }
