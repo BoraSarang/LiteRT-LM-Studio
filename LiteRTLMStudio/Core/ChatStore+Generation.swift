@@ -95,11 +95,7 @@ extension ChatStore {
         now: Date = Date(),
         timeZone: TimeZone = .current
     ) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ko_KR")
-        formatter.timeZone = timeZone
-        formatter.dateFormat = "yyyy년 M월 d일 EEEE"
-        return "[오늘 날짜] \(formatter.string(from: now)). "
+        return "[오늘 날짜] \(TimeFormat.koreanDayBlock(now: now, timeZone: timeZone)). "
             + "날짜·요일을 물으면 이 값을 그대로 답하세요."
     }
 

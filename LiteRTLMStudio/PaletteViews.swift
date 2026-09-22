@@ -388,6 +388,6 @@ struct AliasSheetView: View {
                 Button(L(L10n.Palette.cancel), action: onCancel)
                 Button(L(L10n.Palette.save), action: onSave).buttonStyle(.borderedProminent)
             }
-        }.padding(16).frame(width: 380)
+        }.padding(16).frame(minWidth: 380, maxWidth: 380, minHeight: 120)
     }
 }

@@ -77,6 +77,7 @@ struct BenchmarkListView: View {
                         .foregroundStyle(.primary)
                         .frame(width: 24, height: 20)
                         .contentShape(Rectangle())
+                        .accessibilityLabel(L(L10n.Benchmark.menu))
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)

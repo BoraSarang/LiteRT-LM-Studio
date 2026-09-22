@@ -358,9 +358,6 @@ extension BenchmarkWindowView {
     }
 
     private func shortDate(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "ko_KR")
-        f.dateFormat = "MM-dd HH:mm"
-        return f.string(from: date)
+        TimeFormat.shortDateTime(date)
     }
 }

@@ -201,11 +201,17 @@ struct DebugPanelView: View {
         }
     }
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// 검색 결과 이동 (순환, T-053).
     private func jumpMatch(_ dir: Int, proxy: ScrollViewProxy) {
         guard !rows.isEmpty else { return }
         matchIndex = (matchIndex + dir + rows.count) % rows.count
-        withAnimation { proxy.scrollTo(rows[matchIndex].id, anchor: .center) }
+        if reduceMotion {
+            proxy.scrollTo(rows[matchIndex].id, anchor: .center)
+        } else {
+            withAnimation { proxy.scrollTo(rows[matchIndex].id, anchor: .center) }
+        }
     }
 
     /// 선택 복사 (T-057, Web Island 참고): 선택 없으면 표시 전체.

@@ -118,7 +118,9 @@ struct AboutView: View {
 
     private var icon: NSImage {
         NSApp.applicationIconImage
-            ?? NSImage(systemSymbolName: "brain", accessibilityDescription: nil) ?? NSImage()
+            ?? NSImage(named: NSImage.applicationIconName)
+            ?? NSImage(systemSymbolName: "brain", accessibilityDescription: "LiteRT-LM Studio")
+            ?? NSImage()
     }
 
     nonisolated static var appVersion: String {

@@ -344,7 +344,7 @@ struct SkillsImportSheet: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(selected.isEmpty)
             }
-        }.padding(16).frame(width: 520)
+        }.padding(16).frame(minWidth: 520, maxWidth: 520, minHeight: 280)
     }
 
     private var filteredCandidates: [SkillsStore.ImportCandidate] {

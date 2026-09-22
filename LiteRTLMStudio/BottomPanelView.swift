@@ -18,7 +18,7 @@ struct BottomPanelView: View {
                 Picker("", selection: $logTab) {
                     Text(L(L10n.Panel.serverLog)).tag(0)
                     Text(L(L10n.Panel.system)).tag(1)
-                }.pickerStyle(.segmented).frame(width: 160)
+                }.pickerStyle(.segmented).frame(minWidth: 160, idealWidth: 180)
                 Text(L(daemon.external ? L10n.Panel.externalDaemon : L10n.Panel.appDaemon))
                     .font(.system(size: 10)).foregroundStyle(.tertiary)
                 Spacer()

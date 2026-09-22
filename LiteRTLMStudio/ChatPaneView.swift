@@ -67,7 +67,7 @@ extension ContentView {
     var paletteOverlay: some View {
         if showPalette {
             ZStack {
-                Color.black.opacity(0.15)
+                Color.primary.opacity(0.12)
                     .onTapGesture { showPalette = false }
                 VStack {
                     palette
@@ -284,7 +284,7 @@ extension ContentView {
             .background {
                 // T-258 점프 플래시 (행 배경 강조 1.5초).
                 if outlineFlashID == m.id {
-                    RoundedRectangle(cornerRadius: 10).fill(Color.yellow.opacity(0.25))
+                    RoundedRectangle(cornerRadius: 10).fill(DSColor.warning.opacity(0.25))
                 }
             }
             if shouldShowFollowUp(m) {
@@ -314,8 +314,8 @@ extension ContentView {
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: followUps.loading)
-        .animation(.easeInOut(duration: 0.25), value: followUps.chips)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: followUps.loading)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: followUps.chips)
         .onAppear {
             followUps.finalize(messageID: m.id,
                                question: FollowUpSuggest.questionBefore(messages: chat.messages,
