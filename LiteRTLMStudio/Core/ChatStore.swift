@@ -166,7 +166,9 @@ final class ChatStore: ObservableObject {
     nonisolated static func resolvedStorageURL() -> (URL, Bool) {
         let dst = StudioPaths.chatHistoryURL
         let base = FileManager.default.urls(for: .applicationSupportDirectory,
-                                            in: .userDomainMask).first!
+                                             in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Application Support")
         let appSupport = base.appendingPathComponent("LiteRTLMStudio/chat-history.json")
         let legacyManager = base.appendingPathComponent("LiteRTLM-Manager/chat-history.json")
         // T-060: 구 번들(LiteRTLM-Manager) → App Support 1회 이사.

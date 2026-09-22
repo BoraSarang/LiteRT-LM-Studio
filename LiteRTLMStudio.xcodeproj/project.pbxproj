@@ -114,6 +114,7 @@
 				500000000000000000000168,
 				500000000000000000000169,
 				500000000000000000000171,
+				500000000000000000000172,
 				500000000000000000000170,
 				500000000000000000000164,
 				500000000000000000000024,
@@ -344,6 +345,7 @@
 				400000000000000000000169,
 				400000000000000000000170,
 				400000000000000000000171,
+				400000000000000000000172,
 				400000000000000000000012,
 				400000000000000000000013,
 				400000000000000000000052,
@@ -549,6 +551,7 @@
 		400000000000000000000169 = { isa = PBXBuildFile; fileRef = 500000000000000000000169; };
 		400000000000000000000170 = { isa = PBXBuildFile; fileRef = 500000000000000000000170; };
 		400000000000000000000171 = { isa = PBXBuildFile; fileRef = 500000000000000000000171; };
+		400000000000000000000172 = { isa = PBXBuildFile; fileRef = 500000000000000000000172; };
 		400000000000000000000164 = { isa = PBXBuildFile; fileRef = 500000000000000000000164; };
 		400000000000000000000012 = { isa = PBXBuildFile; fileRef = 500000000000000000000022; };
 		400000000000000000000013 = { isa = PBXBuildFile; fileRef = 500000000000000000000023; };
@@ -711,6 +714,7 @@
 		500000000000000000000168 = { isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = "InfoPlist.xcstrings"; sourceTree = "<group>"; };
 		500000000000000000000169 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/ErrorCatalog.swift"; sourceTree = "<group>"; };
 		500000000000000000000171 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/CorruptBackup.swift"; sourceTree = "<group>"; };
+		500000000000000000000172 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PaletteModels.swift"; sourceTree = "<group>"; };
 		500000000000000000000170 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UpdateSheet.swift"; sourceTree = "<group>"; };
 		500000000000000000000166 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeysViews.swift"; sourceTree = "<group>"; };
 		500000000000000000000165 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Core/LocalizationKeysModels.swift"; sourceTree = "<group>"; };
