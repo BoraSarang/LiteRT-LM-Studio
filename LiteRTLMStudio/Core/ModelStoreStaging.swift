@@ -58,8 +58,7 @@ extension ModelStore {
     /// 파일명 → 매핑 읽기/쓰기 (설치·이름변경 추적용, T-252 repo 포함).
     /// 구 형식(문자열=로컬ID)도 읽힘.
     func loadMapping() -> [String: FileMapping] {
-        guard let data = try? Data(contentsOf: mappingURL),
-              let map = try? JSONDecoder().decode([String: FileMapping].self, from: data) else {
+        guard let map: [String: FileMapping] = CorruptBackup.decode([String: FileMapping].self, from: mappingURL) else {
             return [:]
         }
         return map

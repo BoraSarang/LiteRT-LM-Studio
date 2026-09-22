@@ -148,8 +148,7 @@ final class BenchmarkHistoryStore: ObservableObject {
     }
 
     func load() {
-        guard let data = try? Data(contentsOf: storageURL),
-              let decoded = try? JSONDecoder().decode([BenchmarkRecord].self, from: data)
+        guard let decoded: [BenchmarkRecord] = CorruptBackup.decode([BenchmarkRecord].self, from: storageURL)
         else { return }
         records = decoded.sorted { $0.date > $1.date }
     }

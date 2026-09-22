@@ -195,6 +195,24 @@ final class LiteRTLMStudioTests: LiteRTLMStudioTestCase {
         XCTAssertNotNil(NSImage(named: "MenuBarChip"), "MenuBarChip 에셋 확인")
     }
 
+    /// 손상 JSON 격리 (T-372): 깨진 파일은 .corrupt로 옮기고 nil, 정상분은 해석, 없음도 nil.
+    func testCorruptBackupQuarantines() {
+        struct Mini: Codable, Equatable { let a: Int }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let good = dir.appendingPathComponent("good.json")
+        try? JSONEncoder().encode(Mini(a: 1)).write(to: good)
+        XCTAssertEqual(CorruptBackup.decode(Mini.self, from: good), Mini(a: 1))
+        let bad = dir.appendingPathComponent("bad.json")
+        try? "깨짐{{{".write(to: bad, atomically: true, encoding: .utf8)
+        XCTAssertNil(CorruptBackup.decode(Mini.self, from: bad))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: bad.path))
+        let left = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        XCTAssertTrue(left.contains { $0.hasPrefix("bad.json.corrupt-") }, "\(left)")
+        XCTAssertNil(CorruptBackup.decode(Mini.self, from: dir.appendingPathComponent("missing.json")))
+    }
+
     /// 종료 정리 판정: 설정ON+앱소유+(실행중·시작중)일 때 중지 (T-035, T-371 시작중 포함).
     func testShouldStopDaemon() {
         typealias S = DaemonManager.Status

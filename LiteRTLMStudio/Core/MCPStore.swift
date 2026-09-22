@@ -34,8 +34,7 @@ final class MCPStore: ObservableObject {
     }
 
     func load() {
-        guard let data = try? Data(contentsOf: storageURL),
-              let payload = try? JSONDecoder().decode(Payload.self, from: data) else { return }
+        guard let payload: Payload = CorruptBackup.decode(Payload.self, from: storageURL) else { return }
         servers = payload.servers
     }
 
