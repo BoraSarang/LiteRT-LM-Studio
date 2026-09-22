@@ -359,7 +359,7 @@
 * [x] T-365 한국어 문구 다듬기: 카탈로그 ko·en 814키를 korean-humanizer 패턴(번역체·피동·hype·3의 법칙·연결어미 뒤 쉼표·줄표·이모지·hedging)으로 전수 스캔 — 번역체·피동·hype는 0건이었고, 연결어미 뒤 쉼표 1건(`skill.noSkillMD`)과 줄표 표시 문구 20건(menuBar.tooltip·failed, engineNotice.noModel, import.*, inspector.*, server.*, sidebar.externalRestart/status.help, welcome.*, exa.test.success, settings.followUpEnabled.help, benchmark.estimate.*)만 정리. 런타임 조합 툴팁 2곳(SidebarView·CatalogBrowserView)도 가운뎃점으로 통일하고 테스트 단언 3건 동기화. 로그·도구 결과·프롬프트·초성 검색은 대상 제외 유지. (319/319+build OK+lint 0)
 * [x] T-366 시스템 표면 + 문서: `InfoPlist.xcstrings`(권한 설명 4건 ko/en, `InfoPlist.strings` 컴파일 검증 테스트), `error_message_ko.json`(E-MAC-* 29개)을 `error.<코드>` 키로 카탈로그 이관 후 JSON·pbxproj 등록·테스트 번들 리소스 삭제(코드 전수 ko/en 해석 테스트로 대체), 원문 중복 표현("앱 내 엔진 엔진") 정리, README(한/영)·사용설명서·CHANGELOG 언어 안내. 창/메뉴 제목의 즉시 갱신은 SwiftUI 씬·메뉴가 1회 구성되어 다음 실행 반영(사용자 눈확인 대기). (319/319+build OK+lint 0)
 * [x] T-367 릴리스 0.7.150: PR #3 머지(`fb574be`) → 태그 `v0.7.150` → GitHub Release 생성, README(한/영) 스크린샷 4종(`docs/images/`) 추가, CHANGELOG를 릴리스 요약으로 정리하고 상세 136건을 `docs/CHANGELOG-DETAIL.md`로 분리, main 재빌드·설치(0.7.150), 머지된 브랜치 로컬·원격 정리(원격에는 `main`만 남김). (319/319+build OK+lint 0)
-* [ ] T-368 남은 눈확인: 언어 전환 후 **창 제목·앱 메뉴**가 다음 실행에 반영되는지(앱이 그리는 UI는 즉시), 시스템 권한 대화상자 문구가 선택 언어로 뜨는지 — 사용자 확인 필요
+* [ ] T-368 남은 눈확인: 언어 전환 후 **창 제목·앱 메뉴**가 다음 실행에 반영되는지(앱이 그리는 UI는 즉시), 시스템 권한 대화상자 문구가 선택 언어로 뜨는지 — 부분 확인: `InfoPlist.strings` ko/en 번들 산출물·테스트(4키) 통과, 창/메뉴는 SwiftUI 1회 구성 설계 → 사용자 실행 눈확인 1회만 남음
 * [x] T-369 안정화 S 번들: E-MAC-PERF-0001 카탈로그 매핑+BenchmarkHistory 원자 쓰기+ChatStore.send 전송 가드+Markdown `.auto` 실효 테마 (323/323+lint 신규 0)
 * [x] T-370 릴리스 게이트: release.yml에 unit 테스트 스텝 추가+태그·MARKETING_VERSION 불일치 시 실패 처리 (수동 실행은 통과)
 * [x] T-371 안정화 S2: 시작중 종료 시 고아 데몬(판정+폴링 조기탈출)+ConfigStore 백업 원자 쓰기+`.part` 크기 Int64 단일화
