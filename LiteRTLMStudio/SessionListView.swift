@@ -109,10 +109,11 @@ struct SessionListView: View {
                         .foregroundStyle(.primary)
                         .frame(width: 24, height: 20)
                         .contentShape(Rectangle())
+                        .accessibilityLabel(L(L10n.Session.menu))
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
-                        .help(L(L10n.Session.menu))
+                .help(L(L10n.Session.menu))
             }
         }
         .padding(.horizontal, 8).padding(.vertical, 6)

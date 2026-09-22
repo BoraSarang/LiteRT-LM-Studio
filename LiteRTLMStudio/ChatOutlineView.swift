@@ -44,6 +44,7 @@ struct ChatOutlineView: View {
     @State private var expanded = false
     @State private var hideWork: DispatchWorkItem?
     @State private var contentHeight: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 0) {
@@ -113,7 +114,7 @@ struct ChatOutlineView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: expanded)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: expanded)
     }
 
     /// 맨 아래로 (T-332): 최근 질문이 보이게 펼침·추가 시 하단 스크롤.

@@ -111,10 +111,7 @@ struct GetTimeTool: Tool {
 
     func run() async throws -> Any {
         await LocalTools.runTolled(toolName: Self.name, detail: "현재시각 조회") {
-            let f = DateFormatter()
-            f.locale = Locale(identifier: "ko_KR")
-            f.dateFormat = "yyyy년 M월 d일 EEEE HH시 mm분"
-            return f.string(from: Date())
+            TimeFormat.koreanDateTimeNow()
         }
     }
 }

@@ -17,9 +17,7 @@ enum StudioMigrator {
     // MARK: - 구 경로 루트
 
     nonisolated static func legacyAppSupport(_ fm: FileManager = .default) -> URL {
-        let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-        return base.appendingPathComponent("LiteRTLMStudio", isDirectory: true)
+        StudioPaths.legacyAppSupportBase(fm).appendingPathComponent("LiteRTLMStudio", isDirectory: true)
     }
 
     nonisolated static func legacyCaches(_ fm: FileManager = .default) -> URL {

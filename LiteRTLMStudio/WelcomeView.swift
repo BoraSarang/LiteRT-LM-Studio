@@ -250,7 +250,9 @@ struct WelcomeView: View {
     /// 앱 아이콘 (AboutView와 동일 소스, 없으면 brain 폴백).
     var appIcon: NSImage {
         NSApp.applicationIconImage
-            ?? NSImage(systemSymbolName: "brain", accessibilityDescription: nil) ?? NSImage()
+            ?? NSImage(named: NSImage.applicationIconName)
+            ?? NSImage(systemSymbolName: "brain", accessibilityDescription: L(L10n.Welcome.tagline))
+            ?? NSImage()
     }
 
     /// 외부 링크 열기 (기본 브라우저).

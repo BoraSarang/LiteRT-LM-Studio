@@ -147,7 +147,7 @@ extension ContentView {
                         TextField(L(L10n.Inspector.maxTokensPlaceholder), text: Binding(
                             get: { chat.maxTokens.map(String.init) ?? "" },
                             set: { chat.maxTokens = ConfigStore.intOrNil($0, min: 1) }
-                        )).multilineTextAlignment(.trailing).frame(width: 140)
+                        )).multilineTextAlignment(.trailing).frame(minWidth: 100, idealWidth: 140, maxWidth: 180)
                     }
                     .help(L(L10n.Inspector.maxTokensHelp))
                     HStack {
@@ -156,7 +156,7 @@ extension ContentView {
                         TextField(L(L10n.Inspector.seedPlaceholder), text: Binding(
                             get: { chat.seed.map(String.init) ?? "" },
                             set: { chat.seed = Int($0.trimmingCharacters(in: .whitespaces)) }
-                        )).multilineTextAlignment(.trailing).frame(width: 140)
+                        )).multilineTextAlignment(.trailing).frame(minWidth: 100, idealWidth: 140, maxWidth: 180)
                     }
                     .help(L(L10n.Inspector.seedHelp))
                     VStack(alignment: .leading, spacing: 2) {
@@ -172,7 +172,7 @@ extension ContentView {
                             TextField(L(L10n.Inspector.unlimitedPlaceholder), text: Binding(
                                 get: { chat.thinkingBudget == -1 ? "" : "\(chat.thinkingBudget)" },
                                 set: { chat.thinkingBudget = ConfigStore.budgetOrUnlimited($0) }
-                            )).multilineTextAlignment(.trailing).frame(width: 100)
+                            )).multilineTextAlignment(.trailing).frame(minWidth: 80, idealWidth: 100, maxWidth: 140)
                         }
                     } else {
                         // 미지원 → 비활성화 + 사유 캡션 (describe 실측 반영)
@@ -258,6 +258,7 @@ struct InspectorSectionHeader: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 20, height: 16)
                         .contentShape(Rectangle())
+                        .accessibilityLabel(L(L10n.Inspector.menu, title))
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
@@ -337,7 +338,7 @@ struct BackendSectionView: View {
                 Text(L(L10n.Inspector.kvTokens))
                 Spacer()
                 TextField(L(L10n.Inspector.kvPlaceholder), text: $config.draftKV)
-                    .multilineTextAlignment(.trailing).frame(width: 140)
+                    .multilineTextAlignment(.trailing).frame(minWidth: 100, idealWidth: 140, maxWidth: 180)
                     .help(L(L10n.Inspector.kvHelp))
             }
             Text(L(L10n.Inspector.kvCaption))
@@ -350,7 +351,7 @@ struct BackendSectionView: View {
                 Text(L(L10n.Inspector.thinkingBudget))
                 Spacer()
                 TextField(L(L10n.Inspector.unlimitedPlaceholder), text: $config.draftBudget)
-                    .multilineTextAlignment(.trailing).frame(width: 100)
+                    .multilineTextAlignment(.trailing).frame(minWidth: 80, idealWidth: 100, maxWidth: 140)
                     .help(L(L10n.Inspector.budgetHelp))
             }
         }

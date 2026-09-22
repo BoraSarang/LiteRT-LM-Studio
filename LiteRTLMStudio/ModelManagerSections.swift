@@ -151,6 +151,7 @@ extension ModelManagerView {
                 Image(systemName: "ellipsis")
                     .foregroundStyle(.primary)
                     .frame(width: 24, height: 20).contentShape(Rectangle())
+                    .accessibilityLabel(L(L10n.ModelManager.modelMenu))
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
@@ -195,6 +196,7 @@ extension ModelManagerView {
                 Image(systemName: "ellipsis")
                     .foregroundStyle(.primary)
                     .frame(width: 24, height: 20).contentShape(Rectangle())
+                    .accessibilityLabel(L(L10n.ModelManager.stagedMenu))
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)

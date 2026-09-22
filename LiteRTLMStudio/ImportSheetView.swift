@@ -70,7 +70,7 @@ struct ImportSheet: View {
             }
         }
         .padding(16)
-        .frame(width: 480)
+        .frame(minWidth: 480, maxWidth: 480, minHeight: 320, maxHeight: 640)
         .task {
             if usePreset { await fetchSiblings() }
         }

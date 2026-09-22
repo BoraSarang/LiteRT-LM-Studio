@@ -39,6 +39,7 @@ struct ContentView: View {
     @AppStorage("onboardingDone") var onboardingDone = true // T-257 게이트 복귀용
     @Environment(\.colorScheme)  var colorScheme
     @Environment(\.openWindow)  var openWindow // T-053 디버그 윈도우
+    @Environment(\.accessibilityReduceMotion)  var reduceMotion // T-378 모션 가드 (ChatPaneView extension 공유)
     @State var logTab = 0
     @State var aliasTarget: String?
     @State var aliasText = ""

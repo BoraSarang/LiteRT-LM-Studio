@@ -1,7 +1,7 @@
 import Charts
 import SwiftUI
 
-/// 그래프 색 (활성 상태 보기와 동일 계열, 미세 조정용 상수).
+/// 그래프 색 (활성 상태 보기와 동일 계열 — 차트 전용 시맨틱 상수, DSColor 비적용 예외).
 private enum MeterColor {
     static let cpuUser = Color.blue
     static let cpuSystem = Color.red

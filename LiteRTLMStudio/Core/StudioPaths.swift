@@ -88,6 +88,12 @@ enum StudioPaths {
 
     nonisolated static var workspaceURL: URL { ensure(workspaceDir(home())) }
 
+    /// 구 경로 루트: `~/Library/Application Support` (T-314 마이그레이터·폴백 공용).
+    nonisolated static func legacyAppSupportBase(_ fm: FileManager = .default) -> URL {
+        fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
+    }
+
     /// 하위 폴더 전체 준비 (앱 시작 시 1회).
     nonisolated static func ensureAll(_ home: URL = StudioPaths.home()) {
         _ = ensure(chatsDir(home))

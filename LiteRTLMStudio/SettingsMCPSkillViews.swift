@@ -189,7 +189,7 @@ extension SettingsView {
                 .textFieldStyle(.roundedBorder)
             if let result = exaTestResult {
                 Text(result).font(.caption)
-                    .foregroundStyle(result.hasPrefix(L(L10n.MCP.successPrefix)) ? Color.secondary : Color.red)
+                    .foregroundStyle(result.hasPrefix(L(L10n.MCP.successPrefix)) ? Color.secondary : DSColor.error)
             }
             Text(L(L10n.MCP.keyFooter))
                 .font(.caption).foregroundStyle(.secondary)
@@ -250,7 +250,7 @@ struct MCPAddSheet: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(draft.name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-        }.padding(16).frame(width: 420)
+        }.padding(16).frame(minWidth: 420, maxWidth: 420, minHeight: 140)
             .onAppear {
                 argsText = draft.args.joined(separator: " ")
             }

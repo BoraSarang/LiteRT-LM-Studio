@@ -183,6 +183,7 @@ extension ContentView {
                         .foregroundStyle(.primary)
                         .frame(width: 24, height: 20)
                         .contentShape(Rectangle())
+                        .accessibilityLabel(L(L10n.Sidebar.menu))
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
