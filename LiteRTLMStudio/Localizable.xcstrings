@@ -8230,13 +8230,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open the staging folder (~/Documents/.LiteRT-LM, hidden folder)"
+            "value": "Open the staging folder (staging under the app data home)"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "스테이징 폴더 열기 (~/Documents/.LiteRT-LM, 숨김 폴더)"
+            "value": "스테이징 폴더 열기 (앱 데이터 홈 아래 staging)"
           }
         }
       }
