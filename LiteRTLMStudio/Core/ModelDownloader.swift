@@ -42,6 +42,14 @@ extension ModelDownload {
         "bytes=\(max(0, existing))-"
     }
 
+    /// 디스크 파일 크기 (T-371): NSNumber에서 int64Value로 직접 읽어
+    /// 수 GB `.part`의 32bit 잘림을 방지. 없으면 0.
+    nonisolated static func fileSizeBytes(at url: URL) -> Int64 {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let num = attrs[.size] as? NSNumber else { return 0 }
+        return num.int64Value
+    }
+
     /// 재개 응답 판정 (순수, T-246).
     nonisolated static func resumeAction(status: Int) -> ResumeAction {
         switch status {
@@ -165,7 +173,7 @@ final class ModelDownloader: NSObject, ObservableObject, URLSessionDataDelegate,
         }
         guard let req else { return }
         let (url, token, part) = (req.url, req.token, req.part)
-        let existing = (try? FileManager.default.attributesOfItem(atPath: part.path)[.size] as? Int) ?? 0
+        let existing = ModelDownload.fileSizeBytes(at: part)
         do {
             let handle: FileHandle
             if FileManager.default.fileExists(atPath: part.path) {
@@ -184,7 +192,7 @@ final class ModelDownloader: NSObject, ObservableObject, URLSessionDataDelegate,
             return
         }
         var request = URLRequest(url: url)
-        request.setValue(ModelDownload.resumeRangeHeader(existing: Int64(existing)),
+        request.setValue(ModelDownload.resumeRangeHeader(existing: existing),
                          forHTTPHeaderField: "Range")
         if let token, !token.isEmpty {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
