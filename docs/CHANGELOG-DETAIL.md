@@ -3,6 +3,20 @@
 > 릴리스 요약은 [CHANGELOG.md](CHANGELOG.md)를 본다. 이 문서는 작업 단위 상세 기록이며 **최신이 위**다.
 > T-0006~T-366(0.7.150 이전 작업 포함)의 항목별 설명을 담는다.
 
+* UI-P0 5건 (T-375): 재분석에서 찾은 즉시 수정 대상 — ①마크다운 표에 `ScrollView(.horizontal)`+`fixedSize`를 넣어 열 폭 초과 시 가로 스크롤 (잘림 방지) ②하단 패널을 고정 144pt에서 `minHeight`+`maxHeight×1.5`로 바꿔 헤더·시스템 3셀 클리핑 해소 ③메시지 푸터 `accessibilityHidden(!hovering)` 2곳 제거로 VoiceOver가 호버 없이도 복사·수정·재시도를 잡음 ④메인 창 `minWidth` 1000→900 (분할·소형 화면 축소 허용) ⑤스크롤 보정 예산을 `entryDone` 시 1회 재지급해 진입 중 소진으로 종료 후 고착·붕괴 보정이 영구 꺼지던 문제 해소 (진입 중 상한 2회·T-211 유지, 종료 후 이동량·앵커 가드로 진동 재발 없음). (325/325+lint 신규 0, PR #13)
+
+* 안정화 S 번들 (T-369): `E-MAC-PERF-0001`을 오류 카탈로그에 매핑하고, `BenchmarkHistory` 저장을 원자 쓰기로 바꿨다. `ChatStore.send`는 스트리밍 중 중복 전송을 막는 가드를 넣었고, 마크다운 `.auto` 스킴은 시스템 다크 여부를 실효값으로 풀어 코드 하이라이트가 뒤집히던 문제를 고쳤다. [macos]
+
+* 릴리스 게이트 (T-370): `release.yml`에 unit 테스트 스텝을 넣고, 태그와 `MARKETING_VERSION`이 다르면 DMG 발행 전에 실패하게 했다. [macos]
+
+* 안정화 S2 (T-371): 앱 시작 중 종료될 때 남는 고아 데몬을 인자 기준으로 판정하고 폴링을 조기 탈출시켰다. `ConfigStore` 백업은 원자 쓰기로 바꾸고, 다운로드 `.part` 크기는 Int64로 단일화했다. [macos]
+
+* 손상 JSON 격리 (T-372): 공용 `CorruptBackup` 헬퍼를 만들고 손상 파일을 격리 폴더로 옮긴 뒤 빈 값으로 시작하는 경로 6곳(벤치·MCP·새소식·세션·매핑·큐)에 적용했다. 회귀 테스트 추가. [macos]
+
+* 문서·문구 정정 (T-373): 사용설명서 기준 버전을 0.7.152로 올리고, 스테이징 폴더 도움말·주석을 앱 데이터 홈(`~/.litert-lm-studio/`) 기준으로 고쳤다. [macos]
+
+* 포트 점유 감별 (T-374): `:9379` 점유 프로세스 인자로 자사/타사를 가리고, 외부 바인드 3곳(준비·감시·시작)에 게이트를 걸어 타사 점유 시엔 E-MAC-NET-0002로 안내한다. uv shim은 python이라 comm이 아니라 인자로 판정. [macos]
+
 * 릴리스 자동화 (0.7.151): `.github/workflows/release.yml`을 추가해 `v*.*.*` 태그 push 시
   macos-15 러너에서 Release 빌드 후 `LiteRT-LM-Studio-<버전>-macos-arm64.dmg`와 sha256을
   만들어 GitHub Release에 올린다. Ad-hoc 서명 유지라 첫 실행 Gatekeeper 안내는 우클릭→열기로

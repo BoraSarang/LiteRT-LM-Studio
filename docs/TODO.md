@@ -366,3 +366,4 @@
 * [x] T-372 손상 JSON 격리: CorruptBackup 공유 헬퍼+6곳(벤치·MCP·새소식·세션·매핑·큐) 적용+회귀 테스트
 * [x] T-373 문서·문구 정정: 사용설명서 기준 버전 0.7.152+스테이징 도움말·주석을 앱 데이터 홈 기준으로 (E-MAC-NET-0002는 카탈로그 정의 존재·미발행 잔여로 기록만)
 * [x] T-374 포트 점유 감별: 리스너 인자로 자사 판정+외부 바인드 3곳 게이트+타사면 E-MAC-NET-0002 (uv shim은 python이라 인자 판정)
+* [x] T-375 UI-P0 5건: 표 가로 스크롤(ScrollView+fixedSize)+하단패널 minHeight·maxHeight×1.5+VoiceOver accessibilityHidden 제거 2곳+main minWidth 900+스크롤 예산 entryDone 재지급 2곳 (325/325+lint 신규 0, PR #13)
