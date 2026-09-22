@@ -11,6 +11,8 @@ _기록 규칙: 작업 중에는 `## [Unreleased] (macos)`에 한 줄씩 쌓고,
 * 문서·문구 정정 (T-373): 사용설명서 기준 버전 0.7.152, 스테이징 도움말을 앱 데이터 홈 기준으로. [macos]
 * 포트 점유 감별 (T-374): 리스너 인자로 자사 판정, 외부 바인드 3곳 게이트, 타사면 E-MAC-NET-0002. [macos]
 * UI-P0 (T-375): 마크다운 표 가로 스크롤, 하단 패널 높이 성장, VoiceOver 호버 사각 제거, 메인 창 minWidth 900, 스크롤 보정 예산 종료 시 재지급. [macos]
+* 서명·배포 정책 (T-376): Hardened Runtime OFF(ad-hoc) 근거를 AGENTS.local에 기록, T-368 부분 확인. [macos]
+* 리팩터 S (T-377): ContentView 라이프사이클 분리(`rootChanges`), Palette 모델 분리(`PaletteModels.swift`), force unwrap 5곳 안전 폴백 — swiftlint 0·325/325. [macos]
 
 ## [0.7.152] - 2026-09-20 (macos)
 
