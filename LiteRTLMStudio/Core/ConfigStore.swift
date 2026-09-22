@@ -233,7 +233,7 @@ var hasChanges: Bool {
             json = old
             let bak = configURL.appendingPathExtension("bak")
             if !FileManager.default.fileExists(atPath: bak.path) {
-                try? data.write(to: bak)
+                try? data.write(to: bak, options: .atomic)
             }
         }
         var def = json["default"] as? [String: Any] ?? [:]

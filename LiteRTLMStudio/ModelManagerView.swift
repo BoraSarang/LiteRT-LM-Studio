@@ -63,14 +63,13 @@ final class DownloadCenter: ObservableObject {
         var restored: [DownloadItem] = []
         for rec in Self.pendingRecords(records, existingFinals: finals) {
             let part = staging.appendingPathComponent(ModelDownload.partName(for: rec.file))
-            let size = (try? FileManager.default.attributesOfItem(atPath: part.path)[.size]
-                as? Int) ?? 0
+            let size = ModelDownload.fileSizeBytes(at: part)
             let downloader = ModelDownloader()
             downloader.stageForResume(
                 url: ModelDownload.fileURL(repo: rec.repo, file: rec.file),
                 partURL: part,
                 finalURL: staging.appendingPathComponent(rec.file),
-                received: Int64(size))
+                received: size)
             restored.append(DownloadItem(repo: rec.repo, fileName: rec.file,
                                          localID: rec.localID, downloader: downloader))
         }
@@ -94,9 +93,8 @@ final class DownloadCenter: ObservableObject {
         orphans = Self.orphanFinals(partFiles: Self.partFiles(at: staging), queuedFiles: known)
             .map { name in
                 let part = staging.appendingPathComponent(ModelDownload.partName(for: name))
-                let size = (try? FileManager.default.attributesOfItem(atPath: part.path)[.size]
-                    as? Int) ?? 0
-                return OrphanPart(fileName: name, sizeBytes: Int64(size))
+                let size = ModelDownload.fileSizeBytes(at: part)
+                return OrphanPart(fileName: name, sizeBytes: size)
             }
             .sorted { $0.fileName.localizedCompare($1.fileName) == .orderedAscending }
     }

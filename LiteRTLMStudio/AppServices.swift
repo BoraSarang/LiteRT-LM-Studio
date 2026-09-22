@@ -91,10 +91,11 @@ final class AppServices: ObservableObject {
         UserDefaults.standard.object(forKey: "quitStopsDaemon") as? Bool ?? true
     }
 
-    /// 종료 정리 판정 (순수, 테스트 가능).
+    /// 종료 정리 판정 (순수, 테스트 가능, T-371: `.starting`도 포함 —
+    /// 시작 폴링(최대 48초) 중 종료하면 루프가 살아남아 종료 후 백그라운드 `serve`가 고아로 남는다).
     nonisolated static func shouldStopDaemon(stopOnQuit: Bool, external: Bool,
                                              status: DaemonManager.Status) -> Bool {
-        stopOnQuit && !external && status == .running
+        stopOnQuit && !external && (status == .running || status == .starting)
     }
 
     func quit() {

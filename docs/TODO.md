@@ -362,3 +362,4 @@
 * [ ] T-368 남은 눈확인: 언어 전환 후 **창 제목·앱 메뉴**가 다음 실행에 반영되는지(앱이 그리는 UI는 즉시), 시스템 권한 대화상자 문구가 선택 언어로 뜨는지 — 사용자 확인 필요
 * [x] T-369 안정화 S 번들: E-MAC-PERF-0001 카탈로그 매핑+BenchmarkHistory 원자 쓰기+ChatStore.send 전송 가드+Markdown `.auto` 실효 테마 (323/323+lint 신규 0)
 * [x] T-370 릴리스 게이트: release.yml에 unit 테스트 스텝 추가+태그·MARKETING_VERSION 불일치 시 실패 처리 (수동 실행은 통과)
+* [x] T-371 안정화 S2: 시작중 종료 시 고아 데몬(판정+폴링 조기탈출)+ConfigStore 백업 원자 쓰기+`.part` 크기 Int64 단일화

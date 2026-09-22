@@ -195,14 +195,15 @@ final class LiteRTLMStudioTests: LiteRTLMStudioTestCase {
         XCTAssertNotNil(NSImage(named: "MenuBarChip"), "MenuBarChip 에셋 확인")
     }
 
-    /// 종료 정리 판정: 설정ON+앱소유+실행중일 때만 중지 (T-035).
+    /// 종료 정리 판정: 설정ON+앱소유+(실행중·시작중)일 때 중지 (T-035, T-371 시작중 포함).
     func testShouldStopDaemon() {
         typealias S = DaemonManager.Status
         XCTAssertTrue(AppServices.shouldStopDaemon(stopOnQuit: true, external: false, status: .running))
         XCTAssertFalse(AppServices.shouldStopDaemon(stopOnQuit: false, external: false, status: .running))
         XCTAssertFalse(AppServices.shouldStopDaemon(stopOnQuit: true, external: true, status: .running))
         XCTAssertFalse(AppServices.shouldStopDaemon(stopOnQuit: true, external: false, status: .stopped))
-        XCTAssertFalse(AppServices.shouldStopDaemon(stopOnQuit: true, external: false, status: .starting))
+        XCTAssertTrue(AppServices.shouldStopDaemon(stopOnQuit: true, external: false, status: .starting))
+        XCTAssertFalse(AppServices.shouldStopDaemon(stopOnQuit: true, external: true, status: .starting))
         XCTAssertFalse(AppServices.shouldStopDaemon(stopOnQuit: true, external: false, status: .failed))
     }
 

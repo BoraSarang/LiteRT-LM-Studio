@@ -152,20 +152,28 @@ final class DaemonManager: ObservableObject {
             logger.error(code: "E-MAC-NET-0004", feature: "데몬시작", "프로세스 기동 실패: \(error)")
             return
         }
-        // /v1/models 폴링 (임의 sleep 금지 → 상태 폴링)
-        for _ in 0..<24 {
-            if await isHealthy() {
-                status = .running
-                uptimeSince = Date()
-                logger.info(feature: "데몬시작", "헬스체크 통과, 실행 중")
-                return
-            }
-            try? await Task.sleep(for: .seconds(2))
+        if await waitForHealthy() {
+            status = .running
+            uptimeSince = Date()
+            logger.info(feature: "데몬시작", "헬스체크 통과, 실행 중")
+            return
         }
         status = .failed
         lastError = "E-MAC-NET-0004"
         logger.error(code: "E-MAC-NET-0004", feature: "데몬시작", "헬스체크 타임아웃")
         stop()
+    }
+
+    /// 헬스체크 통과 대기 (T-371, 상태 폴링): 통과 true·타임아웃/중단 false.
+    /// 종료(stop)면 false로 부활 금지 — 종료 후 고아 데몬 방지.
+    private func waitForHealthy() async -> Bool {
+        // /v1/models 폴링 (임의 sleep 금지 → 상태 폴링)
+        for _ in 0..<24 {
+            if Task.isCancelled || status == .stopped { return false }
+            if await isHealthy() { return true }
+            try? await Task.sleep(for: .seconds(2))
+        }
+        return false
     }
 
     func stop() {
