@@ -54,8 +54,7 @@ final class DownloadCenter: ObservableObject {
     func restore(staging: URL) {
         stagingDir = staging
         guard let url = queueURL,
-              let data = try? Data(contentsOf: url),
-              let records = try? JSONDecoder().decode([QueuedDownload].self, from: data) else {
+              let records: [QueuedDownload] = CorruptBackup.decode([QueuedDownload].self, from: url) else {
             scanOrphans(staging: staging)
             return
         }

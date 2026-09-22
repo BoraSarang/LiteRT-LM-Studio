@@ -347,8 +347,7 @@ final class ReleaseNotes: ObservableObject {
     }
 
     func loadCache() {
-        guard let data = try? Data(contentsOf: storageURL),
-              let decoded = try? JSONDecoder().decode([AppRelease].self, from: data)
+        guard let decoded: [AppRelease] = CorruptBackup.decode([AppRelease].self, from: storageURL)
         else { return }
         releases = decoded
         showingCache = true

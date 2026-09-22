@@ -167,8 +167,7 @@ import Foundation
     }
 
      func loadPayload() -> Payload? {
-        guard let data = try? Data(contentsOf: storageURL) else { return nil }
-        return try? JSONDecoder().decode(Payload.self, from: data)
+        CorruptBackup.decode(Payload.self, from: storageURL)
     }
 
      func persist(payload: Payload) {
