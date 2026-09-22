@@ -156,7 +156,7 @@ final class BenchmarkHistoryStore: ObservableObject {
 
     func save() {
         guard let data = try? JSONEncoder().encode(records) else { return }
-        try? data.write(to: storageURL)
+        try? data.write(to: storageURL, options: .atomic)
     }
 
     /// 추가 + 보관 수 적용 (순수 cap은 테스트 가능).

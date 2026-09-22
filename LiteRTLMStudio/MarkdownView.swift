@@ -16,6 +16,17 @@ struct MarkdownView: View, Equatable {
     var scheme: MarkdownScheme = .auto
     var isStreaming: Bool = false
     var fontScale: CGFloat = 1.0 // T-070 채팅 폰트 줌
+    @Environment(\.colorScheme) private var systemScheme
+
+    /// 실효 다크 판정 (T-369): 명시(.light/.dark)는 그대로, `.auto`는 시스템 추종.
+    /// 기존 `scheme != .light`는 `.auto`를 항상 다크로 몰아 라이트에서 코드 하이라이트가 뒤집혔다.
+    private var resolvedDark: Bool {
+        switch scheme {
+        case .dark: true
+        case .light: false
+        case .auto: systemScheme == .dark
+        }
+    }
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.text == rhs.text && lhs.scheme == rhs.scheme && lhs.isStreaming == rhs.isStreaming
@@ -167,7 +178,7 @@ struct MarkdownView: View, Equatable {
         let part = NativeMarkdown.splitCode(c)
         let live = isStreaming || pending
         return CodeBlockView(code: part.body, lang: part.lang,
-                             dark: scheme != .light, fontSize: 13 * fontScale,
+                             dark: resolvedDark, fontSize: 13 * fontScale,
                              isStreaming: live)
             .id(CodeBlockView.stableID(code: part.body, lang: part.lang,
                                        isStreaming: live, salt: salt))

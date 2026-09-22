@@ -14,6 +14,7 @@ enum ErrorCatalog {
         "E-MAC-NET-0002", "E-MAC-NET-0004", "E-MAC-NET-0005", "E-MAC-NET-0006",
         "E-MAC-NET-0010", "E-MAC-NET-0013", "E-MAC-NET-0014", "E-MAC-NET-0015",
         "E-MAC-NET-0016",
+        "E-MAC-PERF-0001",
         "E-MAC-PERM-0011", "E-MAC-PERM-0016",
         "E-MAC-STOR-0003", "E-MAC-STOR-0006", "E-MAC-STOR-0009", "E-MAC-STOR-0012",
         "E-MAC-STOR-0013", "E-MAC-STOR-0014",
