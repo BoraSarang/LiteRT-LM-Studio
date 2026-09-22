@@ -13,6 +13,8 @@ _기록 규칙: 작업 중에는 `## [Unreleased] (macos)`에 한 줄씩 쌓고,
 * UI-P0 (T-375): 마크다운 표 가로 스크롤, 하단 패널 높이 성장, VoiceOver 호버 사각 제거, 메인 창 minWidth 900, 스크롤 보정 예산 종료 시 재지급. [macos]
 * 서명·배포 정책 (T-376): Hardened Runtime OFF(ad-hoc) 근거를 AGENTS.local에 기록, T-368 부분 확인. [macos]
 * 리팩터 S (T-377): ContentView 라이프사이클 분리(`rootChanges`), Palette 모델 분리(`PaletteModels.swift`), force unwrap 5곳 안전 폴백 — swiftlint 0·325/325. [macos]
+* UI P1 14건 (T-378): DSColor.error/primary/warning 도입, reduceMotion 가드 3곳, TimeFormat 헬퍼 3종+적용 3곳, 시트 frame 오버로드 4건, BottomPanel·Inspector 반응형 폭, ellipsis Menu accessibilityLabel 4곳, 앱아이콘 폴백 체인. [macos]
+* 리팩터 S (T-379): `StudioPaths.legacyAppSupportBase` 통합(호출부 4곳), SystemMonitorView 주석 정리 — swiftlint 0·325/325. [macos]
 
 ## [0.7.152] - 2026-09-20 (macos)
 
