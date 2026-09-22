@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-/// 스테이징된 다운로드 파일 1건 (T-232): 완료 후에도 `~/Documents/.LiteRT-LM`에 유지.
+/// 스테이징된 다운로드 파일 1건 (T-232, T-373): 완료 후에도 앱 데이터 홈 아래 staging에 유지.
 struct StagedEntry: Identifiable, Hashable, Sendable {
     var id: String { fileName }
     let fileName: String
