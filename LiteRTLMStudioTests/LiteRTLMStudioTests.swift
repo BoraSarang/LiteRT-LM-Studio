@@ -7,8 +7,8 @@ final class LiteRTLMStudioTests: LiteRTLMStudioTestCase {
     /// 오류 코드 대조표 (T-366): 코드 전수가 카탈로그에 ko·en으로 존재한다.
     /// 기존 `error_message_ko.json`(한국어 단일 파일)을 카탈로그로 이관한 뒤의 안전망.
     func testErrorCatalogCoversAllCodes() {
-        XCTAssertEqual(ErrorCatalog.codes.count, 29)
-        XCTAssertEqual(Set(ErrorCatalog.codes).count, 29, "중복 코드")
+        XCTAssertEqual(ErrorCatalog.codes.count, 30)
+        XCTAssertEqual(Set(ErrorCatalog.codes).count, 30, "중복 코드")
         for language in [AppLanguage.ko, .en] {
             setAppLanguageForTesting(language)
             for code in ErrorCatalog.codes {

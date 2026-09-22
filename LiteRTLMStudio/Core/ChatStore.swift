@@ -190,6 +190,11 @@ final class ChatStore: ObservableObject {
 
     func send(_ prompt: String, image: ChatImage? = nil) {
         logger.info(feature: "채팅전송", "model=\(model) len=\(prompt.count) image=\(image != nil)")
+        guard !streaming else {
+            logger.info(feature: "채팅전송", "진행 중 전송 무시 (이중 기입 방지)")
+            return
+        }
+        currentTask?.cancel()
         guard ensureSessionForSend() != nil else { return }
         messages.append(Message(role: "user", text: prompt))
         messages.append(Message(role: "assistant", text: ""))

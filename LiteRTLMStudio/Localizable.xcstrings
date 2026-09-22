@@ -4161,6 +4161,22 @@
         }
       }
     },
+    "error.E-MAC-PERF-0001": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prefetch warm-up failed. Will retry on the next send."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "예열에 실패했습니다. 다음 전송할 때 다시 시도합니다."
+          }
+        }
+      }
+    },
     "error.E-MAC-PERM-0011": {
       "localizations": {
         "en": {
