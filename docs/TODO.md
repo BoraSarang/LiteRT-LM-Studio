@@ -369,3 +369,5 @@
 * [x] T-375 UI-P0 5건: 표 가로 스크롤(ScrollView+fixedSize)+하단패널 minHeight·maxHeight×1.5+VoiceOver accessibilityHidden 제거 2곳+main minWidth 900+스크롤 예산 entryDone 재지급 2곳 (325/325+lint 신규 0, PR #13)
 * [x] T-376 서명·배포 정책: ad-hoc+ENABLE_HARDENED_RUNTIME=NO 근거 AGENTS.local 기록+T-368 부분 확인(InfoPlist 4키) (PR #15)
 * [x] T-377 리팩터 S: ContentView rootChanges 분리+PaletteModels.swift 분리(445→393)+force unwrap 5곳(ChatStore/StudioMigrator×2/ReleaseNotes/BenchmarkHistory) 폴백, pbxproj 4섹션 등록 (325/325+lint 0, PR #16)
+* [x] T-378 UI P1 14건: DSColor.error/primary/warning+reduceMotion 가드 3곳+TimeFormat 헬퍼 3종·적용 3곳+시트 frame 오버로드 4건+BottomPanel/Inspector 반응형 폭+ellipsis Menu accessibilityLabel 4곳+앱아이콘 폴백 (325/325+lint 0, PR #18)
+* [x] T-379 리팩터 S: StudioPaths.legacyAppSupportBase 통합(호출부 4곳)+SystemMonitorView 주석 정리 (325/325+lint 0, PR #18)
