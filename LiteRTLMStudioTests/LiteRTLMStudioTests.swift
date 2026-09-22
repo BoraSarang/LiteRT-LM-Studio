@@ -213,6 +213,15 @@ final class LiteRTLMStudioTests: LiteRTLMStudioTestCase {
         XCTAssertNil(CorruptBackup.decode(Mini.self, from: dir.appendingPathComponent("missing.json")))
     }
 
+    /// 자사 serve 인자 판정 (T-374, 순수): 리스너 인자에 litert-lm이면 자사.
+    func testIsLitertArgs() {
+        XCTAssertTrue(SystemMonitor.isLitertArgs("/Users/lee/.local/share/uv/tools/litert-lm/bin/python3 /Users/lee/.local/bin/litert-lm serve --host 127.0.0.1 --port 9379"))
+        XCTAssertTrue(SystemMonitor.isLitertArgs("litert-lm serve"))
+        XCTAssertFalse(SystemMonitor.isLitertArgs("python3 -m http.server 9379"))
+        XCTAssertFalse(SystemMonitor.isLitertArgs("node mock-server.js --port 9379"))
+        XCTAssertFalse(SystemMonitor.isLitertArgs(""))
+    }
+
     /// 종료 정리 판정: 설정ON+앱소유+(실행중·시작중)일 때 중지 (T-035, T-371 시작중 포함).
     func testShouldStopDaemon() {
         typealias S = DaemonManager.Status

@@ -69,6 +69,31 @@ extension SystemMonitor {
         out.split(separator: "\n").compactMap { pid_t($0.trimmingCharacters(in: .whitespaces)) }
     }
 
+    /// 리스너 프로세스 명령행 (동기, T-374): 식별 불가면 nil.
+    /// litert-lm이 uv shim의 python 스크립트라 comm/pidpath가 `python3`으로 나오므로
+    /// 프로세스명이 아닌 인자로 판정한다.
+    static func processArgs(_ pid: pid_t) -> String? {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/bin/ps")
+        proc.arguments = ["-p", "\(pid)", "-o", "args="]
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = FileHandle.nullDevice
+        guard (try? proc.run()) != nil else { return nil }
+        proc.waitUntilExit()
+        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let out, !out.isEmpty else { return nil }
+        return out
+    }
+
+    /// 순수: 자사 serve 인자 판정 (T-374).
+    /// :9379 LISTEN 상태의 프로세스가 litert-lm이면 자사로 본다
+    /// (명시 --port가 없어도 리스너 자체가 포트 증거).
+    nonisolated static func isLitertArgs(_ args: String) -> Bool {
+        args.contains("litert-lm")
+    }
+
     /// 진단용 lsof 원문 앞부분 (T-073): 불일치 로그용, 최대 120자.
     nonisolated static func lsofHead() -> String {
         let proc = Process()
